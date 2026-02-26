@@ -1,0 +1,26 @@
+import type { AppContext } from "../../mod";
+import { SalesChannel } from "../../utils/types";
+
+/**
+ * @title List Sales Channels
+ * @description List all sales channels
+ */
+export default async function loader(
+  _props: unknown,
+  _req: Request,
+  ctx: AppContext,
+): Promise<SalesChannel[]> {
+  const { vcs } = ctx;
+
+  const salesChannel = await vcs
+    ["GET /api/catalog_system/pvt/saleschannel/list"]({})
+    .then((r) => r.json());
+
+  return salesChannel;
+}
+
+export const cache = "stale-while-revalidate";
+
+export const cacheKey = (_props: unknown, _req: Request, _ctx: AppContext) => {
+  return "sales-channels-all";
+};

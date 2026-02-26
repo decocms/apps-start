@@ -26,3 +26,13 @@ export interface State extends Props {
 }
 
 export const color = 0x96bf48;
+
+// Type stubs for deco framework types (used by ported files)
+export type SectionProps<T = any> = T;
+export type WorkflowContext = any;
+export type Workflow = any;
+export type AppRuntime = any;
+export type BaseContext = any;
+export const Context = { active: () => ({}) } as any;
+export function useScriptAsDataURI(...args: any[]): string { return ""; }
+export function logger(...args: any[]) { return { error: console.error, warn: console.warn, info: console.info }; }

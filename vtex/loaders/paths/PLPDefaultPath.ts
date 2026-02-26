@@ -1,0 +1,65 @@
+import { DefaultPathProps } from "../../../website/pages/Page";
+import { AppContext } from "../../mod";
+import categoryTree from "../categories/tree";
+import { Category } from "../../../commerce/types";
+
+export interface Props {
+  level: number;
+}
+
+/**
+ * @title PLP Default Path
+ * @description Get paths for product listing page
+ */
+const loader = async (
+  props: Props,
+  req: Request,
+  ctx: AppContext,
+): Promise<DefaultPathProps | null> => {
+  const { level = 1 } = props;
+  const response = await categoryTree(
+    {
+      categoryLevels: level,
+    },
+    req,
+    ctx,
+  );
+  const defaultPaths: string[] = [];
+
+  if (Array.isArray(response)) {
+    response?.forEach((category: Category) => {
+      if (category.name) {
+        defaultPaths.push(`/${category.name}`.toLowerCase());
+      }
+      category.children?.forEach((subcategory: Category) => {
+        if (subcategory.name) {
+          defaultPaths.push(
+            `/${category.name}/${subcategory.name}`.toLowerCase(),
+          );
+        }
+        subcategory.children?.forEach((subsubcategory: Category) => {
+          if (subsubcategory.name) {
+            defaultPaths.push(
+              `/${category.name}/${subcategory.name}/${subsubcategory.name}`
+                .toLowerCase(),
+            );
+          }
+        });
+      });
+    });
+  } else {
+    defaultPaths.push(`/${response.name}`.toLowerCase());
+  }
+
+  return {
+    possiblePaths: defaultPaths as string[],
+  };
+};
+
+export const cache = "stale-while-revalidate";
+
+export const cacheKey = (props: Props, _req: Request, _ctx: AppContext) => {
+  return `plp-default-path-${props.level ?? 1}`;
+};
+
+export default loader;

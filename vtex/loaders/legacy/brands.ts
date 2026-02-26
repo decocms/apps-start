@@ -1,0 +1,48 @@
+import { Brand } from "../../../commerce/types";
+import { AppContext } from "../../mod";
+import { toBrand } from "../../utils/transform";
+
+interface Props {
+  /**
+   * @description Indicates whether to filter inactive brands
+   */
+  filterInactive?: boolean;
+}
+
+/**
+ * @title Brand List
+ * @description List a brand list
+ */
+const loaders = async (
+  props: Props,
+  _req: Request,
+  ctx: AppContext,
+): Promise<Brand[] | null> => {
+  const { filterInactive = false } = props;
+  const { vcsDeprecated, account } = ctx;
+  const baseUrl = `https://${account}.vteximg.com.br/arquivos/ids`;
+
+  const brands = await vcsDeprecated["GET /api/catalog_system/pub/brand/list"](
+    {},
+  )
+    .then((r) => r.json())
+    .catch(() => null);
+
+  if (!brands) {
+    return null;
+  }
+
+  if (filterInactive) {
+    return brands.filter((brand) => brand.isActive).map((brand) =>
+      toBrand(brand, baseUrl)
+    );
+  }
+
+  return brands.map((brand) => toBrand(brand, baseUrl));
+};
+
+export default loaders;
+
+export const cache = "stale-while-revalidate";
+export const cacheKey = (props: Props) =>
+  props.filterInactive ? "brands-filtered" : "brands";
