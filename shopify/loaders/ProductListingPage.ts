@@ -38,7 +38,7 @@ export default async function productListingPageLoader(
       products = data?.collection?.products?.edges?.map((e: any) => e.node) ?? [];
     }
 
-    const url = new URL("https://storefront.deco.site");
+    const url = new URL("/", "https://localhost");
 
     return {
       "@type": "ProductListingPage",

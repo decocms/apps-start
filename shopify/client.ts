@@ -3,6 +3,7 @@ import { createGraphqlClient, type GraphQLClient } from "./utils/graphql";
 export interface ShopifyConfig {
   storeName: string;
   storefrontAccessToken: string;
+  publicUrl?: string;
 }
 
 let _client: GraphQLClient | null = null;
@@ -32,4 +33,8 @@ export function getShopifyConfig(): ShopifyConfig {
     throw new Error("Shopify not configured.");
   }
   return _config;
+}
+
+export function getBaseUrl(): string {
+  return _config?.publicUrl || "";
 }

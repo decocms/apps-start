@@ -149,7 +149,7 @@ export default async function productListLoader(
     console.log(`[Shopify] Got ${edges.length} products`);
 
     return edges.map((edge: any) =>
-      shopifyProductToSchema(edge.node, "https://storefront.deco.site")
+      shopifyProductToSchema(edge.node, "")
     );
   } catch (error) {
     console.error("[Shopify] ProductList error:", error);

@@ -28,7 +28,7 @@ export default async function productDetailsPageLoader(
     const product = toProduct(
       shopifyProduct,
       sku,
-      new URL(`https://storefront.deco.site/products/${slug}`)
+      new URL(`/products/${slug}`, "https://localhost")
     );
 
     return {
