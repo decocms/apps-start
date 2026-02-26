@@ -4,7 +4,7 @@ import {
   OrderCancelReason,
   OrderFinancialStatus,
   OrderFulfillmentStatus,
-} from "./enums.ts";
+} from "./enums";
 
 type Attribute = {
   key: string;
