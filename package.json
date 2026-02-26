@@ -1,0 +1,21 @@
+{
+  "name": "@decocms/apps",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Deco commerce apps for TanStack Start - Shopify, VTEX, commerce types",
+  "exports": {
+    "./commerce/types": "./commerce/types/commerce.ts",
+    "./shopify": "./shopify/index.ts",
+    "./shopify/loaders/*": "./shopify/loaders/*.ts",
+    "./shopify/client": "./shopify/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["deco", "shopify", "vtex", "commerce"],
+  "author": "deco.cx",
+  "license": "MIT",
+  "peerDependencies": {
+    "@decocms/start": "^0.1.0"
+  }
+}
