@@ -1,0 +1,60 @@
+import type { Suggestion } from "../../../commerce/types";
+import type { AppContext } from "../../mod";
+import { getDeviceIdFromBag } from "../../utils/deviceId";
+import getSource from "../../utils/source";
+import { toProduct } from "../../utils/transform";
+
+interface Props {
+  query?: string;
+  /**
+   * @description limit the number of products
+   * @default 5
+   */
+  count?: number;
+  categoryId?: string;
+  /**
+   * @title Force Source
+   * @description Force the source of the request
+   */
+  forceSource?: "desktop" | "mobile";
+}
+
+/**
+ * @title Linx Impulse Autocomplete Products
+ * @description Product Suggestion loader
+ */
+const loaders = async (
+  props: Props,
+  req: Request,
+  ctx: AppContext,
+): Promise<Suggestion | null> => {
+  const { api, apiKey, origin, cdn } = ctx;
+  const { query = "", count = 20, categoryId, forceSource } = props;
+
+  const search = await api["GET /engage/search/v3/autocompletes/products"]({
+    terms: query,
+    resultsProducts: count,
+    categoryId,
+    apiKey,
+    origin,
+    deviceId: getDeviceIdFromBag(ctx),
+    salesChannel: ctx.salesChannel,
+    source: forceSource ?? getSource(ctx),
+    productFormat: "complete",
+  })
+    .then((res) => res.json())
+    .catch(() => null);
+
+  if (!search) return null;
+
+  const result = {
+    searches: [],
+    products: search.products.map((product) =>
+      toProduct(product, new URL(req.url).origin, cdn)
+    ),
+  };
+
+  return result;
+};
+
+export default loaders;

@@ -1,0 +1,51 @@
+import type { AppContext } from "../../../linx/mod";
+import { nullOnNotFound } from "../../../utils/http";
+import { removeCFHeaders } from "../../../website/handlers/proxy";
+import { isAuctionDetailModel } from "../../utils/paths";
+import { toAuctionDetail } from "../../utils/transform";
+import { Model as AuctionDetail } from "../../utils/types/auctionDetailJSON";
+
+/**
+ * @title Linx Integration
+ * @description Product Auction Detail loader
+ */
+const loader = async (
+  _props: unknown,
+  req: Request,
+  ctx: AppContext,
+): Promise<AuctionDetail | null> => {
+  const { api, cdn } = ctx;
+  const upstream = new URL(req.url);
+  const splat = upstream.pathname.slice(1);
+
+  const headers = new Headers(req.headers);
+  removeCFHeaders(headers);
+
+  const response = await api["GET /*splat"]({
+    splat,
+  }, {
+    headers: {
+      ...headers,
+    },
+  }).catch(nullOnNotFound);
+
+  if (response === null) {
+    return null;
+  }
+
+  // deno-lint-ignore no-explicit-any
+  let auction: any;
+  try {
+    auction = await response.json();
+  } catch (_error) {
+    auction = null;
+  }
+
+  if (!auction || !isAuctionDetailModel(auction)) {
+    return null;
+  }
+
+  return toAuctionDetail(auction.Model, { cdn });
+};
+
+export default loader;
