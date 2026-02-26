@@ -1,28 +1,40 @@
 import { configureShopify } from "./client";
-import { loadBlocks } from "@decocms/start/cms";
 
 let initialized = false;
 
-export function initShopifyFromBlocks() {
+/**
+ * Initialize Shopify from raw block data.
+ * The site is responsible for reading the blocks and passing the config here.
+ */
+export function initShopify(config: {
+  storeName: string;
+  storefrontAccessToken: string;
+}) {
   if (initialized) return;
 
-  const blocks = loadBlocks();
-
-  const shopifyBlock = blocks["deco-shopify"] as Record<string, any> | undefined;
-  if (!shopifyBlock) {
-    console.warn("[Commerce] No deco-shopify.json block found. Shopify integration disabled.");
+  if (!config.storeName || !config.storefrontAccessToken) {
+    console.warn("[Shopify] Missing storeName or storefrontAccessToken.");
     return;
   }
 
-  const storeName = shopifyBlock.storeName;
-  const storefrontAccessToken = shopifyBlock.storefrontAccessToken;
-
-  if (!storeName || !storefrontAccessToken) {
-    console.warn("[Commerce] Shopify block missing storeName or storefrontAccessToken.");
-    return;
-  }
-
-  console.log(`[Commerce] Initializing Shopify: ${storeName}.myshopify.com`);
-  configureShopify({ storeName, storefrontAccessToken });
+  console.log(`[Shopify] Initializing: ${config.storeName}.myshopify.com`);
+  configureShopify(config);
   initialized = true;
+}
+
+/**
+ * Initialize Shopify from a blocks map (convenience wrapper).
+ * Looks for the "deco-shopify" block and extracts credentials.
+ */
+export function initShopifyFromBlocks(blocks: Record<string, any>) {
+  const shopifyBlock = blocks["deco-shopify"];
+  if (!shopifyBlock) {
+    console.warn("[Shopify] No deco-shopify block found.");
+    return;
+  }
+
+  initShopify({
+    storeName: shopifyBlock.storeName,
+    storefrontAccessToken: shopifyBlock.storefrontAccessToken,
+  });
 }
