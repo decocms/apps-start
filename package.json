@@ -15,7 +15,11 @@
   "keywords": ["deco", "shopify", "vtex", "commerce"],
   "author": "deco.cx",
   "license": "MIT",
-  "peerDependencies": {
-    "@decocms/start": "^0.1.0"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/decocms/apps-start.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
