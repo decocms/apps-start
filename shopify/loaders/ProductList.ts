@@ -2,44 +2,46 @@ import { getShopifyClient } from "../client";
 import type { Product } from "../../commerce/types/commerce";
 
 const PRODUCT_LIST_QUERY = `
-  query ProductList($first: Int!, $query: String) {
-    products(first: $first, query: $query) {
+  query ProductList($first: Int!, $query: String!) {
+    search(query: $query, first: $first, types: PRODUCT) {
       edges {
         node {
-          id
-          handle
-          title
-          description
-          vendor
-          tags
-          images(first: 5) {
-            nodes {
-              url
-              altText
-              width
-              height
-            }
-          }
-          variants(first: 10) {
-            nodes {
-              id
-              title
-              availableForSale
-              price {
-                amount
-                currencyCode
-              }
-              compareAtPrice {
-                amount
-                currencyCode
-              }
-              selectedOptions {
-                name
-                value
-              }
-              image {
+          ... on Product {
+            id
+            handle
+            title
+            description
+            vendor
+            tags
+            images(first: 5) {
+              nodes {
                 url
                 altText
+                width
+                height
+              }
+            }
+            variants(first: 10) {
+              nodes {
+                id
+                title
+                availableForSale
+                price {
+                  amount
+                  currencyCode
+                }
+                compareAtPrice {
+                  amount
+                  currencyCode
+                }
+                selectedOptions {
+                  name
+                  value
+                }
+                image {
+                  url
+                  altText
+                }
               }
             }
           }
@@ -142,10 +144,10 @@ export default async function productListLoader(
 
     const data = await client.query<any>(PRODUCT_LIST_QUERY, {
       first: count,
-      query: query || null,
+      query: query || "*",
     });
 
-    const edges = data?.products?.edges ?? [];
+    const edges = data?.search?.edges ?? [];
     console.log(`[Shopify] Got ${edges.length} products`);
 
     return edges.map((edge: any) =>
