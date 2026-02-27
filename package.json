@@ -1,13 +1,16 @@
 {
   "name": "@decocms/apps",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "type": "module",
   "description": "Deco commerce apps for TanStack Start - Shopify, VTEX, commerce types",
   "exports": {
     "./commerce/types": "./commerce/types/commerce.ts",
     "./shopify": "./shopify/index.ts",
     "./shopify/loaders/*": "./shopify/loaders/*.ts",
-    "./shopify/client": "./shopify/client.ts"
+    "./shopify/client": "./shopify/client.ts",
+    "./vtex": "./vtex/index.ts",
+    "./vtex/client": "./vtex/client.ts",
+    "./vtex/loaders/*": "./vtex/inline-loaders/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
