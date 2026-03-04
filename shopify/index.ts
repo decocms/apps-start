@@ -1,7 +1,7 @@
 // Client & Config
 export { configureShopify, getShopifyClient, getShopifyConfig, getBaseUrl } from "./client";
+export type { ShopifyConfig } from "./client";
 export { initShopify, initShopifyFromBlocks } from "./init";
-export type { AppContext, Props, State } from "./mod";
 
 // Product Loaders
 export { default as productListLoader } from "./loaders/ProductList";
