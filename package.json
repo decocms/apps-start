@@ -12,7 +12,12 @@
     "./shopify/client": "./shopify/client.ts",
     "./vtex": "./vtex/index.ts",
     "./vtex/client": "./vtex/client.ts",
-    "./vtex/loaders/*": "./vtex/inline-loaders/*.ts"
+    "./vtex/loaders/*": "./vtex/inline-loaders/*.ts",
+    "./commerce/sdk/useOffer": "./commerce/sdk/useOffer.ts",
+    "./commerce/sdk/useVariantPossibilities": "./commerce/sdk/useVariantPossibilities.ts",
+    "./commerce/sdk/formatPrice": "./commerce/sdk/formatPrice.ts",
+    "./commerce/sdk/url": "./commerce/sdk/url.ts",
+    "./commerce/sdk/analytics": "./commerce/sdk/analytics.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
