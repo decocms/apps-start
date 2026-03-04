@@ -17,7 +17,9 @@
     "./commerce/sdk/useVariantPossibilities": "./commerce/sdk/useVariantPossibilities.ts",
     "./commerce/sdk/formatPrice": "./commerce/sdk/formatPrice.ts",
     "./commerce/sdk/url": "./commerce/sdk/url.ts",
-    "./commerce/sdk/analytics": "./commerce/sdk/analytics.ts"
+    "./commerce/sdk/analytics": "./commerce/sdk/analytics.ts",
+    "./commerce/utils/canonical": "./commerce/utils/canonical.ts",
+    "./vtex/types": "./vtex/types.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
