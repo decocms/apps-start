@@ -19,7 +19,10 @@
     "./commerce/sdk/url": "./commerce/sdk/url.ts",
     "./commerce/sdk/analytics": "./commerce/sdk/analytics.ts",
     "./commerce/utils/canonical": "./commerce/utils/canonical.ts",
-    "./vtex/types": "./vtex/types.ts"
+    "./vtex/types": "./vtex/types.ts",
+    "./vtex/actions/checkout": "./vtex/actions/checkout.ts",
+    "./vtex/actions/masterData": "./vtex/actions/masterData.ts",
+    "./vtex/actions/session": "./vtex/actions/session.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
