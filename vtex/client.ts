@@ -210,6 +210,7 @@ export function initVtexFromBlocks(blocks: Record<string, any>) {
     account: vtexBlock.account,
     publicUrl: vtexBlock.publicUrl,
     salesChannel: vtexBlock.salesChannel || "1",
+    locale: vtexBlock.locale || vtexBlock.defaultLocale,
     appKey: vtexBlock.appKey,
     appToken: vtexBlock.appToken,
   });
