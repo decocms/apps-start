@@ -125,6 +125,81 @@ export async function vtexIOGraphQL<T>(
   return res.data;
 }
 
+// -- Page Type API (used by PLP to derive category facets from URL path) --
+
+export interface PageType {
+  id: string;
+  name: string;
+  url: string;
+  title: string;
+  metaTagDescription: string;
+  pageType: "Brand" | "Category" | "Department" | "SubCategory" | "Collection" | "Cluster" | "Search" | "Product" | "NotFound" | "FullText";
+}
+
+const PAGE_TYPE_TO_MAP_PARAM: Record<string, string | null> = {
+  Brand: "brand",
+  Collection: "productClusterIds",
+  Cluster: "productClusterIds",
+  Search: null,
+  Product: null,
+  NotFound: null,
+  FullText: null,
+};
+
+function pageTypeToMapParam(type: PageType["pageType"], index: number): string | null {
+  if (type === "Category" || type === "Department" || type === "SubCategory") {
+    return `category-${index + 1}`;
+  }
+  return PAGE_TYPE_TO_MAP_PARAM[type] ?? null;
+}
+
+/**
+ * Query VTEX Page Type API for each path segment (cumulative).
+ * Mirrors deco-cx/apps `pageTypesFromUrl`.
+ */
+export async function pageTypesFromPath(pagePath: string): Promise<PageType[]> {
+  const segments = pagePath.split("/").filter(Boolean);
+  return Promise.all(
+    segments.map((_, index) => {
+      const term = segments.slice(0, index + 1).join("/");
+      return vtexFetch<PageType>(`/api/catalog_system/pub/portal/pagetype/${term}`);
+    }),
+  );
+}
+
+const slugify = (str: string) =>
+  str
+    .replace(/,/g, "")
+    .replace(/[·/_,:]/g, "-")
+    .replace(/[*+~.()'"!:@&\[\]`/ %$#?{}|><=_^]/g, "-")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+/**
+ * Convert page types to selectedFacets with correct IS facet keys.
+ * Mirrors deco-cx/apps `filtersFromPathname`.
+ */
+export function filtersFromPageTypes(
+  pageTypes: PageType[],
+): Array<{ key: string; value: string }> {
+  return pageTypes
+    .map((page, index) => {
+      const key = pageTypeToMapParam(page.pageType, index);
+      if (!key || !page.name) return null;
+      return { key, value: slugify(page.name) };
+    })
+    .filter((f): f is { key: string; value: string } => f !== null);
+}
+
+/**
+ * Build the IS facet path string from selectedFacets.
+ * Mirrors deco-cx/apps `toPath`.
+ */
+export function toFacetPath(facets: Array<{ key: string; value: string }>): string {
+  return facets.map(({ key, value }) => key ? `${key}/${value}` : value).join("/");
+}
+
 export function initVtexFromBlocks(blocks: Record<string, any>) {
   const vtexBlock = blocks["vtex"] || blocks["deco-vtex"];
   if (!vtexBlock) {

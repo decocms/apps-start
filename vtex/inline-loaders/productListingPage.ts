@@ -1,4 +1,10 @@
-import { intelligentSearch } from "../client";
+import {
+  intelligentSearch,
+  pageTypesFromPath,
+  filtersFromPageTypes,
+  toFacetPath,
+  type PageType,
+} from "../client";
 
 export interface SelectedFacet {
   key: string;
@@ -8,68 +14,59 @@ export interface SelectedFacet {
 export interface PLPProps {
   query?: string;
   count?: number;
-  collection?: string;
-  category?: string;
-  department?: string;
   sort?: string;
   fuzzy?: string;
   selectedFacets?: SelectedFacet[];
+  hideUnavailableItems?: boolean;
   /** Injected by CMS resolve — the matched page path (e.g. "/pisos/piso-vinilico-clicado") */
   __pagePath?: string;
 }
 
 /**
- * Build the VTEX IS facet path from selectedFacets or fall back to the page URL path.
+ * Mirrors the original deco-cx/apps PLP loader logic:
  *
- * VTEX IS requires key/value pairs in the path for facet filtering:
- *   /product_search/category-1/vedacao-externa/                          → department
- *   /product_search/category-1/steel-framing/category-2/acessorios/     → dept + category
- *   /product_search/productClusterIds/190/                               → collection
+ * 1. If CMS provides selectedFacets, use those directly.
+ * 2. Otherwise, call VTEX Page Type API for each URL segment to discover
+ *    whether it's a Department, Category, Brand, Collection, etc.
+ * 3. Map page types to IS facet keys (category-1, category-2, brand, productClusterIds).
+ * 4. Build the IS facet path and call product_search.
  */
-function buildFacetPath(props: PLPProps): string {
-  const { selectedFacets, __pagePath } = props;
-
-  if (selectedFacets && selectedFacets.length > 0) {
-    const segments = selectedFacets.map((f) => `${f.key}/${f.value}`);
-    return segments.join("/") + "/";
-  }
-
-  if (__pagePath && __pagePath !== "/" && __pagePath !== "/*") {
-    const slugs = __pagePath.split("/").filter(Boolean);
-    if (slugs.length > 0) {
-      return slugs.map((slug, i) => `category-${i + 1}/${slug}`).join("/") + "/";
-    }
-  }
-
-  return "";
-}
-
 export default async function vtexProductListingPage(
-  props: PLPProps
+  props: PLPProps,
 ): Promise<any | null> {
-  const { query, count = 12, sort, fuzzy } = props;
+  const { query, count = 12, sort, fuzzy, selectedFacets, __pagePath } = props;
 
   try {
-    const facetPath = buildFacetPath(props);
-    const endpoint = `/product_search/${facetPath}`;
-    const params: Record<string, string> = { count: String(count) };
+    let facets: SelectedFacet[] = selectedFacets && selectedFacets.length > 0
+      ? selectedFacets
+      : [];
 
-    if (query) {
-      params.query = query;
+    let pageTypes: PageType[] = [];
+
+    if (facets.length === 0 && __pagePath && __pagePath !== "/" && __pagePath !== "/*") {
+      pageTypes = await pageTypesFromPath(__pagePath);
+      facets = filtersFromPageTypes(pageTypes);
     }
+
+    const facetPath = toFacetPath(facets);
+    const endpoint = facetPath
+      ? `/product_search/${facetPath}`
+      : "/product_search/";
+
+    const params: Record<string, string> = { count: String(count) };
+    if (query) params.query = query;
     if (sort) params.sort = sort;
     if (fuzzy) params.fuzzy = fuzzy;
 
-    console.log(`[VTEX] PLP: endpoint="${endpoint}", query="${query ?? ""}", count=${count}, facetPath="${facetPath}"`);
+    console.log(`[VTEX] PLP: endpoint="${endpoint}", query="${query ?? ""}", count=${count}, facets=${JSON.stringify(facets)}`);
 
-    const data = await intelligentSearch<{ products: any[]; recordsFiltered?: number }>(
-      endpoint, params
+    const data = await intelligentSearch<{ products: any[]; recordsFiltered?: number; pagination?: any }>(
+      endpoint, params,
     );
 
     const products = data.products || [];
-    console.log(`[VTEX] PLP: ${products.length} products found`);
+    console.log(`[VTEX] PLP: ${products.length} products found (total: ${data.recordsFiltered ?? "?"})`);
 
-    // Transform to schema.org
     const schemaProducts = products.map((p: any) => {
       const item = p.items?.[0];
       const seller = item?.sellers?.[0];
@@ -81,6 +78,16 @@ export default async function vtexProductListingPage(
         name: p.productName,
         description: p.description,
         url: `/${p.linkText}/p`,
+        category: p.categories?.[0] ?? undefined,
+        additionalProperty: p.clusterHighlights
+          ? Object.entries(p.clusterHighlights).map(([id, name]) => ({
+              "@type": "PropertyValue",
+              name: "cluster",
+              value: id,
+              description: "highlight",
+              propertyID: name,
+            }))
+          : [],
         image: item?.images?.map((img: any) => ({
           "@type": "ImageObject",
           url: img.imageUrl?.replace("http://", "https://"),
@@ -100,7 +107,14 @@ export default async function vtexProductListingPage(
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
             seller: seller?.sellerName,
-            priceSpecification: [],
+            sellerID: seller?.sellerId,
+            priceSpecification: offer?.Installments?.map((inst: any) => ({
+              "@type": "UnitPriceSpecification",
+              billingDuration: inst.NumberOfInstallments,
+              billingIncrement: inst.Value,
+              price: inst.TotalValuePlusInterestRate,
+              name: inst.PaymentSystemName,
+            })) ?? [],
           }],
         },
         isVariantOf: {
@@ -108,6 +122,13 @@ export default async function vtexProductListingPage(
           productGroupID: p.productId,
           name: p.productName,
           url: `/${p.linkText}/p`,
+          image: p.items?.flatMap((it: any) =>
+            it.images?.map((img: any) => ({
+              "@type": "ImageObject",
+              url: img.imageUrl?.replace("http://", "https://"),
+              alternateName: img.imageText || p.productName,
+            })) ?? [],
+          ) ?? [],
           hasVariant: p.items?.map((it: any) => ({
             "@type": "Product",
             productID: it.itemId,
@@ -122,19 +143,26 @@ export default async function vtexProductListingPage(
                 "@type": "PropertyValue",
                 name: v.name,
                 value: val,
-              }))
+              })),
             ) ?? [],
           })) ?? [],
         },
       };
     });
 
+    const breadcrumbItems = pageTypes.map((pt, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: pt.name,
+      item: `/${pt.url?.split("/").slice(-1)[0]?.toLowerCase() ?? ""}`,
+    }));
+
     return {
       "@type": "ProductListingPage",
       breadcrumb: {
         "@type": "BreadcrumbList",
-        itemListElement: [],
-        numberOfItems: 0,
+        itemListElement: breadcrumbItems,
+        numberOfItems: breadcrumbItems.length,
       },
       filters: [],
       products: schemaProducts,
@@ -142,6 +170,7 @@ export default async function vtexProductListingPage(
         currentPage: 1,
         nextPage: undefined,
         previousPage: undefined,
+        records: data.recordsFiltered,
       },
       sortOptions: [
         { label: "Relevância", value: "" },
@@ -151,6 +180,12 @@ export default async function vtexProductListingPage(
         { label: "Mais recentes", value: "release:desc" },
         { label: "Melhor desconto", value: "discount:desc" },
       ],
+      seo: pageTypes.length > 0
+        ? {
+            title: pageTypes[pageTypes.length - 1]?.title,
+            description: pageTypes[pageTypes.length - 1]?.metaTagDescription,
+          }
+        : undefined,
     };
   } catch (error) {
     console.error("[VTEX] PLP error:", error);
