@@ -21,9 +21,10 @@ export interface PLPProps {
 /**
  * Build the VTEX IS facet path from selectedFacets or fall back to the page URL path.
  *
- * VTEX IS uses URL path segments after /product_search/ as facet filters:
- *   /product_search/pisos/piso-vinilico-clicado/ → category tree filter
- *   /product_search/productClusterIds/190/       → collection filter
+ * VTEX IS requires key/value pairs in the path for facet filtering:
+ *   /product_search/category-1/vedacao-externa/                          → department
+ *   /product_search/category-1/steel-framing/category-2/acessorios/     → dept + category
+ *   /product_search/productClusterIds/190/                               → collection
  */
 function buildFacetPath(props: PLPProps): string {
   const { selectedFacets, __pagePath } = props;
@@ -34,8 +35,10 @@ function buildFacetPath(props: PLPProps): string {
   }
 
   if (__pagePath && __pagePath !== "/" && __pagePath !== "/*") {
-    const clean = __pagePath.replace(/^\/+|\/+$/g, "");
-    if (clean) return clean + "/";
+    const slugs = __pagePath.split("/").filter(Boolean);
+    if (slugs.length > 0) {
+      return slugs.map((slug, i) => `category-${i + 1}/${slug}`).join("/") + "/";
+    }
   }
 
   return "";
