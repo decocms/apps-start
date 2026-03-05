@@ -215,3 +215,4 @@ export function initVtexFromBlocks(blocks: Record<string, any>) {
     appToken: vtexBlock.appToken,
   });
 }
+
