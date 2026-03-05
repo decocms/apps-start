@@ -1,21 +1,16 @@
 import { getShopifyClient } from "../../client";
 import { getCartCookie, setCartCookie } from "../../utils/cart";
-import { AddItemToCart } from "../../utils/storefront/queries";
+import { AddCoupon } from "../../utils/storefront/queries";
 import type { ShopifyCart } from "../../loaders/cart";
 
-export interface AddItemProps {
-  lines: {
-    merchandiseId: string;
-    attributes?: Array<{ key: string; value: string }>;
-    quantity?: number;
-    sellingPlanId?: string;
-  };
+export interface UpdateCouponsProps {
+  discountCodes: string[];
   requestHeaders: Headers;
   responseHeaders?: Headers;
 }
 
-export default async function addItems(
-  { lines, requestHeaders, responseHeaders }: AddItemProps,
+export default async function updateCoupons(
+  { discountCodes, requestHeaders, responseHeaders }: UpdateCouponsProps,
 ): Promise<ShopifyCart | null> {
   const client = getShopifyClient();
   const cartId = getCartCookie(requestHeaders);
@@ -25,8 +20,8 @@ export default async function addItems(
   const data = await client.query<{
     payload?: { cart?: ShopifyCart };
   }>(
-    AddItemToCart,
-    { cartId, lines },
+    AddCoupon,
+    { cartId, discountCodes },
   );
 
   if (responseHeaders) {

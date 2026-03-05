@@ -1,114 +1,73 @@
 import { getShopifyClient } from "../client";
+import { getCartCookie, setCartCookie } from "../utils/cart";
+import { CreateCart, GetCart } from "../utils/storefront/queries";
 
-const CART_FRAGMENT = `
-fragment CartFields on Cart {
-  id
-  checkoutUrl
-  totalQuantity
-  lines(first: 100) {
-    nodes {
-      id
-      quantity
-      merchandise {
-        ...on ProductVariant {
-          id
-          title
-          image { url altText }
-          product { title handle onlineStoreUrl }
-          price { amount currencyCode }
-          compareAtPrice { amount currencyCode }
-        }
-      }
-    }
-  }
-  cost {
-    totalAmount { amount currencyCode }
-    subtotalAmount { amount currencyCode }
-  }
-  discountCodes { applicable code }
-}
-`;
-
-const GET_CART = `query GetCart($id: ID!) { cart(id: $id) { ...CartFields } } ${CART_FRAGMENT}`;
-const CREATE_CART = `mutation CreateCart { payload: cartCreate { cart { id } } }`;
-
-export interface CartItem {
+export interface CartLine {
   id: string;
   quantity: number;
-  title: string;
-  variantTitle: string;
-  price: number;
-  compareAtPrice?: number;
-  currency: string;
-  image?: string;
-  imageAlt?: string;
-  productHandle: string;
-  merchandiseId: string;
-}
-
-export interface Cart {
-  id: string;
-  checkoutUrl: string;
-  totalQuantity: number;
-  items: CartItem[];
-  total: number;
-  subtotal: number;
-  currency: string;
-  discountCodes: string[];
-}
-
-function transformCart(raw: any): Cart {
-  const lines = raw?.lines?.nodes ?? [];
-  return {
-    id: raw.id,
-    checkoutUrl: raw.checkoutUrl,
-    totalQuantity: raw.totalQuantity || 0,
-    items: lines.map((line: any) => ({
-      id: line.id,
-      quantity: line.quantity,
-      title: line.merchandise?.product?.title || "",
-      variantTitle: line.merchandise?.title || "",
-      price: Number(line.merchandise?.price?.amount || 0),
-      compareAtPrice: line.merchandise?.compareAtPrice
-        ? Number(line.merchandise.compareAtPrice.amount)
-        : undefined,
-      currency: line.merchandise?.price?.currencyCode || "USD",
-      image: line.merchandise?.image?.url,
-      imageAlt: line.merchandise?.image?.altText,
-      productHandle: line.merchandise?.product?.handle || "",
-      merchandiseId: line.merchandise?.id || "",
-    })),
-    total: Number(raw.cost?.totalAmount?.amount || 0),
-    subtotal: Number(raw.cost?.subtotalAmount?.amount || 0),
-    currency: raw.cost?.totalAmount?.currencyCode || "USD",
-    discountCodes: (raw.discountCodes || [])
-      .filter((d: any) => d.applicable)
-      .map((d: any) => d.code),
+  merchandise: {
+    id: string;
+    title: string;
+    image?: { url: string; altText?: string | null } | null;
+    product: { title: string; handle: string; onlineStoreUrl?: string | null };
+    price: { amount: string; currencyCode: string };
+  };
+  discountAllocations?: Array<{
+    code?: string;
+    discountedAmount?: { amount: string; currencyCode: string };
+  }>;
+  cost?: {
+    totalAmount: { amount: string; currencyCode: string };
+    subtotalAmount: { amount: string; currencyCode: string };
+    amountPerQuantity?: { amount: string; currencyCode: string };
+    compareAtAmountPerQuantity?: { amount: string; currencyCode: string } | null;
   };
 }
 
-export async function getCart(cartId: string): Promise<Cart | null> {
-  if (!cartId) return null;
+export interface ShopifyCart {
+  id: string;
+  checkoutUrl: string;
+  totalQuantity: number;
+  lines: { nodes: CartLine[] };
+  cost: {
+    totalTaxAmount?: { amount: string; currencyCode: string };
+    subtotalAmount: { amount: string; currencyCode: string };
+    totalAmount: { amount: string; currencyCode: string };
+    checkoutChargeAmount?: { amount: string; currencyCode: string };
+  };
+  discountCodes?: Array<{ applicable: boolean; code: string }>;
+  discountAllocations?: Array<{
+    discountedAmount: { amount: string; currencyCode: string };
+  }>;
+}
+
+export async function getCart(
+  requestHeaders: Headers,
+  responseHeaders?: Headers,
+): Promise<ShopifyCart | null> {
   const client = getShopifyClient();
-  try {
-    const data = await client.query<any>(GET_CART, { id: cartId });
-    if (!data?.cart) return null;
-    return transformCart(data.cart);
-  } catch (error) {
-    console.error("[Shopify] getCart error:", error);
-    return null;
+  const maybeCartId = getCartCookie(requestHeaders);
+
+  const cartId = maybeCartId ??
+    await client.query<{ payload?: { cart?: { id: string } } }>(CreateCart)
+      .then((data) => data.payload?.cart?.id);
+
+  if (!cartId) throw new Error("Missing cart id");
+
+  const cart = await client.query<{ cart?: ShopifyCart }>(
+    GetCart,
+    { id: decodeURIComponent(cartId) },
+  ).then((data) => data.cart ?? null);
+
+  if (responseHeaders) {
+    setCartCookie(responseHeaders, cartId);
   }
+
+  return cart;
 }
 
 export async function createCart(): Promise<string | null> {
   const client = getShopifyClient();
-  try {
-    const data = await client.query<any>(CREATE_CART, {});
-    return data?.payload?.cart?.id ?? null;
-  } catch (error) {
-    console.error("[Shopify] createCart error:", error);
-    return null;
-  }
+  const data = await client.query<{ payload?: { cart?: { id: string } } }>(CreateCart);
+  return data?.payload?.cart?.id ?? null;
 }
-
-export type { Cart as ShopifyCart, CartItem as ShopifyCartItem };

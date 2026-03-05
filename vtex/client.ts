@@ -13,10 +13,26 @@ export interface VtexConfig {
 }
 
 let _config: VtexConfig | null = null;
+let _fetch: typeof fetch = globalThis.fetch;
 
 export function configureVtex(config: VtexConfig) {
   _config = config;
   console.log(`[VTEX] Configured: ${config.account}.vtexcommercestable.com.br`);
+}
+
+/**
+ * Override the fetch function used by all VTEX client calls.
+ * Use this to plug in instrumented fetch for logging/tracing.
+ *
+ * @example
+ * ```ts
+ * import { createInstrumentedFetch } from "@decocms/start/sdk/instrumentedFetch";
+ * import { setVtexFetch } from "@decocms/apps/vtex";
+ * setVtexFetch(createInstrumentedFetch("vtex"));
+ * ```
+ */
+export function setVtexFetch(fetchFn: typeof fetch) {
+  _fetch = fetchFn;
 }
 
 export function getVtexConfig(): VtexConfig {
@@ -49,7 +65,7 @@ function authHeaders(): Record<string, string> {
 
 export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
   const url = path.startsWith("http") ? path : `${baseUrl()}${path}`;
-  const response = await fetch(url, {
+  const response = await _fetch(url, {
     ...init,
     headers: { ...authHeaders(), ...init?.headers },
   });
@@ -74,7 +90,7 @@ export async function intelligentSearch<T>(path: string, params?: Record<string,
   const c = getVtexConfig();
   if (c.salesChannel) url.searchParams.set("sc", c.salesChannel);
 
-  const response = await fetch(url.toString(), { headers: authHeaders() });
+  const response = await _fetch(url.toString(), { headers: authHeaders() });
   if (!response.ok) {
     throw new Error(`VTEX IS error: ${response.status} - ${url}`);
   }

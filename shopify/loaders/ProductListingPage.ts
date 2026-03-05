@@ -1,160 +1,180 @@
-import { getShopifyClient } from "../client";
 import type { ProductListingPage } from "../../commerce/types/commerce";
+import { getShopifyClient } from "../client";
+import { ProductsByCollection, SearchProducts } from "../utils/storefront/queries";
+import { toFilter, toProduct, type ProductShopify } from "../utils/transform";
+import type { Metafield } from "../utils/types";
+import {
+  getFiltersByUrl,
+  searchSortOptions,
+  searchSortShopify,
+  sortOptions,
+  sortShopify,
+} from "../utils/utils";
 
-const SEARCH_QUERY = `
-query SearchProducts($query: String!, $first: Int!) {
-  search(query: $query, first: $first, types: PRODUCT) {
-    edges {
-      node {
-        ... on Product {
-          id handle title description vendor tags productType
-          images(first: 5) { nodes { url altText width height } }
-          variants(first: 10) {
-            nodes {
-              id title availableForSale
-              price { amount currencyCode }
-              compareAtPrice { amount currencyCode }
-              selectedOptions { name value }
-              image { url altText }
-              product { handle }
-            }
-          }
-        }
-      }
-    }
-  }
+interface PageInfo {
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  endCursor?: string;
+  startCursor?: string;
 }
-`;
 
-const COLLECTION_QUERY = `
-query ProductsByCollection($handle: String!, $first: Int!) {
-  collection(handle: $handle) {
-    title
-    products(first: $first) {
-      edges {
-        node {
-          id handle title description vendor tags productType
-          images(first: 5) { nodes { url altText width height } }
-          variants(first: 10) {
-            nodes {
-              id title availableForSale
-              price { amount currencyCode }
-              compareAtPrice { amount currencyCode }
-              selectedOptions { name value }
-              image { url altText }
-              product { handle }
-            }
-          }
-        }
-      }
-    }
-  }
+interface FilterNode {
+  id: string;
+  label: string;
+  type: string;
+  values: Array<{ id: string; label: string; count: number; input: string }>;
 }
-`;
+
+interface ProductConnection {
+  nodes: ProductShopify[];
+  pageInfo: PageInfo;
+  filters?: FilterNode[];
+}
 
 export interface Props {
-  count?: number;
   query?: string;
-  collection?: string;
-}
-
-function toSchemaProduct(node: any) {
-  const variant = node.variants?.nodes?.[0];
-  const price = variant?.price ? Number(variant.price.amount) : undefined;
-  const listPrice = variant?.compareAtPrice ? Number(variant.compareAtPrice.amount) : undefined;
-  const currency = variant?.price?.currencyCode || "USD";
-
-  return {
-    "@type": "Product" as const,
-    productID: node.id,
-    name: node.title,
-    description: node.description,
-    url: `/products/${node.handle}`,
-    image: node.images?.nodes?.map((img: any) => ({
-      "@type": "ImageObject" as const,
-      url: img.url,
-      alternateName: img.altText || node.title,
-    })) ?? [],
-    offers: {
-      "@type": "AggregateOffer" as const,
-      lowPrice: price ?? 0,
-      highPrice: listPrice ?? price ?? 0,
-      priceCurrency: currency,
-      offerCount: node.variants?.nodes?.length ?? 1,
-      offers: node.variants?.nodes?.map((v: any) => ({
-        "@type": "Offer" as const,
-        price: Number(v.price?.amount ?? 0),
-        listPrice: v.compareAtPrice ? Number(v.compareAtPrice.amount) : undefined,
-        availability: v.availableForSale ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-        seller: node.vendor,
-        priceSpecification: [],
-      })) ?? [],
-    },
-    isVariantOf: {
-      "@type": "ProductGroup" as const,
-      productGroupID: node.id,
-      name: node.title,
-      url: `/products/${node.handle}`,
-      hasVariant: node.variants?.nodes?.map((v: any) => ({
-        "@type": "Product" as const,
-        productID: v.id,
-        name: `${node.title} - ${v.title}`,
-        url: `/products/${node.handle}`,
-        image: v.image ? [{ "@type": "ImageObject" as const, url: v.image.url, alternateName: v.image.altText || "" }] : [],
-        offers: {
-          "@type": "AggregateOffer" as const,
-          lowPrice: Number(v.price?.amount ?? 0),
-          highPrice: v.compareAtPrice ? Number(v.compareAtPrice.amount) : Number(v.price?.amount ?? 0),
-          priceCurrency: v.price?.currencyCode || currency,
-          offerCount: 1,
-          offers: [{ "@type": "Offer" as const, price: Number(v.price?.amount ?? 0), listPrice: v.compareAtPrice ? Number(v.compareAtPrice.amount) : undefined, availability: v.availableForSale ? "https://schema.org/InStock" : "https://schema.org/OutOfStock", priceSpecification: [] }],
-        },
-        additionalProperty: v.selectedOptions?.map((o: any) => ({ "@type": "PropertyValue" as const, name: o.name, value: o.value })) ?? [],
-      })) ?? [],
-      additionalProperty: [],
-    },
-  };
+  collectionName?: string;
+  count: number;
+  metafields?: Metafield[];
+  pageOffset?: number;
+  page?: number;
+  startCursor?: string;
+  endCursor?: string;
+  pageHref?: string;
 }
 
 export default async function productListingPageLoader(
-  props: Props
+  props: Props,
+  url?: URL,
 ): Promise<ProductListingPage | null> {
+  const pageUrl = url ?? new URL(props.pageHref || "https://localhost");
   const client = getShopifyClient();
-  const { count = 12, query, collection } = props;
 
-  try {
-    let products: any[] = [];
+  const count = props.count ?? 12;
+  const query = props.query || pageUrl.searchParams.get("q") || "";
+  const currentPageoffset = props.pageOffset ?? 1;
+  const pageParam = pageUrl.searchParams.get("page")
+    ? Number(pageUrl.searchParams.get("page")) - currentPageoffset
+    : 0;
+  const page = props.page || pageParam;
+  const endCursor = props.endCursor || pageUrl.searchParams.get("endCursor") || "";
+  const startCursor = props.startCursor || pageUrl.searchParams.get("startCursor") || "";
+  const metafields = props.metafields || [];
 
-    if (query) {
-      console.log(`[Shopify] PLP search: query="${query}", count=${count}`);
-      const data = await client.query<any>(SEARCH_QUERY, { query, first: count });
-      products = data?.search?.edges?.map((e: any) => e.node) ?? [];
-    } else if (collection) {
-      console.log(`[Shopify] PLP collection: handle="${collection}", count=${count}`);
-      const data = await client.query<any>(COLLECTION_QUERY, { handle: collection, first: count });
-      products = data?.collection?.products?.edges?.map((e: any) => e.node) ?? [];
-    }
+  const isSearch = Boolean(query);
+  let hasNextPage = false;
+  let hasPreviousPage = false;
+  let shopifyProducts: ProductConnection | undefined;
+  let shopifyFilters: FilterNode[] | undefined;
+  let records: number | undefined;
+  let collectionTitle: string | undefined;
+  let collectionDescription: string | undefined;
 
-    console.log(`[Shopify] PLP: ${products.length} products found`);
+  const sort = pageUrl.searchParams.get("sort") ?? "";
 
-    return {
-      "@type": "ProductListingPage",
-      breadcrumb: {
-        "@type": "BreadcrumbList",
-        itemListElement: [],
-        numberOfItems: 0,
+  if (isSearch) {
+    const data = await client.query<{
+      search: ProductConnection & { totalCount?: number; productFilters?: FilterNode[] };
+    }>(
+      SearchProducts,
+      {
+        ...(!endCursor && { first: count }),
+        ...(endCursor && { last: count }),
+        ...(startCursor && { after: startCursor }),
+        ...(endCursor && { before: endCursor }),
+        query,
+        productFilters: getFiltersByUrl(pageUrl),
+        identifiers: metafields,
+        ...searchSortShopify[sort],
       },
-      filters: [],
-      products: products.map(toSchemaProduct),
-      pageInfo: {
-        currentPage: 1,
-        nextPage: undefined,
-        previousPage: undefined,
+    );
+
+    shopifyProducts = data.search;
+    shopifyFilters = data.search?.productFilters;
+    records = data.search?.totalCount;
+    hasNextPage = Boolean(data.search?.pageInfo.hasNextPage);
+    hasPreviousPage = Boolean(data.search?.pageInfo.hasPreviousPage);
+  } else {
+    const pathname = props.collectionName || pageUrl.pathname.split("/")[1];
+
+    const data = await client.query<{
+      collection?: {
+        title?: string;
+        description?: string;
+        products: ProductConnection;
+      };
+    }>(
+      ProductsByCollection,
+      {
+        ...(!endCursor && { first: count }),
+        ...(endCursor && { last: count }),
+        ...(startCursor && { after: startCursor }),
+        ...(endCursor && { before: endCursor }),
+        identifiers: metafields,
+        handle: pathname,
+        filters: getFiltersByUrl(pageUrl),
+        ...sortShopify[sort],
       },
-      sortOptions: [],
-    };
-  } catch (error) {
-    console.error("[Shopify] ProductListingPage error:", error);
-    return null;
+    );
+
+    shopifyProducts = data.collection?.products;
+    shopifyFilters = data.collection?.products?.filters;
+    hasNextPage = Boolean(data.collection?.products.pageInfo.hasNextPage);
+    hasPreviousPage = Boolean(data.collection?.products.pageInfo.hasPreviousPage);
+    collectionTitle = data.collection?.title;
+    collectionDescription = data.collection?.description;
   }
+
+  const products = shopifyProducts?.nodes?.map((p) =>
+    toProduct(p, p.variants.nodes[0], pageUrl)
+  );
+
+  const nextPage = new URLSearchParams(pageUrl.searchParams);
+  const previousPage = new URLSearchParams(pageUrl.searchParams);
+
+  if (hasNextPage) {
+    nextPage.set("page", (page + currentPageoffset + 1).toString());
+    nextPage.set("startCursor", shopifyProducts?.pageInfo.endCursor ?? "");
+    nextPage.delete("endCursor");
+  }
+
+  if (hasPreviousPage) {
+    previousPage.set("page", (page + currentPageoffset - 1).toString());
+    previousPage.set("endCursor", shopifyProducts?.pageInfo.startCursor ?? "");
+    previousPage.delete("startCursor");
+  }
+
+  const filters = shopifyFilters?.map((filter) => toFilter(filter, pageUrl));
+  const currentPage = page + currentPageoffset;
+
+  return {
+    "@type": "ProductListingPage",
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [{
+        "@type": "ListItem" as const,
+        name: isSearch ? query : pageUrl.pathname.split("/")[1],
+        item: isSearch ? pageUrl.href : pageUrl.pathname,
+        position: 2,
+      }],
+      numberOfItems: 1,
+    },
+    filters: filters ?? [],
+    products: products ?? [],
+    pageInfo: {
+      nextPage: hasNextPage ? `?${nextPage}` : undefined,
+      previousPage: hasPreviousPage ? `?${previousPage}` : undefined,
+      currentPage,
+      records,
+      recordPerPage: count,
+    },
+    sortOptions: isSearch ? searchSortOptions : sortOptions,
+    seo: {
+      title: collectionTitle || "",
+      description: collectionDescription || "",
+      canonical: `${pageUrl.origin}${pageUrl.pathname}${
+        page >= 1 ? `?page=${page}` : ""
+      }`,
+    },
+  };
 }

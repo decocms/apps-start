@@ -1,160 +1,101 @@
-import { getShopifyClient } from "../client";
 import type { Product } from "../../commerce/types/commerce";
+import { getShopifyClient } from "../client";
+import { ProductsByCollection, SearchProducts } from "../utils/storefront/queries";
+import { toProduct, type ProductShopify } from "../utils/transform";
+import type { Metafield } from "../utils/types";
+import {
+  type CollectionSortKeys,
+  type SearchSortKeys,
+  searchSortShopify,
+  sortShopify,
+} from "../utils/utils";
 
-const PRODUCT_LIST_QUERY = `
-  query ProductList($first: Int!, $query: String!) {
-    search(query: $query, first: $first, types: PRODUCT) {
-      edges {
-        node {
-          ... on Product {
-            id
-            handle
-            title
-            description
-            vendor
-            tags
-            images(first: 5) {
-              nodes {
-                url
-                altText
-                width
-                height
-              }
-            }
-            variants(first: 10) {
-              nodes {
-                id
-                title
-                availableForSale
-                price {
-                  amount
-                  currencyCode
-                }
-                compareAtPrice {
-                  amount
-                  currencyCode
-                }
-                selectedOptions {
-                  name
-                  value
-                }
-                image {
-                  url
-                  altText
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
-export interface Props {
-  query?: string;
-  count?: number;
-  sort?: string;
-  props?: { query?: string; count?: number; sort?: string };
-  filters?: Record<string, unknown>;
+export interface QueryProps {
+  query: string;
+  count: number;
+  sort?: SearchSortKeys;
 }
 
-function shopifyProductToSchema(node: any, baseUrl: string): Product {
-  const variant = node.variants?.nodes?.[0];
-  const price = variant?.price ? Number(variant.price.amount) : undefined;
-  const listPrice = variant?.compareAtPrice
-    ? Number(variant.compareAtPrice.amount)
-    : undefined;
-  const currency = variant?.price?.currencyCode || "USD";
-
-  return {
-    "@type": "Product",
-    productID: node.id,
-    name: node.title,
-    description: node.description,
-    url: `${baseUrl}/products/${node.handle}`,
-    image: node.images?.nodes?.map((img: any) => ({
-      "@type": "ImageObject" as const,
-      url: img.url,
-      alternateName: img.altText || node.title,
-    })) ?? [],
-    offers: {
-      "@type": "AggregateOffer",
-      lowPrice: price ?? 0,
-      highPrice: listPrice ?? price ?? 0,
-      offerCount: node.variants?.nodes?.length ?? 1,
-      priceCurrency: currency,
-      offers: node.variants?.nodes?.map((v: any) => ({
-        "@type": "Offer" as const,
-        price: Number(v.price?.amount ?? 0),
-        listPrice: v.compareAtPrice ? Number(v.compareAtPrice.amount) : undefined,
-        availability: v.availableForSale
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-        seller: node.vendor,
-        priceSpecification: [],
-      })) ?? [],
-    },
-    isVariantOf: {
-      "@type": "ProductGroup",
-      productGroupID: node.id,
-      name: node.title,
-      url: `${baseUrl}/products/${node.handle}`,
-      hasVariant: node.variants?.nodes?.map((v: any) => ({
-        "@type": "Product" as const,
-        productID: v.id,
-        name: `${node.title} - ${v.title}`,
-        url: `${baseUrl}/products/${node.handle}`,
-        image: v.image ? [{ "@type": "ImageObject" as const, url: v.image.url, alternateName: v.image.altText || "" }] : [],
-        offers: {
-          "@type": "AggregateOffer" as const,
-          lowPrice: Number(v.price?.amount ?? 0),
-          highPrice: v.compareAtPrice ? Number(v.compareAtPrice.amount) : Number(v.price?.amount ?? 0),
-          offerCount: 1,
-          priceCurrency: v.price?.currencyCode || currency,
-          offers: [{
-            "@type": "Offer" as const,
-            price: Number(v.price?.amount ?? 0),
-            listPrice: v.compareAtPrice ? Number(v.compareAtPrice.amount) : undefined,
-            availability: v.availableForSale ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-            priceSpecification: [],
-          }],
-        },
-        additionalProperty: v.selectedOptions?.map((o: any) => ({
-          "@type": "PropertyValue" as const,
-          name: o.name,
-          value: o.value,
-        })) ?? [],
-      })) ?? [],
-      additionalProperty: [],
-    },
-  };
+export interface CollectionProps {
+  collection: string;
+  count: number;
+  sort?: CollectionSortKeys;
 }
+
+export interface FilterProps {
+  tags?: string[];
+  productTypes?: string[];
+  productVendors?: string[];
+  priceMin?: number;
+  priceMax?: number;
+  variantOptions?: { name: string; value: string }[];
+}
+
+export type Props = {
+  props: QueryProps | CollectionProps;
+  filters?: FilterProps;
+  metafields?: Metafield[];
+};
+
+const isQueryList = (p: any): p is QueryProps =>
+  typeof p.query === "string" && typeof p.count === "number";
 
 export default async function productListLoader(
-  props: Props
+  expandedProps: Props,
+  url?: URL,
 ): Promise<Product[] | null> {
   const client = getShopifyClient();
-  const innerProps = props.props || props;
-  const query = innerProps.query || "";
-  const count = innerProps.count || 6;
 
-  try {
-    console.log(`[Shopify] Fetching products: query="${query}", count=${count}`);
+  const props = expandedProps.props ??
+    (expandedProps as unknown as Props["props"]);
 
-    const data = await client.query<any>(PRODUCT_LIST_QUERY, {
-      first: count,
-      query: query || "*",
-    });
+  const count = props.count ?? 12;
+  const metafields = expandedProps.metafields || [];
+  const sort = props.sort ?? "";
 
-    const edges = data?.search?.edges ?? [];
-    console.log(`[Shopify] Got ${edges.length} products`);
+  const filters: any[] = [];
+  expandedProps.filters?.tags?.forEach((tag) => filters.push({ tag }));
+  expandedProps.filters?.productTypes?.forEach((productType) => filters.push({ productType }));
+  expandedProps.filters?.productVendors?.forEach((productVendor) => filters.push({ productVendor }));
+  if (expandedProps.filters?.priceMin) filters.push({ price: { min: expandedProps.filters.priceMin } });
+  if (expandedProps.filters?.priceMax) filters.push({ price: { max: expandedProps.filters.priceMax } });
+  expandedProps.filters?.variantOptions?.forEach((variantOption) => filters.push({ variantOption }));
 
-    return edges.map((edge: any) =>
-      shopifyProductToSchema(edge.node, "")
+  let shopifyProducts: { nodes: ProductShopify[] } | undefined;
+
+  if (isQueryList(props)) {
+    const data = await client.query<{ search: { nodes: ProductShopify[] } }>(
+      SearchProducts,
+      {
+        first: count,
+        query: props.query,
+        productFilters: filters,
+        identifiers: metafields,
+        ...searchSortShopify[sort],
+      },
     );
-  } catch (error) {
-    console.error("[Shopify] ProductList error:", error);
-    return null;
+    shopifyProducts = data.search;
+  } else {
+    const data = await client.query<{
+      collection?: { products: { nodes: ProductShopify[] } };
+    }>(
+      ProductsByCollection,
+      {
+        first: count,
+        handle: (props as CollectionProps).collection,
+        filters,
+        identifiers: metafields,
+        ...sortShopify[sort],
+      },
+    );
+    shopifyProducts = data.collection?.products;
   }
+
+  const baseUrl = url ?? new URL("https://localhost");
+
+  const products = shopifyProducts?.nodes.map((p) =>
+    toProduct(p, p.variants.nodes[0], baseUrl)
+  );
+
+  return products ?? [];
 }

@@ -1,4 +1,4 @@
-import { gql } from "../../../utils/graphql";
+import { gql } from "../graphql";
 
 // Fixme: This is to avoid typescript generation errors
 // because it does not accept generating an empty schema

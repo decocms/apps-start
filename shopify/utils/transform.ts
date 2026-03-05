@@ -7,48 +7,69 @@ import type {
   PropertyValue,
   UnitPriceSpecification,
 } from "../../commerce/types/commerce";
+import { DEFAULT_IMAGE } from "../../commerce/utils/constants";
 
-const DEFAULT_IMAGE = "https://placehold.co/300x300?text=No+Image";
-
-// Shopify GraphQL types (simplified from the generated file)
 type MoneyV2 = { amount: string; currencyCode: string };
-type ImageShopify = { url: string; altText?: string | null; width?: number; height?: number };
-type VideoSource = { url: string; mimeType: string };
-type Video = { sources: VideoSource[]; alt?: string | null; previewImage?: ImageShopify | null };
-type MediaEdge = { node: { mediaContentType: string; previewImage?: ImageShopify | null; alt?: string | null; sources?: VideoSource[] } };
-type SkuShopify = {
+type ImageShopify = { url: string; altText?: string | null };
+type VideoSource = { url: string };
+
+interface MediaNode {
+  alt?: string | null;
+  previewImage?: ImageShopify | null;
+  mediaContentType: string;
+  sources?: VideoSource[];
+}
+
+export type SkuShopify = {
   id: string;
   title: string;
   availableForSale: boolean;
   quantityAvailable?: number;
+  barcode?: string | null;
   sku?: string | null;
   image?: ImageShopify | null;
   price: MoneyV2;
   compareAtPrice?: MoneyV2 | null;
   selectedOptions: Array<{ name: string; value: string }>;
-  unitPrice?: MoneyV2 | null;
-  unitPriceMeasurement?: { measuredType?: string | null; quantityUnit?: string | null; quantityValue?: number; referenceUnit?: string | null; referenceValue?: number } | null;
-  product: { handle: string };
 };
-type ProductShopify = {
+
+export type CollectionNode = {
+  handle: string;
+  title: string;
+  id?: string;
+  description?: string;
+  descriptionHtml?: string;
+  image?: ImageShopify | null;
+};
+
+export type ProductShopify = {
   id: string;
   handle: string;
   title: string;
   description: string;
   descriptionHtml?: string;
+  createdAt?: string;
   tags: string[];
   vendor: string;
   productType: string;
-  publishedAt: string;
-  onlineStoreUrl?: string | null;
-  seo: { title?: string | null; description?: string | null };
+  seo?: { title?: string | null; description?: string | null };
   images: { nodes: ImageShopify[] };
-  media?: { edges: MediaEdge[] };
+  media: { nodes: MediaNode[] };
   variants: { nodes: SkuShopify[] };
-  collections?: { nodes: Array<{ handle: string; title: string }> };
-  metafields?: Array<{ key: string; value: string; namespace: string; type: string } | null>;
-  selectedOrFirstAvailableVariant?: SkuShopify | null;
+  collections?: { nodes: CollectionNode[] };
+  metafields?: Array<{
+    key: string;
+    value: string;
+    namespace: string;
+    type: string;
+    description?: string | null;
+    reference?: { image?: { url: string } } | null;
+    references?: {
+      edges: Array<{ node: { image?: { url: string } } }>;
+    } | null;
+  } | null>;
 };
+
 type FilterValue = { id: string; label: string; count: number; input: string };
 type FilterShopify = { id: string; label: string; type: string; values: FilterValue[] };
 
@@ -57,13 +78,8 @@ const getPath = ({ handle }: ProductShopify, sku?: SkuShopify) =>
     ? `/products/${handle}-${getIdFromVariantId(sku.id)}`
     : `/products/${handle}`;
 
-/**
- * @description Transforms shopify gid to a number
- * @example getIdFromVariant("gid://shopify/ProductVariant/40306064162993") -> 40306064162993
- */
 const getIdFromVariantId = (x: string) => {
   const splitted = x.split("/");
-
   return Number(splitted[splitted.length - 1]);
 };
 
@@ -90,9 +106,6 @@ export const toProductPage = (
     "@type": "ProductDetailsPage",
     breadcrumbList: toBreadcrumbList(product, sku),
     product: toProduct(product, sku, url),
-    // In shopify storefront, if the product SEO properties are identical
-    // to the product title and description, they are not returned.
-    // See: https://github.com/Shopify/storefront-api-feedback/discussions/181#discussioncomment-5734355
     seo: {
       title: product.seo?.title ?? product.title,
       description: product.seo?.description ?? product.description,
@@ -146,20 +159,18 @@ export const toBreadcrumbList = (
     ];
   }
 
-  const data: BreadcrumbList = {
+  return {
     "@type": "BreadcrumbList",
     numberOfItems: list.length,
     itemListElement: list,
   };
-
-  return data as BreadcrumbList;
 };
 
 export const toProduct = (
   product: ProductShopify,
   sku: SkuShopify,
   url: URL,
-  level = 0, // prevent inifinte loop while self referencing the product
+  level = 0,
 ): Product => {
   const {
     createdAt,
@@ -184,31 +195,36 @@ export const toProduct = (
 
   const descriptionHtml: PropertyValue = {
     "@type": "PropertyValue",
-    "name": "descriptionHtml",
-    "value": product.descriptionHtml,
+    name: "descriptionHtml",
+    value: product.descriptionHtml,
   };
 
   const productTypeValue: PropertyValue = {
     "@type": "PropertyValue",
-    "name": "productType",
-    "value": productType,
+    name: "productType",
+    value: productType,
   };
 
   const metafields = (product.metafields ?? [])
-    .filter((metafield) => metafield && metafield.key && metafield.value)
+    .filter((metafield): metafield is NonNullable<typeof metafield> =>
+      metafield != null && metafield.key != null && metafield.value != null
+    )
     .map((metafield): PropertyValue => {
-      const { key, value, reference, references } = metafield || {};
+      const { key, value, reference, references } = metafield;
       const hasReferenceImage = reference && "image" in reference;
       const referenceImageUrl = hasReferenceImage ? reference.image?.url : null;
 
       const hasEdges = references?.edges && references.edges.length > 0;
       const edgeImages = hasEdges
-        ? references.edges.map((edge) =>
+        ? references!.edges.map((edge) =>
           edge.node && "image" in edge.node ? edge.node.image?.url : null
         )
         : null;
 
-      const valueToReturn = referenceImageUrl || edgeImages || value;
+      const rawValue = referenceImageUrl || edgeImages || value;
+      const valueToReturn = Array.isArray(rawValue)
+        ? JSON.stringify(rawValue)
+        : rawValue ?? undefined;
 
       return {
         "@type": "PropertyValue",
@@ -240,6 +256,8 @@ export const toProduct = (
     });
   }
 
+  const collectionNodes = product.collections?.nodes ?? [];
+
   return {
     "@type": "Product",
     productID,
@@ -258,56 +276,49 @@ export const toProduct = (
       url: `${url.origin}${getPath(product)}`,
       name: product.title,
       additionalProperty: [
-        ...product.tags?.map((value) =>
+        ...(product.tags ?? []).map((value) =>
           toPropertyValue({ name: "TAG", value })
         ),
-        ...product.collections?.nodes.map((
-          { title, handle, id, description, descriptionHtml, image },
-        ) =>
+        ...collectionNodes.map((col) =>
           toPropertyValue({
-            "@id": id,
+            "@id": col.id,
             name: "COLLECTION",
-            value: title,
-            valueReference: handle,
-            description,
-            disambiguatingDescription: descriptionHtml,
-            ...(image &&
-              {
-                image: [{
-                  "@type": "ImageObject",
-                  encodingFormat: "image",
-                  alternateName: image.altText ?? "",
-                  url: image.url,
-                }],
-              }),
+            value: col.title,
+            valueReference: col.handle,
+            description: col.description,
+            disambiguatingDescription: col.descriptionHtml,
+            ...(col.image && {
+              image: [{
+                "@type": "ImageObject" as const,
+                encodingFormat: "image",
+                alternateName: col.image.altText ?? "",
+                url: col.image.url,
+              }],
+            }),
           })
         ),
       ],
       image: nonEmptyArray(images.nodes)?.map((img) => ({
-        "@type": "ImageObject",
+        "@type": "ImageObject" as const,
         encodingFormat: "image",
         alternateName: img.altText ?? "",
         url: img.url,
       })),
     },
     image: skuImages?.map((img) => ({
-      "@type": "ImageObject",
+      "@type": "ImageObject" as const,
       encodingFormat: "image",
       alternateName: img?.altText ?? "",
-      url: img?.url,
+      url: img?.url ?? "",
     })) ?? [DEFAULT_IMAGE],
-    video: media.nodes.filter((media) => media.mediaContentType === "VIDEO")
-      .map((video) => {
-        const contentUrl = "sources" in video
-          ? video.sources?.[0]?.url
-          : undefined;
-        return {
-          "@type": "VideoObject",
-          contentUrl,
-          description: video.alt ?? undefined,
-          thumbnailUrl: video.previewImage?.url,
-        };
-      }),
+    video: media.nodes
+      .filter((m) => m.mediaContentType === "VIDEO")
+      .map((video) => ({
+        "@type": "VideoObject" as const,
+        contentUrl: video.sources?.[0]?.url,
+        description: video.alt ?? undefined,
+        thumbnailUrl: video.previewImage?.url,
+      })),
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: price.currencyCode,
@@ -353,15 +364,13 @@ export const toFilter = (filter: FilterShopify, url: URL): Filter => {
       "@type": "FilterToggle",
       label: filter.label,
       key: filter.id,
-      values: filter.values.map((value) => {
-        return {
-          quantity: value.count,
-          label: value.label,
-          value: value.label,
-          selected: isSelectedFilter(value, url),
-          url: filtersURL(filter, value, url),
-        };
-      }),
+      values: filter.values.map((value) => ({
+        quantity: value.count,
+        label: value.label,
+        value: value.label,
+        selected: isSelectedFilter(value, url),
+        url: filtersURL(filter, value, url),
+      })),
       quantity: filter.values.length,
     };
   } else {
@@ -371,10 +380,7 @@ export const toFilter = (filter: FilterShopify, url: URL): Filter => {
       "@type": "FilterRange",
       label: filter.label,
       key: filter.id,
-      values: {
-        min,
-        max,
-      },
+      values: { min, max },
     };
   }
 };
@@ -411,7 +417,7 @@ const getFilterValue = (value: FilterValue) => {
     ];
 
     for (const path of fieldsToCheck) {
-      let current = parsed;
+      let current: any = parsed;
       for (const key of path) {
         if (current && typeof current === "object" && key in current) {
           current = current[key];
