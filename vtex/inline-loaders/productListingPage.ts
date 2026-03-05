@@ -1,33 +1,63 @@
 import { intelligentSearch } from "../client";
 
+export interface SelectedFacet {
+  key: string;
+  value: string;
+}
+
 export interface PLPProps {
   query?: string;
   count?: number;
   collection?: string;
   category?: string;
   department?: string;
+  sort?: string;
+  fuzzy?: string;
+  selectedFacets?: SelectedFacet[];
+  /** Injected by CMS resolve — the matched page path (e.g. "/pisos/piso-vinilico-clicado") */
+  __pagePath?: string;
+}
+
+/**
+ * Build the VTEX IS facet path from selectedFacets or fall back to the page URL path.
+ *
+ * VTEX IS uses URL path segments after /product_search/ as facet filters:
+ *   /product_search/pisos/piso-vinilico-clicado/ → category tree filter
+ *   /product_search/productClusterIds/190/       → collection filter
+ */
+function buildFacetPath(props: PLPProps): string {
+  const { selectedFacets, __pagePath } = props;
+
+  if (selectedFacets && selectedFacets.length > 0) {
+    const segments = selectedFacets.map((f) => `${f.key}/${f.value}`);
+    return segments.join("/") + "/";
+  }
+
+  if (__pagePath && __pagePath !== "/" && __pagePath !== "/*") {
+    const clean = __pagePath.replace(/^\/+|\/+$/g, "");
+    if (clean) return clean + "/";
+  }
+
+  return "";
 }
 
 export default async function vtexProductListingPage(
   props: PLPProps
 ): Promise<any | null> {
-  const { query, count = 12, collection, category } = props;
+  const { query, count = 12, sort, fuzzy } = props;
 
   try {
-    let endpoint = "/product_search/";
+    const facetPath = buildFacetPath(props);
+    const endpoint = `/product_search/${facetPath}`;
     const params: Record<string, string> = { count: String(count) };
 
     if (query) {
       params.query = query;
-      console.log(`[VTEX] PLP search: query="${query}", count=${count}`);
-    } else if (collection) {
-      params.query = "";
-      params["fq"] = `productClusterIds:${collection}`;
-      console.log(`[VTEX] PLP collection: ${collection}`);
-    } else {
-      params.query = "";
-      console.log(`[VTEX] PLP: all products, count=${count}`);
     }
+    if (sort) params.sort = sort;
+    if (fuzzy) params.fuzzy = fuzzy;
+
+    console.log(`[VTEX] PLP: endpoint="${endpoint}", query="${query ?? ""}", count=${count}, facetPath="${facetPath}"`);
 
     const data = await intelligentSearch<{ products: any[]; recordsFiltered?: number }>(
       endpoint, params
