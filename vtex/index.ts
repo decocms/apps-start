@@ -1,6 +1,14 @@
 /**
  * VTEX app entry point for @decocms/apps.
- * Re-exports the client configuration and block initializer.
+ * Re-exports client config + initializer.
+ *
+ * For actions/loaders/utils, use sub-path imports:
+ *   import { addItemsToCart } from "@decocms/apps/vtex/actions/checkout"
+ *   import { searchProducts }  from "@decocms/apps/vtex/loaders/catalog"
+ *   import { slugify }         from "@decocms/apps/vtex/utils/slugify"
+ *
+ * Or barrel imports:
+ *   import { addItemsToCart } from "@decocms/apps/vtex/actions"
+ *   import { searchProducts }  from "@decocms/apps/vtex/loaders"
  */
-export { configureVtex, getVtexConfig, vtexFetch, intelligentSearch, initVtexFromBlocks } from "./client";
-export type { VtexConfig } from "./client";
+export * from "./client";

@@ -47,7 +47,7 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
-export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
   const url = path.startsWith("http") ? path : `${baseUrl()}${path}`;
   const response = await fetch(url, {
     ...init,
@@ -56,6 +56,11 @@ export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T>
   if (!response.ok) {
     throw new Error(`VTEX API error: ${response.status} ${response.statusText} - ${url}`);
   }
+  return response;
+}
+
+export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await vtexFetchResponse(path, init);
   return response.json();
 }
 
@@ -74,6 +79,34 @@ export async function intelligentSearch<T>(path: string, params?: Record<string,
     throw new Error(`VTEX IS error: ${response.status} - ${url}`);
   }
   return response.json();
+}
+
+/**
+ * Execute a GraphQL query against the VTEX IO Runtime (myvtex.com).
+ * Used for private profile/session/wishlist/payment queries that the
+ * original Deco loaders called via `ctx.io.query(...)`.
+ */
+export async function vtexIOGraphQL<T>(
+  body: {
+    query: string;
+    variables?: Record<string, unknown> | null;
+    operationName?: string;
+  },
+  headers?: Record<string, string>,
+): Promise<T> {
+  const { account } = getVtexConfig();
+  const res = await vtexFetch<{ data: T; errors?: Array<{ message: string }> }>(
+    `https://${account}.myvtex.com/_v/private/graphql/v1`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    },
+  );
+  if (res.errors?.length) {
+    throw new Error(`VTEX IO GraphQL error: ${res.errors.map((e) => e.message).join(", ")}`);
+  }
+  return res.data;
 }
 
 export function initVtexFromBlocks(blocks: Record<string, any>) {
