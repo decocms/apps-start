@@ -19,7 +19,13 @@
     "./vtex/loaders/*": "./vtex/loaders/*.ts",
     "./vtex/utils": "./vtex/utils/index.ts",
     "./vtex/utils/*": "./vtex/utils/*.ts",
-    "./vtex/inline-loaders/*": "./vtex/inline-loaders/*.ts"
+    "./vtex/inline-loaders/*": "./vtex/inline-loaders/*.ts",
+    "./vtex/inline-loaders/productDetailsPage": "./vtex/inline-loaders/productDetailsPage.ts",
+    "./vtex/inline-loaders/productListingPage": "./vtex/inline-loaders/productListingPage.ts",
+    "./vtex/inline-loaders/productList": "./vtex/inline-loaders/productList.ts",
+    "./vtex/inline-loaders/relatedProducts": "./vtex/inline-loaders/relatedProducts.ts",
+    "./vtex/inline-loaders/suggestions": "./vtex/inline-loaders/suggestions.ts",
+    "./vtex/inline-loaders/workflowProducts": "./vtex/inline-loaders/workflowProducts.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
