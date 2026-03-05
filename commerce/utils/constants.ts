@@ -1,4 +1,4 @@
-import { ImageObject } from "../types";
+import { ImageObject } from "../types/commerce";
 
 export const DEFAULT_IMAGE: ImageObject = {
   "@type": "ImageObject",

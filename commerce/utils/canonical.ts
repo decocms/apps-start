@@ -1,4 +1,4 @@
-import { BreadcrumbList } from "../types";
+import { BreadcrumbList } from "../types/commerce";
 
 export const canonicalFromBreadcrumblist = (
   b?: BreadcrumbList,

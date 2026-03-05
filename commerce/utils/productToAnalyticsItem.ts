@@ -1,4 +1,4 @@
-import type { AnalyticsItem, BreadcrumbList, Product } from "../types";
+import type { AnalyticsItem, BreadcrumbList, Product } from "../types/commerce";
 
 export const mapCategoriesToAnalyticsCategories = (
   categories: string[],
