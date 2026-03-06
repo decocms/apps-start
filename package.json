@@ -5,6 +5,8 @@
   "description": "Deco commerce apps for TanStack Start - Shopify, VTEX, commerce types, analytics utils",
   "exports": {
     "./commerce/types": "./commerce/types/commerce.ts",
+    "./commerce/components/JsonLd": "./commerce/components/JsonLd.tsx",
+    "./commerce/components/Image": "./commerce/components/Image.tsx",
     "./commerce/utils/*": "./commerce/utils/*.ts",
     "./commerce/sdk/*": "./commerce/sdk/*.ts",
     "./shopify": "./shopify/index.ts",
@@ -29,12 +31,20 @@
     "./vtex/inline-loaders/productList": "./vtex/inline-loaders/productList.ts",
     "./vtex/inline-loaders/relatedProducts": "./vtex/inline-loaders/relatedProducts.ts",
     "./vtex/inline-loaders/suggestions": "./vtex/inline-loaders/suggestions.ts",
-    "./vtex/inline-loaders/workflowProducts": "./vtex/inline-loaders/workflowProducts.ts"
+    "./vtex/hooks": "./vtex/hooks/index.ts",
+    "./vtex/hooks/*": "./vtex/hooks/*.ts",
+    "./vtex/inline-loaders/workflowProducts": "./vtex/inline-loaders/workflowProducts.ts",
+    "./vtex/middleware": "./vtex/middleware.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["deco", "shopify", "vtex", "commerce"],
+  "keywords": [
+    "deco",
+    "shopify",
+    "vtex",
+    "commerce"
+  ],
   "author": "deco.cx",
   "license": "MIT",
   "repository": {
@@ -43,5 +53,8 @@
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.90.21"
   }
 }

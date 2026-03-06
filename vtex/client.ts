@@ -10,6 +10,16 @@ export interface VtexConfig {
   locale?: string;
   appKey?: string;
   appToken?: string;
+  /**
+   * ISO 3166-1 alpha-3 country code used for simulation/checkout.
+   * @default "BRA"
+   */
+  country?: string;
+  /**
+   * VTEX domain suffix. Override for non-standard VTEX environments.
+   * @default "com.br"
+   */
+  domain?: string;
 }
 
 let _config: VtexConfig | null = null;
@@ -40,14 +50,25 @@ export function getVtexConfig(): VtexConfig {
   return _config;
 }
 
+/**
+ * Build the VTEX hostname for a given environment.
+ * Centralizes `{account}.{env}.{domain}` so nothing is hardcoded.
+ */
+export function vtexHost(
+  environment: string = "vtexcommercestable",
+  config?: VtexConfig,
+): string {
+  const c = config ?? getVtexConfig();
+  const domain = c.domain ?? "com.br";
+  return `${c.account}.${environment}.${domain}`;
+}
+
 function baseUrl(): string {
-  const c = getVtexConfig();
-  return `https://${c.account}.vtexcommercestable.com.br`;
+  return `https://${vtexHost()}`;
 }
 
 function isUrl(): string {
-  const c = getVtexConfig();
-  return `https://${c.account}.vtexcommercestable.com.br/api/io/_v/api/intelligent-search`;
+  return `https://${vtexHost()}/api/io/_v/api/intelligent-search`;
 }
 
 function authHeaders(): Record<string, string> {
@@ -213,6 +234,8 @@ export function initVtexFromBlocks(blocks: Record<string, any>) {
     locale: vtexBlock.locale || vtexBlock.defaultLocale,
     appKey: vtexBlock.appKey,
     appToken: vtexBlock.appToken,
+    country: vtexBlock.country,
+    domain: vtexBlock.domain,
   });
 }
 

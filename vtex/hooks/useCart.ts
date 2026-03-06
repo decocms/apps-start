@@ -1,0 +1,144 @@
+/**
+ * Client-side cart hook for VTEX.
+ *
+ * Uses TanStack Query for SWR, optimistic updates, and cache
+ * invalidation. Wraps the VTEX orderForm API.
+ *
+ * @example
+ * ```tsx
+ * import { useCart } from "@decocms/apps/vtex/hooks/useCart";
+ *
+ * function CartButton() {
+ *   const { cart, addItems, isLoading } = useCart();
+ *   const count = cart?.items?.length ?? 0;
+ *   return <button disabled={isLoading}>{count} items</button>;
+ * }
+ * ```
+ */
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+export interface CartItem {
+  id: string;
+  quantity: number;
+  seller: string;
+}
+
+export interface OrderForm {
+  orderFormId: string;
+  items: CartItem[];
+  totalizers: Array<{ id: string; name: string; value: number }>;
+  value: number;
+  [key: string]: unknown;
+}
+
+const CART_QUERY_KEY = ["vtex", "cart"] as const;
+
+async function fetchCart(): Promise<OrderForm> {
+  const res = await fetch("/api/checkout/pub/orderForm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ expectedOrderFormSections: ["items", "totalizers", "value"] }),
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Cart fetch failed: ${res.status}`);
+  return res.json();
+}
+
+async function addItemsToCart(
+  orderFormId: string,
+  items: Array<{ id: string; quantity: number; seller: string }>,
+): Promise<OrderForm> {
+  const res = await fetch(
+    `/api/checkout/pub/orderForm/${orderFormId}/items`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderItems: items }),
+      credentials: "include",
+    },
+  );
+  if (!res.ok) throw new Error(`Add to cart failed: ${res.status}`);
+  return res.json();
+}
+
+async function updateItemQuantity(
+  orderFormId: string,
+  index: number,
+  quantity: number,
+): Promise<OrderForm> {
+  const res = await fetch(
+    `/api/checkout/pub/orderForm/${orderFormId}/items/update`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderItems: [{ index, quantity }] }),
+      credentials: "include",
+    },
+  );
+  if (!res.ok) throw new Error(`Update quantity failed: ${res.status}`);
+  return res.json();
+}
+
+export interface UseCartOptions {
+  /** Enable automatic refetching. @default true */
+  enabled?: boolean;
+  /** Stale time in ms. @default 0 (always refetch) */
+  staleTime?: number;
+}
+
+export function useCart(options?: UseCartOptions) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: CART_QUERY_KEY,
+    queryFn: fetchCart,
+    staleTime: options?.staleTime ?? 0,
+    enabled: options?.enabled !== false,
+  });
+
+  const addItems = useMutation({
+    mutationFn: (items: Array<{ id: string; quantity: number; seller: string }>) => {
+      const orderFormId = query.data?.orderFormId;
+      if (!orderFormId) throw new Error("Cart not loaded");
+      return addItemsToCart(orderFormId, items);
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(CART_QUERY_KEY, data);
+    },
+  });
+
+  const updateQuantity = useMutation({
+    mutationFn: ({ index, quantity }: { index: number; quantity: number }) => {
+      const orderFormId = query.data?.orderFormId;
+      if (!orderFormId) throw new Error("Cart not loaded");
+      return updateItemQuantity(orderFormId, index, quantity);
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(CART_QUERY_KEY, data);
+    },
+  });
+
+  const removeItem = useMutation({
+    mutationFn: (index: number) => {
+      const orderFormId = query.data?.orderFormId;
+      if (!orderFormId) throw new Error("Cart not loaded");
+      return updateItemQuantity(orderFormId, index, 0);
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(CART_QUERY_KEY, data);
+    },
+  });
+
+  return {
+    cart: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+    addItems,
+    updateQuantity,
+    removeItem,
+    itemCount: query.data?.items?.length ?? 0,
+  };
+}

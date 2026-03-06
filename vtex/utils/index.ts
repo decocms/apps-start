@@ -8,3 +8,7 @@ export * from "./similars";
 export * from "./slugify";
 export * from "./transform";
 export * from "./types";
+export * from "./proxy";
+export * from "./vtexId";
+export * from "./sitemap";
+export * from "./enrichment";

@@ -1,4 +1,5 @@
 export * from "./address";
+export * from "./brands";
 export * from "./cart";
 export * from "./catalog";
 export * from "./collections";
@@ -6,6 +7,7 @@ export * from "./legacy";
 export * from "./logistics";
 export * from "./navbar";
 export * from "./orders";
+export * from "./pageType";
 export * from "./payment";
 export * from "./profile";
 export * from "./promotion";
