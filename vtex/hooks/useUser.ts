@@ -1,8 +1,9 @@
 /**
  * Client-side user/session hook for VTEX.
  *
- * Reads user profile data from the VTEX session API and the
- * VtexIdclientAutCookie to determine login state.
+ * Detects login state via the VTEX Sessions API (server-side accessible).
+ * Does NOT attempt to read VtexIdclientAutCookie client-side — that cookie
+ * is HttpOnly and inaccessible via document.cookie.
  *
  * @example
  * ```tsx
@@ -28,57 +29,30 @@ export interface VtexUser {
 
 const USER_QUERY_KEY = ["vtex", "user"] as const;
 
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
-  return match?.[1] ?? null;
-}
-
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    return JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-  } catch {
-    return null;
-  }
-}
-
 async function fetchUser(): Promise<VtexUser> {
-  const authCookie = getCookie("VtexIdclientAutCookie");
-  if (!authCookie) return { isLoggedIn: false };
-
-  const payload = decodeJwtPayload(authCookie);
-  if (!payload) return { isLoggedIn: false };
-
-  const exp = typeof payload.exp === "number" ? payload.exp : undefined;
-  if (exp && exp * 1000 < Date.now()) return { isLoggedIn: false };
-
-  const email = (payload.sub ?? payload.userId) as string | undefined;
-
   try {
-    const res = await fetch("/api/sessions?items=profile.email,profile.firstName,profile.lastName", {
-      credentials: "include",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const profile = data?.namespaces?.profile;
-      return {
-        email: profile?.email?.value ?? email,
-        firstName: profile?.firstName?.value,
-        lastName: profile?.lastName?.value,
-        userId: email,
-        isLoggedIn: true,
-      };
-    }
-  } catch {
-    // Fall through to JWT-only data
-  }
+    const res = await fetch(
+      "/api/sessions?items=profile.email,profile.firstName,profile.lastName,profile.id",
+      { credentials: "include" },
+    );
+    if (!res.ok) return { isLoggedIn: false };
 
-  return {
-    email,
-    isLoggedIn: true,
-  };
+    const data = await res.json();
+    const profile = data?.namespaces?.profile;
+
+    const email = profile?.email?.value;
+    if (!email) return { isLoggedIn: false };
+
+    return {
+      email,
+      firstName: profile?.firstName?.value,
+      lastName: profile?.lastName?.value,
+      userId: profile?.id?.value,
+      isLoggedIn: true,
+    };
+  } catch {
+    return { isLoggedIn: false };
+  }
 }
 
 export interface UseUserOptions {

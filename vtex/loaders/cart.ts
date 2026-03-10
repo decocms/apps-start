@@ -10,6 +10,7 @@
 import { vtexFetch, getVtexConfig } from "../client";
 import type { OrderForm } from "../utils/types";
 import { forceHttpsOnAssets } from "../utils/transform";
+import { DEFAULT_EXPECTED_SECTIONS } from "../actions/checkout";
 
 /**
  * Fetch the current cart (OrderForm).
@@ -32,14 +33,16 @@ export async function getCart(
 
   const scParam = sc ? `?sc=${sc}` : "";
 
+  const body = JSON.stringify({ expectedOrderFormSections: DEFAULT_EXPECTED_SECTIONS });
+
   const cart = orderFormId
     ? await vtexFetch<OrderForm>(
         `/api/checkout/pub/orderForm/${orderFormId}${scParam}`,
-        { method: "POST", headers },
+        { method: "POST", headers, body },
       )
     : await vtexFetch<OrderForm>(
         `/api/checkout/pub/orderForm${scParam}`,
-        { method: "POST", headers },
+        { method: "POST", headers, body },
       );
 
   return forceHttpsOnAssets(cart);

@@ -1,68 +1,70 @@
-import { vtexFetch } from "../client";
+/**
+ * Related/cross-selling products loader using Legacy Catalog API + shared transform.
+ * Maps VTEX catalog response to schema.org Product[] following deco-cx/apps pattern.
+ */
+import { vtexFetch, getVtexConfig } from "../client";
+import { toProduct, pickSku } from "../utils/transform";
+import type { LegacyProduct } from "../utils/types";
+import type { Product } from "../../commerce/types/commerce";
+
+export type CrossSellingType =
+  | "similars"
+  | "suggestions"
+  | "accessories"
+  | "whosawalsosaw"
+  | "whosawalsobought"
+  | "whoboughtalsobought"
+  | "showtogether";
 
 export interface RelatedProductsProps {
   slug?: string;
-  crossSelling?: "similars" | "suggestions" | "accessories" | "view" | "buy" | "viewandBought" | "showtogether";
+  crossSelling?: CrossSellingType;
   count?: number;
   hideUnavailableItems?: boolean;
 }
 
 export default async function vtexRelatedProducts(
-  props: RelatedProductsProps
-): Promise<any[] | null> {
+  props: RelatedProductsProps,
+): Promise<Product[] | null> {
   const { slug, crossSelling = "similars", count = 8 } = props;
   if (!slug) return null;
 
   try {
     const linkText = slug.replace(/\/p$/, "").replace(/^\//, "");
+    const config = getVtexConfig();
+    const sc = config.salesChannel;
+    const scParam = sc ? `?sc=${sc}` : "";
 
-    const products = await vtexFetch<any[]>(
-      `/api/catalog_system/pub/products/search/${linkText}/p`
+    const products = await vtexFetch<LegacyProduct[]>(
+      `/api/catalog_system/pub/products/search/${linkText}/p${scParam}`,
     );
-
     if (!products?.length) return null;
 
     const productId = products[0].productId;
 
-    const related = await vtexFetch<any[]>(
-      `/api/catalog_system/pub/products/crossselling/${crossSelling}/${productId}`
+    const related = await vtexFetch<LegacyProduct[]>(
+      `/api/catalog_system/pub/products/crossselling/${crossSelling}/${productId}`,
     );
-
     if (!related?.length) return [];
 
-    return related.slice(0, count).map((p: any) => {
-      const item = p.items?.[0];
-      const seller = item?.sellers?.[0];
-      const offer = seller?.commertialOffer;
-      return {
-        "@type": "Product" as const,
-        productID: item?.itemId || p.productId,
-        name: p.productName,
-        url: `/${p.linkText}/p`,
-        brand: { "@type": "Brand" as const, name: p.brand },
-        image: item?.images?.map((img: any) => ({
-          "@type": "ImageObject" as const,
-          url: img.imageUrl?.replace("http://", "https://"),
-          alternateName: img.imageText || p.productName,
-        })) ?? [],
-        offers: {
-          "@type": "AggregateOffer" as const,
-          lowPrice: offer?.Price ?? 0,
-          highPrice: offer?.ListPrice ?? 0,
-          priceCurrency: "BRL",
-          offerCount: p.items?.length ?? 1,
-          offers: [{
-            "@type": "Offer" as const,
-            price: offer?.Price ?? 0,
-            listPrice: offer?.ListPrice,
-            availability: (offer?.AvailableQuantity ?? 0) > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
-            seller: seller?.sellerName,
-          }],
-        },
-      };
+    const baseUrl = config.publicUrl
+      ? `https://${config.publicUrl}`
+      : `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}`;
+
+    let result = related.slice(0, count).map((p) => {
+      const sku = pickSku(p);
+      return toProduct(p, sku, 0, { baseUrl, priceCurrency: "BRL" });
     });
+
+    if (props.hideUnavailableItems) {
+      result = result.filter((p) =>
+        p.offers?.offers?.some(
+          (o) => o.availability === "https://schema.org/InStock",
+        ),
+      );
+    }
+
+    return result;
   } catch (error) {
     console.error("[VTEX] Related products error:", error);
     return null;

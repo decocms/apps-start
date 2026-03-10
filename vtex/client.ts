@@ -3,6 +3,62 @@
  * Uses VTEX's public REST APIs (Intelligent Search + Catalog + Checkout).
  */
 
+// ---------------------------------------------------------------------------
+// URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
+// ---------------------------------------------------------------------------
+
+const removeNonLatin1Chars = (str: string): string =>
+  str.replace(/[^\x00-\x7F]|["']/g, "");
+
+const removeScriptChars = (str: string): string => {
+  return str
+    .replace(/\+/g, "")
+    .replaceAll(" ", "")
+    .replace(/[\[\]{}()<>]/g, "")
+    .replace(/[\/\\]/g, "")
+    .replace(/\./g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+};
+
+function sanitizeUrl(input: string): string {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return input;
+  }
+
+  const QS_TO_SANITIZE = ["utm_campaign", "utm_medium", "utm_source", "map"];
+  for (const qs of QS_TO_SANITIZE) {
+    if (url.searchParams.has(qs)) {
+      const values = url.searchParams.getAll(qs);
+      url.searchParams.delete(qs);
+      for (const v of values) {
+        const sanitized = removeScriptChars(removeNonLatin1Chars(v));
+        if (sanitized) url.searchParams.append(qs, sanitized);
+      }
+    }
+  }
+
+  const QS_TO_ENCODE = ["ft"];
+  for (const qs of QS_TO_ENCODE) {
+    if (url.searchParams.has(qs)) {
+      const values = url.searchParams.getAll(qs);
+      url.searchParams.delete(qs);
+      for (const v of values) {
+        url.searchParams.append(qs, encodeURIComponent(v.trim()));
+      }
+    }
+  }
+
+  return url.toString();
+}
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
 export interface VtexConfig {
   account: string;
   publicUrl?: string;
@@ -85,7 +141,8 @@ function authHeaders(): Record<string, string> {
 }
 
 export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
-  const url = path.startsWith("http") ? path : `${baseUrl()}${path}`;
+  const raw = path.startsWith("http") ? path : `${baseUrl()}${path}`;
+  const url = sanitizeUrl(raw);
   const response = await _fetch(url, {
     ...init,
     headers: { ...authHeaders(), ...init?.headers },
@@ -101,7 +158,43 @@ export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T>
   return response.json();
 }
 
-export async function intelligentSearch<T>(path: string, params?: Record<string, string>): Promise<T> {
+/**
+ * Result type for actions that need to propagate VTEX Set-Cookie headers.
+ * In TanStack Start, the caller (server function) is responsible for
+ * forwarding these cookies to the client via `setCookie` from vinxi/http.
+ */
+export interface VtexFetchResult<T> {
+  data: T;
+  setCookies: string[];
+}
+
+/**
+ * Like vtexFetch, but also returns Set-Cookie headers from the response.
+ * Use for checkout, session, and auth actions that set cookies.
+ */
+export async function vtexFetchWithCookies<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<VtexFetchResult<T>> {
+  const response = await vtexFetchResponse(path, init);
+  const data = await response.json() as T;
+  const setCookies: string[] = [];
+  response.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie") {
+      setCookies.push(value);
+    }
+  });
+  if (setCookies.length === 0 && typeof response.headers.getSetCookie === "function") {
+    setCookies.push(...response.headers.getSetCookie());
+  }
+  return { data, setCookies };
+}
+
+export async function intelligentSearch<T>(
+  path: string,
+  params?: Record<string, string>,
+  opts?: { cookieHeader?: string; locale?: string },
+): Promise<T> {
   const url = new URL(`${isUrl()}${path}`);
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -111,7 +204,17 @@ export async function intelligentSearch<T>(path: string, params?: Record<string,
   const c = getVtexConfig();
   if (c.salesChannel) url.searchParams.set("sc", c.salesChannel);
 
-  const response = await _fetch(url.toString(), { headers: authHeaders() });
+  const locale = opts?.locale ?? c.locale;
+  if (locale && !url.searchParams.has("locale")) {
+    url.searchParams.set("locale", locale);
+  }
+
+  const headers: Record<string, string> = { ...authHeaders() };
+  if (opts?.cookieHeader) {
+    headers["cookie"] = opts.cookieHeader;
+  }
+
+  const response = await _fetch(url.toString(), { headers });
   if (!response.ok) {
     throw new Error(`VTEX IS error: ${response.status} - ${url}`);
   }

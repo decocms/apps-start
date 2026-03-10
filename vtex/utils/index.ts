@@ -12,3 +12,4 @@ export * from "./proxy";
 export * from "./vtexId";
 export * from "./sitemap";
 export * from "./enrichment";
+export * from "./resourceRange";

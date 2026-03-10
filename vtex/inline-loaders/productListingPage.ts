@@ -6,6 +6,8 @@ import {
   toFacetPath,
   type PageType,
 } from "../client";
+import { toProduct, pickSku } from "../utils/transform";
+import type { Product as ProductVTEX } from "../utils/types";
 
 export interface SelectedFacet {
   key: string;
@@ -265,8 +267,6 @@ export default async function vtexProductListingPage(
       ? `/facets/${facetPath}`
       : "/facets/";
 
-    console.log(`[VTEX] PLP: product_search="${productEndpoint}", facets="${facetsEndpoint}", params=${JSON.stringify(params)}`);
-
     // 2. Parallel calls — exactly like the original
     const [productsResult, facetsResult] = await Promise.all([
       intelligentSearch<ISProductSearchResult>(productEndpoint, params),
@@ -275,94 +275,14 @@ export default async function vtexProductListingPage(
 
     const { products: vtexProducts, pagination, recordsFiltered } = productsResult;
 
-    console.log(`[VTEX] PLP: ${vtexProducts.length} products (total: ${recordsFiltered}), ${facetsResult.facets.length} facet groups`);
+    // 3. Transform products using shared transform pipeline (same as deco-cx/apps)
+    const baseUrl = config.publicUrl
+      ? `https://${config.publicUrl}`
+      : `https://${config.account}.vtexcommercestable.com.br`;
 
-    // 3. Transform products to schema.org
-    const schemaProducts = vtexProducts.map((p: any) => {
-      const item = p.items?.[0];
-      const seller = item?.sellers?.[0];
-      const offer = seller?.commertialOffer;
-
-      return {
-        "@type": "Product",
-        productID: item?.itemId || p.productId,
-        name: p.productName,
-        description: p.description,
-        url: `/${p.linkText}/p`,
-        category: p.categories?.[0] ?? undefined,
-        brand: p.brand
-          ? { "@type": "Brand", "@id": String(p.brandId ?? ""), name: p.brand }
-          : undefined,
-        inProductGroupWithID: p.productId,
-        additionalProperty: (p.clusterHighlights
-          ? Object.entries(p.clusterHighlights).map(([id, name]) => ({
-              "@type": "PropertyValue",
-              name: "cluster",
-              value: id,
-              description: "highlight",
-              propertyID: name,
-            }))
-          : []),
-        image: item?.images?.map((img: any) => ({
-          "@type": "ImageObject",
-          url: img.imageUrl?.replace("http://", "https://"),
-          alternateName: img.imageText || p.productName,
-        })) ?? [],
-        offers: {
-          "@type": "AggregateOffer",
-          lowPrice: offer?.Price ?? p.priceRange?.sellingPrice?.lowPrice ?? 0,
-          highPrice: offer?.ListPrice ?? p.priceRange?.listPrice?.highPrice ?? 0,
-          priceCurrency: "BRL",
-          offerCount: p.items?.length ?? 1,
-          offers: [{
-            "@type": "Offer",
-            price: offer?.Price ?? 0,
-            listPrice: offer?.ListPrice,
-            availability: (offer?.AvailableQuantity ?? 0) > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
-            seller: seller?.sellerName,
-            sellerID: seller?.sellerId,
-            priceSpecification: offer?.Installments?.map((inst: any) => ({
-              "@type": "UnitPriceSpecification",
-              billingDuration: inst.NumberOfInstallments,
-              billingIncrement: inst.Value,
-              price: inst.TotalValuePlusInterestRate,
-              name: inst.PaymentSystemName,
-            })) ?? [],
-          }],
-        },
-        isVariantOf: {
-          "@type": "ProductGroup",
-          productGroupID: p.productId,
-          name: p.productName,
-          url: `/${p.linkText}/p`,
-          image: p.items?.flatMap((it: any) =>
-            it.images?.map((img: any) => ({
-              "@type": "ImageObject",
-              url: img.imageUrl?.replace("http://", "https://"),
-              alternateName: img.imageText || p.productName,
-            })) ?? [],
-          ) ?? [],
-          hasVariant: p.items?.map((it: any) => ({
-            "@type": "Product",
-            productID: it.itemId,
-            name: it.nameComplete || it.name,
-            url: `/${p.linkText}/p?skuId=${it.itemId}`,
-            image: it.images?.map((img: any) => ({
-              "@type": "ImageObject",
-              url: img.imageUrl?.replace("http://", "https://"),
-            })) ?? [],
-            additionalProperty: it.variations?.flatMap((v: any) =>
-              v.values.map((val: string) => ({
-                "@type": "PropertyValue",
-                name: v.name,
-                value: val,
-              })),
-            ) ?? [],
-          })) ?? [],
-        },
-      };
+    const schemaProducts = (vtexProducts as ProductVTEX[]).map((p) => {
+      const sku = pickSku(p);
+      return toProduct(p, sku, 0, { baseUrl, priceCurrency: "BRL" });
     });
 
     // 4. Transform facets to filters (matching original toFilter)

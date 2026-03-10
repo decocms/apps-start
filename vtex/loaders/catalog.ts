@@ -5,7 +5,7 @@
  * Ported from deco-cx/apps vtex/loaders/legacy/*.ts and vtex/utils/client.ts
  * @see https://developers.vtex.com/docs/api-reference/catalog-api
  */
-import { vtexFetch } from "../client";
+import { vtexFetch, getVtexConfig } from "../client";
 
 // ---------------------------------------------------------------------------
 // Product search (public)
@@ -42,6 +42,9 @@ export async function searchProducts<T = any>(opts: SearchProductsOpts = {}): Pr
   if (opts.sort) params.set("O", opts.sort);
   if (opts.from != null) params.set("_from", String(opts.from));
   if (opts.to != null) params.set("_to", String(opts.to));
+
+  const { salesChannel } = getVtexConfig();
+  if (salesChannel) params.set("sc", salesChannel);
 
   return vtexFetch<T[]>(`/api/catalog_system/pub/products/search/?${params}`);
 }

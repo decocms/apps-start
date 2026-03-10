@@ -24,7 +24,13 @@
  */
 
 import { vtexFetch, getVtexConfig, vtexIOGraphQL } from "../client";
-import type { Product, Offer, AggregateOffer } from "../../commerce/types/commerce";
+import { buildAuthCookieHeader, VTEX_AUTH_COOKIE } from "./vtexId";
+import { withIsSimilarTo } from "./similars";
+import { batch } from "./batch";
+import { toReview, toInventories, toProduct, pickSku } from "./transform";
+import { listBrands } from "../loaders/brands";
+import type { Product, ProductLeaf } from "../../commerce/types/commerce";
+import type { LegacyProduct } from "./types";
 
 // -------------------------------------------------------------------------
 // Types
@@ -128,7 +134,7 @@ export function withSimulation(
 
       for (let oi = 0; oi < aggOffer.offers.length; oi++) {
         const offer = aggOffer.offers[oi];
-        const skuId = offer.sku ?? product.sku;
+        const skuId = product.sku ?? product.productID;
         const seller = offer.seller ?? "1";
 
         if (skuId) {
@@ -154,7 +160,7 @@ export function withSimulation(
     for (const batch of batches) {
       try {
         const sim = await vtexFetch<SimulationResult>(
-          `/api/checkout/pub/orderForms/simulation?sc=${sc}`,
+          `/api/checkout/pub/orderForms/simulation?sc=${sc}&RnbBehavior=1`,
           {
             method: "POST",
             body: JSON.stringify({
@@ -180,6 +186,19 @@ export function withSimulation(
           const offer = { ...offers[mapping.offerIdx] };
 
           offer.price = simItem.sellingPrice / 100;
+          if (simItem.listPrice) {
+            (offer as any).priceSpecification = [
+              ...(Array.isArray((offer as any).priceSpecification) ? (offer as any).priceSpecification : []),
+            ].map((spec: any) => {
+              if (spec?.priceType === "https://schema.org/ListPrice") {
+                return { ...spec, price: simItem.listPrice / 100 };
+              }
+              if (spec?.priceType === "https://schema.org/SalePrice") {
+                return { ...spec, price: simItem.sellingPrice / 100 };
+              }
+              return spec;
+            });
+          }
           offer.availability = simItem.availability === "available"
             ? "https://schema.org/InStock"
             : "https://schema.org/OutOfStock";
@@ -237,7 +256,7 @@ export function withWishlist(): ProductEnricher {
     if (!ctx.request) return products;
 
     const cookies = ctx.request.headers.get("cookie") ?? "";
-    const authCookie = getCookieValue(cookies, "VtexIdclientAutCookie");
+    const authCookie = getCookieValue(cookies, VTEX_AUTH_COOKIE);
     if (!authCookie) return products;
 
     let email: string | undefined;
@@ -256,7 +275,7 @@ export function withWishlist(): ProductEnricher {
     try {
       const data = await vtexIOGraphQL<WishlistData>(
         { query: WISHLIST_QUERY, variables: { shopperId: email, name: "Wishlist", from: 0, to: 500 } },
-        { Cookie: `VtexIdclientAutCookie=${authCookie}` },
+        { Cookie: buildAuthCookieHeader(authCookie, getVtexConfig().account) },
       );
 
       const wishlistItems = data.viewList?.data ?? [];
@@ -287,5 +306,202 @@ export function withWishlist(): ProductEnricher {
       console.error("[Wishlist] Failed to fetch wishlist:", error instanceof Error ? error.message : error);
       return products;
     }
+  };
+}
+
+// -------------------------------------------------------------------------
+// Similars Enricher
+// -------------------------------------------------------------------------
+
+/**
+ * Enrich products with similar product data from Legacy Catalog API.
+ * Ported from deco-cx/apps vtex/loaders/product/extend.ts (similarsExt)
+ */
+export function withSimilars(): ProductEnricher {
+  return async (products) => {
+    return Promise.all(products.map((p) => withIsSimilarTo(p)));
+  };
+}
+
+// -------------------------------------------------------------------------
+// Kit Items Enricher
+// -------------------------------------------------------------------------
+
+/**
+ * Enrich products with kit item details (isAccessoryOrSparePartFor).
+ * Fetches full product data for referenced accessories via Legacy Catalog.
+ * Ported from deco-cx/apps vtex/loaders/product/extend.ts (kitItemsExt)
+ */
+export function withKitItems(): ProductEnricher {
+  return async (products) => {
+    const productIDs = new Set<string>();
+
+    for (const product of products) {
+      for (const item of product.isAccessoryOrSparePartFor ?? []) {
+        if (item.productID) productIDs.add(item.productID);
+      }
+    }
+
+    if (!productIDs.size) return products;
+
+    const config = getVtexConfig();
+    const baseUrl = config.publicUrl
+      ? `https://${config.publicUrl}`
+      : `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}`;
+
+    const batches = batch([...productIDs], 10);
+    const productsById = new Map<string, ProductLeaf>();
+
+    for (const ids of batches) {
+      try {
+        const fq = ids.map((id) => `productId:${id}`);
+        const raw = await vtexFetch<LegacyProduct[]>(
+          `/api/catalog_system/pub/products/search/?${fq.map((f) => `fq=${f}`).join("&")}&_from=0&_to=${ids.length - 1}`,
+        );
+        for (const p of raw) {
+          const sku = pickSku(p);
+          const product = toProduct(p, sku, 0, { baseUrl, priceCurrency: "BRL" });
+          for (const leaf of product.isVariantOf?.hasVariant ?? []) {
+            productsById.set(leaf.productID, leaf);
+          }
+        }
+      } catch (e) {
+        console.error("[KitItems] Batch failed:", e instanceof Error ? e.message : e);
+      }
+    }
+
+    return products.map((p) => ({
+      ...p,
+      isAccessoryOrSparePartFor: p.isAccessoryOrSparePartFor
+        ?.map((item) => productsById.get(item.productID))
+        .filter((item): item is ProductLeaf => Boolean(item)),
+    }));
+  };
+}
+
+// -------------------------------------------------------------------------
+// Variants Enricher
+// -------------------------------------------------------------------------
+
+/**
+ * Enrich products with full variant data from Legacy Catalog.
+ * When products come from IS, they may lack variant details.
+ * Ported from deco-cx/apps vtex/loaders/product/extend.ts (variantsExt)
+ */
+export function withVariants(): ProductEnricher {
+  return async (products) => {
+    const productIDs = new Set<string>();
+    for (const product of products) {
+      if (product.productID) productIDs.add(product.productID);
+    }
+
+    if (!productIDs.size) return products;
+
+    const config = getVtexConfig();
+    const baseUrl = config.publicUrl
+      ? `https://${config.publicUrl}`
+      : `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}`;
+
+    const batches = batch([...productIDs], 15);
+    const productsById = new Map<string, Product>();
+
+    for (const ids of batches) {
+      try {
+        const fq = ids.map((id) => `productId:${id}`);
+        const raw = await vtexFetch<LegacyProduct[]>(
+          `/api/catalog_system/pub/products/search/?${fq.map((f) => `fq=${f}`).join("&")}&_from=0&_to=${ids.length - 1}`,
+        );
+        for (const p of raw) {
+          const sku = pickSku(p);
+          const product = toProduct(p, sku, 0, { baseUrl, priceCurrency: "BRL" });
+          productsById.set(product.productID, product);
+        }
+      } catch (e) {
+        console.error("[Variants] Batch failed:", e instanceof Error ? e.message : e);
+      }
+    }
+
+    return products.map((p) => ({
+      ...productsById.get(p.productID),
+      ...p,
+      isVariantOf: productsById.get(p.productID)?.isVariantOf,
+    }));
+  };
+}
+
+// -------------------------------------------------------------------------
+// Reviews Enricher
+// -------------------------------------------------------------------------
+
+/**
+ * Enrich products with reviews and ratings from VTEX Reviews & Ratings app.
+ * Ported from deco-cx/apps vtex/loaders/product/extend.ts (reviewsExt)
+ */
+export function withReviews(): ProductEnricher {
+  return async (products) => {
+    const config = getVtexConfig();
+    const myHost = `${config.account}.myvtex.com`;
+
+    const reviewPromises = products.map((product) =>
+      vtexFetch<any>(
+        `https://${myHost}/reviews-and-ratings/api/reviews?product_id=${product.inProductGroupWithID ?? ""}&from=0&to=10&status=true`,
+      ).catch(() => ({})),
+    );
+
+    const ratingPromises = products.map((product) =>
+      vtexFetch<any>(
+        `https://${myHost}/reviews-and-ratings/api/rating/${product.inProductGroupWithID ?? ""}`,
+      ).catch(() => ({})),
+    );
+
+    const [reviews, ratings] = await Promise.all([
+      Promise.all(reviewPromises),
+      Promise.all(ratingPromises),
+    ]);
+
+    return toReview(products, ratings, reviews);
+  };
+}
+
+// -------------------------------------------------------------------------
+// Inventory Enricher
+// -------------------------------------------------------------------------
+
+/**
+ * Enrich products with inventory/stock data from VTEX Logistics API.
+ * Ported from deco-cx/apps vtex/loaders/product/extend.ts (inventoryExt)
+ */
+export function withInventory(): ProductEnricher {
+  return async (products) => {
+    const inventories = await Promise.all(
+      products.map((product) =>
+        vtexFetch<any>(
+          `/api/logistics/pvt/inventory/skus/${product.inProductGroupWithID ?? ""}`,
+        ).catch(() => ({})),
+      ),
+    );
+
+    return toInventories(products, inventories);
+  };
+}
+
+// -------------------------------------------------------------------------
+// Brands Enricher
+// -------------------------------------------------------------------------
+
+/**
+ * Enrich products with brand information from Legacy Catalog.
+ * Useful for Intelligent Search results that may lack brand details.
+ * Ported from deco-cx/apps vtex/loaders/product/extend.ts (brandsExt)
+ */
+export function withBrands(): ProductEnricher {
+  return async (products) => {
+    const brands = await listBrands();
+    if (!brands?.length) return products;
+
+    return products.map((p) => {
+      const match = brands.find((b) => b["@id"] === p.brand?.["@id"]);
+      return match ? { ...p, brand: match } : p;
+    });
   };
 }

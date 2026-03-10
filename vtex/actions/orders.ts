@@ -4,7 +4,8 @@
  *   - vtex/actions/orders/cancel.ts
  * @see https://developers.vtex.com/docs/api-reference/orders-api
  */
-import { vtexFetch } from "../client";
+import { vtexFetch, getVtexConfig } from "../client";
+import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
 // Action
@@ -22,7 +23,7 @@ export async function cancelOrder(
 ): Promise<void> {
   const headers: Record<string, string> = {};
   if (authCookie) {
-    headers.Cookie = `VtexIdclientAutCookie=${authCookie}`;
+    headers.Cookie = buildAuthCookieHeader(authCookie, getVtexConfig().account);
   }
 
   await vtexFetch<unknown>(

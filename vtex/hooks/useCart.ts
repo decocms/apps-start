@@ -34,11 +34,43 @@ export interface OrderForm {
 
 const CART_QUERY_KEY = ["vtex", "cart"] as const;
 
+const DEFAULT_EXPECTED_SECTIONS = [
+  "items",
+  "totalizers",
+  "clientProfileData",
+  "shippingData",
+  "paymentData",
+  "sellers",
+  "messages",
+  "marketingData",
+  "clientPreferencesData",
+  "storePreferencesData",
+  "giftRegistryData",
+  "ratesAndBenefitsData",
+  "openTextField",
+  "commercialConditionData",
+  "customData",
+];
+
+function getScParam(): string {
+  if (typeof window !== "undefined") {
+    const match = document.cookie.match(/(?:^|;\s*)VTEXSC=([^;]+)/);
+    return match?.[1] ?? "";
+  }
+  return "";
+}
+
+function appendSc(url: string): string {
+  const sc = getScParam();
+  if (!sc) return url;
+  return url.includes("?") ? `${url}&sc=${sc}` : `${url}?sc=${sc}`;
+}
+
 async function fetchCart(): Promise<OrderForm> {
-  const res = await fetch("/api/checkout/pub/orderForm", {
+  const res = await fetch(appendSc("/api/checkout/pub/orderForm"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ expectedOrderFormSections: ["items", "totalizers", "value"] }),
+    body: JSON.stringify({ expectedOrderFormSections: DEFAULT_EXPECTED_SECTIONS }),
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Cart fetch failed: ${res.status}`);
@@ -49,10 +81,15 @@ async function addItemsToCart(
   orderFormId: string,
   items: Array<{ id: string; quantity: number; seller: string }>,
 ): Promise<OrderForm> {
+  const params = new URLSearchParams();
+  params.append("allowedOutdatedData", "paymentData");
+  const sc = getScParam();
+  if (sc) params.set("sc", sc);
+
   const res = await fetch(
-    `/api/checkout/pub/orderForm/${orderFormId}/items`,
+    `/api/checkout/pub/orderForm/${orderFormId}/items?${params}`,
     {
-      method: "PATCH",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderItems: items }),
       credentials: "include",
@@ -62,13 +99,39 @@ async function addItemsToCart(
   return res.json();
 }
 
+async function addCouponsToCart(
+  orderFormId: string,
+  text: string,
+): Promise<OrderForm> {
+  const params = new URLSearchParams();
+  const sc = getScParam();
+  if (sc) params.set("sc", sc);
+
+  const res = await fetch(
+    `/api/checkout/pub/orderForm/${orderFormId}/coupons?${params}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+      credentials: "include",
+    },
+  );
+  if (!res.ok) throw new Error(`Add coupon failed: ${res.status}`);
+  return res.json();
+}
+
 async function updateItemQuantity(
   orderFormId: string,
   index: number,
   quantity: number,
 ): Promise<OrderForm> {
+  const params = new URLSearchParams();
+  params.append("allowedOutdatedData", "paymentData");
+  const sc = getScParam();
+  if (sc) params.set("sc", sc);
+
   const res = await fetch(
-    `/api/checkout/pub/orderForm/${orderFormId}/items/update`,
+    `/api/checkout/pub/orderForm/${orderFormId}/items/update?${params}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -130,6 +193,17 @@ export function useCart(options?: UseCartOptions) {
     },
   });
 
+  const addCoupons = useMutation({
+    mutationFn: (text: string) => {
+      const orderFormId = query.data?.orderFormId;
+      if (!orderFormId) throw new Error("Cart not loaded");
+      return addCouponsToCart(orderFormId, text);
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(CART_QUERY_KEY, data);
+    },
+  });
+
   return {
     cart: query.data ?? null,
     isLoading: query.isLoading,
@@ -137,6 +211,7 @@ export function useCart(options?: UseCartOptions) {
     error: query.error,
     refetch: query.refetch,
     addItems,
+    addCoupons,
     updateQuantity,
     removeItem,
     itemCount: query.data?.items?.length ?? 0,

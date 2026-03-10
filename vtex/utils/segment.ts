@@ -117,3 +117,47 @@ export const withSegmentCookie = (
   h.set("cookie", `${SEGMENT_COOKIE_NAME}=${segment.token}`);
   return h;
 };
+
+function getCookieValue(cookieHeader: string, name: string): string | null {
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match?.[1] ?? null;
+}
+
+/**
+ * Build a complete segment from request cookies.
+ * Reads both vtex_segment and VTEXSC cookies.
+ * VTEXSC contains the sales channel and overrides the segment channel.
+ */
+export const buildSegmentFromCookies = (
+  cookieHeader: string,
+): Partial<Segment> => {
+  const segmentCookie = getCookieValue(cookieHeader, SEGMENT_COOKIE_NAME);
+  const vtexsc = getCookieValue(cookieHeader, SALES_CHANNEL_COOKIE);
+
+  const base = segmentCookie ? parseSegment(segmentCookie) : null;
+  const segment: Partial<Segment> = { ...DEFAULT_SEGMENT, ...base };
+
+  if (vtexsc) {
+    segment.channel = vtexsc;
+  }
+
+  return segment;
+};
+
+/**
+ * Check if the current segment represents an anonymous user
+ * (no campaigns, no UTMs, no regionId, no custom priceTables).
+ */
+export const isAnonymous = (segment: Partial<Segment>): boolean => {
+  return (
+    !segment.campaigns &&
+    !segment.utm_campaign &&
+    !segment.utm_source &&
+    !segment.utm_medium &&
+    !segment.utmi_campaign &&
+    !segment.utmi_page &&
+    !segment.utmi_part &&
+    !segment.regionId &&
+    !segment.priceTables
+  );
+};

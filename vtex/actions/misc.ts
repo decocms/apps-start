@@ -8,6 +8,7 @@
  * @see https://developers.vtex.com/docs/api-reference
  */
 import { vtexFetch, getVtexConfig } from "../client";
+import { buildAuthCookieHeader, VTEX_AUTH_COOKIE } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,7 +93,7 @@ async function gql<T>(
     {
       method: "POST",
       body: JSON.stringify({ query, variables }),
-      headers: { Cookie: `VtexIdclientAutCookie=${authCookie}` },
+      headers: { Cookie: buildAuthCookieHeader(authCookie, account) },
     },
   );
   if (result.errors?.length) {
@@ -161,7 +162,7 @@ export async function sendEvent(
 /**
  * Submit a product review via the Reviews & Ratings API.
  * Hits POST https://{account}.myvtex.com/reviews-and-ratings/api/review.
- * Auth is passed via the `VtexidClientAutCookie` header (not a Cookie header).
+ * Auth is passed via the `VtexIdclientAutCookie` header (not a Cookie header).
  */
 export async function submitReview(
   data: ReviewData,
@@ -174,7 +175,7 @@ export async function submitReview(
     {
       method: "POST",
       body: JSON.stringify(data),
-      headers: { VtexidClientAutCookie: authCookie },
+      headers: { [VTEX_AUTH_COOKIE]: authCookie },
     },
   );
 }

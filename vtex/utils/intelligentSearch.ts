@@ -34,7 +34,7 @@ export const withDefaultParams = ({
   page = 0,
   count = 12,
   sort = "",
-  fuzzy = "",
+  fuzzy = "auto",
   locale = "pt-BR",
   hideUnavailableItems,
   simulationBehavior = "default",
