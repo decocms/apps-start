@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "entry": [
+    "vtex/inline-loaders/*.ts",
+    "commerce/components/*.tsx",
+    "commerce/sdk/*.ts"
+  ],
+  "project": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "ignoreBinaries": [
+    "semantic-release"
+  ]
+}
