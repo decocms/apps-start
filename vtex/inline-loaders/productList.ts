@@ -1,142 +1,161 @@
-import { intelligentSearch, getVtexConfig } from "../client";
-
-interface ISProduct {
-  productId: string;
-  productName: string;
-  brand: string;
-  brandId: number;
-  description: string;
-  link: string;
-  linkText: string;
-  items: Array<{
-    itemId: string;
-    name: string;
-    nameComplete: string;
-    images: Array<{ imageUrl: string; imageText: string }>;
-    sellers: Array<{
-      sellerId: string;
-      sellerName: string;
-      commertialOffer: {
-        Price: number;
-        ListPrice: number;
-        AvailableQuantity: number;
-      };
-    }>;
-    variations: Array<{ name: string; values: string[] }>;
-  }>;
-  categories: string[];
-  categoriesIds: string[];
-  priceRange: {
-    sellingPrice: { lowPrice: number; highPrice: number };
-    listPrice: { lowPrice: number; highPrice: number };
-  };
-}
-
-function toSchemaProduct(p: ISProduct) {
-  const item = p.items?.[0];
-  const seller = item?.sellers?.[0];
-  const offer = seller?.commertialOffer;
-  const image = item?.images?.[0];
-
-  return {
-    "@type": "Product" as const,
-    productID: item?.itemId || p.productId,
-    name: p.productName,
-    description: p.description,
-    url: `/${p.linkText}/p`,
-    brand: { "@type": "Brand" as const, name: p.brand },
-    image: item?.images?.map((img) => ({
-      "@type": "ImageObject" as const,
-      url: img.imageUrl?.replace("http://", "https://"),
-      alternateName: img.imageText || p.productName,
-    })) ?? [],
-    offers: {
-      "@type": "AggregateOffer" as const,
-      lowPrice: offer?.Price ?? p.priceRange?.sellingPrice?.lowPrice ?? 0,
-      highPrice: offer?.ListPrice ?? p.priceRange?.listPrice?.highPrice ?? 0,
-      priceCurrency: "BRL",
-      offerCount: p.items?.length ?? 1,
-      offers: p.items?.flatMap((it) =>
-        it.sellers?.map((s) => ({
-          "@type": "Offer" as const,
-          price: s.commertialOffer.Price,
-          listPrice: s.commertialOffer.ListPrice,
-          availability: s.commertialOffer.AvailableQuantity > 0
-            ? "https://schema.org/InStock"
-            : "https://schema.org/OutOfStock",
-          seller: s.sellerName,
-          priceSpecification: [],
-        }))
-      ) ?? [],
-    },
-    isVariantOf: {
-      "@type": "ProductGroup" as const,
-      productGroupID: p.productId,
-      name: p.productName,
-      url: `/${p.linkText}/p`,
-      hasVariant: p.items?.map((it) => ({
-        "@type": "Product" as const,
-        productID: it.itemId,
-        name: it.nameComplete || it.name,
-        url: `/${p.linkText}/p?skuId=${it.itemId}`,
-        image: it.images?.map((img) => ({
-          "@type": "ImageObject" as const,
-          url: img.imageUrl?.replace("http://", "https://"),
-          alternateName: img.imageText || "",
-        })) ?? [],
-        offers: {
-          "@type": "AggregateOffer" as const,
-          lowPrice: it.sellers?.[0]?.commertialOffer.Price ?? 0,
-          highPrice: it.sellers?.[0]?.commertialOffer.ListPrice ?? 0,
-          priceCurrency: "BRL",
-          offerCount: 1,
-          offers: it.sellers?.map((s) => ({
-            "@type": "Offer" as const,
-            price: s.commertialOffer.Price,
-            listPrice: s.commertialOffer.ListPrice,
-            availability: s.commertialOffer.AvailableQuantity > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
-            priceSpecification: [],
-          })) ?? [],
-        },
-        additionalProperty: it.variations?.flatMap((v) =>
-          v.values.map((val) => ({
-            "@type": "PropertyValue" as const,
-            name: v.name,
-            value: val,
-          }))
-        ) ?? [],
-      })) ?? [],
-      additionalProperty: [],
-    },
-  };
-}
+/**
+ * Product list loader using VTEX Intelligent Search + shared transform pipeline.
+ * Maps IS response to schema.org Product[] following deco-cx/apps pattern.
+ *
+ * Supports: query search, collection IDs, SKU IDs, facets, sort, and
+ * hideUnavailableItems — matching the original productList.ts behavior.
+ */
+import { intelligentSearch, getVtexConfig, toFacetPath } from "../client";
+import { toProduct, pickSku, sortProducts } from "../utils/transform";
+import type { Product as ProductVTEX } from "../utils/types";
+import type { Product } from "../../commerce/types/commerce";
 
 export interface ProductListProps {
+  props?: CollectionProps | QueryProps | ProductIDProps | FacetsProps;
   query?: string;
   count?: number;
   sort?: string;
   collection?: string;
-  props?: { query?: string; count?: number; sort?: string };
+  hideUnavailableItems?: boolean;
+}
+
+interface CollectionProps {
+  collection: string;
+  count?: number;
+  sort?: string;
+  hideUnavailableItems?: boolean;
+}
+
+interface QueryProps {
+  query: string;
+  count?: number;
+  sort?: string;
+  fuzzy?: string;
+  hideUnavailableItems?: boolean;
+}
+
+interface ProductIDProps {
+  ids: string[];
+  hideUnavailableItems?: boolean;
+}
+
+interface FacetsProps {
+  query?: string;
+  facets: string;
+  count?: number;
+  sort?: string;
+  hideUnavailableItems?: boolean;
+}
+
+function isCollectionProps(p: any): p is CollectionProps {
+  return typeof p?.collection === "string";
+}
+function isProductIDProps(p: any): p is ProductIDProps {
+  return Array.isArray(p?.ids) && p.ids.length > 0;
+}
+function isFacetsProps(p: any): p is FacetsProps {
+  return typeof p?.facets === "string";
+}
+
+function resolveParams(props: ProductListProps): {
+  query: string;
+  count: number;
+  sort: string;
+  facetPath: string;
+  fuzzy?: string;
+  hideUnavailableItems: boolean;
+  ids?: string[];
+} {
+  const inner = props.props ?? props;
+
+  if (isProductIDProps(inner)) {
+    return {
+      query: `sku:${inner.ids.join(";")}`,
+      count: inner.ids.length,
+      sort: "",
+      facetPath: "",
+      hideUnavailableItems: inner.hideUnavailableItems ?? false,
+      ids: inner.ids,
+    };
+  }
+
+  if (isFacetsProps(inner)) {
+    return {
+      query: inner.query ?? "",
+      count: inner.count ?? 12,
+      sort: inner.sort ?? "",
+      facetPath: inner.facets,
+      hideUnavailableItems: inner.hideUnavailableItems ?? false,
+    };
+  }
+
+  if (isCollectionProps(inner)) {
+    return {
+      query: "",
+      count: inner.count ?? 12,
+      sort: inner.sort ?? "",
+      facetPath: toFacetPath([{ key: "productClusterIds", value: inner.collection }]),
+      hideUnavailableItems: inner.hideUnavailableItems ?? false,
+    };
+  }
+
+  return {
+    query: (inner as any).query ?? "",
+    count: (inner as any).count ?? 12,
+    sort: (inner as any).sort ?? "",
+    facetPath: "",
+    fuzzy: (inner as any).fuzzy,
+    hideUnavailableItems: (inner as any).hideUnavailableItems ?? false,
+  };
 }
 
 export default async function vtexProductList(
-  props: ProductListProps
-): Promise<any[] | null> {
-  const inner = props.props || props;
-  const query = inner.query || "";
-  const count = inner.count || 12;
-
+  props: ProductListProps,
+): Promise<Product[] | null> {
   try {
-    console.log(`[VTEX] ProductList: query="${query}", count=${count}`);
-    const data = await intelligentSearch<{ products: ISProduct[] }>(
-      "/product_search/",
-      { query: query || "", count: String(count) }
+    const { query, count, sort, facetPath, fuzzy, hideUnavailableItems, ids } =
+      resolveParams(props);
+
+    const config = getVtexConfig();
+    const locale = config.locale ?? "pt-BR";
+
+    const params: Record<string, string> = {
+      page: "1",
+      count: String(count),
+      locale,
+      hideUnavailableItems: String(hideUnavailableItems),
+    };
+    if (query) params.query = query;
+    if (sort) params.sort = sort;
+    if (fuzzy) params.fuzzy = fuzzy;
+
+    const endpoint = facetPath
+      ? `/product_search/${facetPath}`
+      : "/product_search/";
+
+    const data = await intelligentSearch<{ products: ProductVTEX[] }>(
+      endpoint,
+      params,
     );
-    const products = data.products || [];
-    console.log(`[VTEX] ProductList: ${products.length} products found`);
-    return products.map(toSchemaProduct);
+
+    const vtexProducts = data.products ?? [];
+    const baseUrl = config.publicUrl
+      ? `https://${config.publicUrl}`
+      : `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}`;
+
+    let products = vtexProducts.map((p) => {
+      const fetchedSkus = ids ? new Set(ids) : null;
+      const preferredSku = fetchedSkus
+        ? p.items.find((item) => fetchedSkus.has(item.itemId)) ?? pickSku(p)
+        : pickSku(p);
+      return toProduct(p, preferredSku, 0, { baseUrl, priceCurrency: "BRL" });
+    });
+
+    if (ids) {
+      products = sortProducts(products, ids, "sku");
+    }
+
+    return products;
   } catch (error) {
     console.error("[VTEX] ProductList error:", error);
     return null;

@@ -628,6 +628,9 @@ export async function legacySuggestions(
     suggestionsStack: "",
   });
 
+  const { salesChannel } = getVtexConfig();
+  if (salesChannel) params.set("sc", salesChannel);
+
   const suggestions = await vtexFetch<AutocompleteResponse>(
     `/buscaautocomplete?${params}`,
   );

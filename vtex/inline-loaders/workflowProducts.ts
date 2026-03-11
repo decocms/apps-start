@@ -1,4 +1,11 @@
-import { intelligentSearch } from "../client";
+/**
+ * Workflow/collection products loader using Intelligent Search + shared transform.
+ * Maps IS response to schema.org Product[] following deco-cx/apps pattern.
+ */
+import { intelligentSearch, getVtexConfig, toFacetPath } from "../client";
+import { toProduct, pickSku } from "../utils/transform";
+import type { Product as ProductVTEX } from "../utils/types";
+import type { Product } from "../../commerce/types/commerce";
 
 export interface WorkflowProductsProps {
   props?: {
@@ -12,62 +19,47 @@ export interface WorkflowProductsProps {
 }
 
 export default async function vtexWorkflowProducts(
-  props: WorkflowProductsProps
-): Promise<any[] | null> {
-  const inner = props.props || props;
+  props: WorkflowProductsProps,
+): Promise<Product[] | null> {
+  const inner = props.props ?? props;
   const collection = (inner as any).collection;
-  const query = (inner as any).query || "";
-  const count = (inner as any).count || props.pagesize || 12;
+  const query = (inner as any).query ?? "";
+  const count = (inner as any).count ?? props.pagesize ?? 12;
+  const sort = (inner as any).sort ?? "";
 
   try {
+    const config = getVtexConfig();
+    const locale = config.locale ?? "pt-BR";
+
     const params: Record<string, string> = {
       count: String(count),
-      query: query,
+      locale,
+      page: String((props.page ?? 0) + 1),
     };
+    if (query) params.query = query;
+    if (sort) params.sort = sort;
 
-    if (collection) {
-      params.fq = `productClusterIds:${collection}`;
-    }
+    const facetPath = collection
+      ? toFacetPath([{ key: "productClusterIds", value: collection }])
+      : "";
 
-    const data = await intelligentSearch<{ products: any[] }>(
-      "/product_search/",
-      params
+    const endpoint = facetPath
+      ? `/product_search/${facetPath}`
+      : "/product_search/";
+
+    const data = await intelligentSearch<{ products: ProductVTEX[] }>(
+      endpoint,
+      params,
     );
 
-    const products = data.products || [];
+    const products = data.products ?? [];
+    const baseUrl = config.publicUrl
+      ? `https://${config.publicUrl}`
+      : `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}`;
 
-    return products.map((p: any) => {
-      const item = p.items?.[0];
-      const seller = item?.sellers?.[0];
-      const offer = seller?.commertialOffer;
-      return {
-        "@type": "Product" as const,
-        productID: item?.itemId || p.productId,
-        name: p.productName,
-        url: `/${p.linkText}/p`,
-        brand: { "@type": "Brand" as const, name: p.brand },
-        image: item?.images?.map((img: any) => ({
-          "@type": "ImageObject" as const,
-          url: img.imageUrl?.replace("http://", "https://"),
-          alternateName: img.imageText || p.productName,
-        })) ?? [],
-        offers: {
-          "@type": "AggregateOffer" as const,
-          lowPrice: offer?.Price ?? 0,
-          highPrice: offer?.ListPrice ?? 0,
-          priceCurrency: "BRL",
-          offerCount: p.items?.length ?? 1,
-          offers: [{
-            "@type": "Offer" as const,
-            price: offer?.Price ?? 0,
-            listPrice: offer?.ListPrice,
-            availability: (offer?.AvailableQuantity ?? 0) > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
-            seller: seller?.sellerName,
-          }],
-        },
-      };
+    return products.map((p) => {
+      const sku = pickSku(p);
+      return toProduct(p, sku, 0, { baseUrl, priceCurrency: "BRL" });
     });
   } catch (error) {
     console.error("[VTEX] Workflow products error:", error);

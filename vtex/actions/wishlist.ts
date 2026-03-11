@@ -5,15 +5,18 @@
  *   - vtex/actions/wishlist/removeItem.ts
  * @see https://developers.vtex.com/docs/apps/vtex.wish-list
  */
-import { vtexFetch, getVtexConfig } from "../client";
+import { vtexFetch, getVtexConfig, vtexIOGraphQL } from "../client";
+import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface WishlistItem {
+  id?: string;
   productId: string;
   sku: string;
+  title?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -25,28 +28,12 @@ interface GqlResponse<T> {
   errors?: Array<{ message: string }>;
 }
 
-async function gql<T>(
-  query: string,
-  variables: Record<string, unknown>,
-  authCookie: string,
-): Promise<T> {
-  const { account } = getVtexConfig();
-  const result = await vtexFetch<GqlResponse<T>>(
-    `https://${account}.myvtex.com/_v/private/graphql/v1`,
-    {
-      method: "POST",
-      body: JSON.stringify({ query, variables }),
-      headers: { Cookie: `VtexIdclientAutCookie=${authCookie}` },
-    },
-  );
-  if (result.errors?.length) {
-    throw new Error(`GraphQL error: ${result.errors[0].message}`);
-  }
-  return result.data;
+function buildCookieHeader(authCookie: string): string {
+  return buildAuthCookieHeader(authCookie, getVtexConfig().account);
 }
 
 // ---------------------------------------------------------------------------
-// Mutations
+// Queries & Mutations
 // ---------------------------------------------------------------------------
 
 const ADD_TO_WISHLIST = `mutation AddToWishlist($listItem: ListItemInputType!, $shopperId: String!, $name: String!, $public: Boolean) {
@@ -57,52 +44,73 @@ const REMOVE_FROM_WISHLIST = `mutation RemoveFromList($id: ID!, $shopperId: Stri
   removeFromList(id: $id, shopperId: $shopperId, name: $name) @context(provider: "vtex.wish-list@1.x")
 }`;
 
+const VIEW_WISHLIST = `query ViewList($shopperId: String!, $name: String!, $from: Int!, $to: Int!) {
+  viewList(shopperId: $shopperId, name: $name, from: $from, to: $to) @context(provider: "vtex.wish-list@1.x") {
+    data { id productId sku title }
+  }
+}`;
+
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 
+async function fetchWishlist(shopperId: string, authCookie: string): Promise<WishlistItem[]> {
+  const data = await vtexIOGraphQL<{
+    viewList: { data: WishlistItem[] | null };
+  }>(
+    {
+      query: VIEW_WISHLIST,
+      variables: { shopperId, name: "Wishlist", from: 0, to: 500 },
+    },
+    { Cookie: buildCookieHeader(authCookie) },
+  );
+  return data.viewList?.data ?? [];
+}
+
 /**
  * Add an item to the user's wishlist.
- * The original Deco action re-fetched the full wishlist after mutating.
- * Here we only perform the mutation — the caller should refresh if needed.
- *
- * @param shopperId - User email (was extracted from cookie payload in the original).
+ * Returns the updated full wishlist.
  */
 export async function addItem(
-  item: WishlistItem,
+  item: { productId: string; sku: string; title?: string },
   shopperId: string,
   authCookie: string,
-): Promise<void> {
-  await gql<unknown>(
-    ADD_TO_WISHLIST,
+): Promise<WishlistItem[]> {
+  if (!authCookie) throw new Error("User must be logged in to add to wishlist");
+  await vtexIOGraphQL<unknown>(
     {
-      name: "Wishlist",
-      shopperId,
-      listItem: item,
+      query: ADD_TO_WISHLIST,
+      variables: {
+        name: "Wishlist",
+        shopperId,
+        listItem: item,
+      },
     },
-    authCookie,
+    { Cookie: buildCookieHeader(authCookie) },
   );
+  return fetchWishlist(shopperId, authCookie);
 }
 
 /**
  * Remove an item from the user's wishlist by its list-entry ID.
- * The original Deco action re-fetched the full wishlist after mutating.
- * Here we only perform the mutation — the caller should refresh if needed.
- *
- * @param shopperId - User email (was extracted from cookie payload in the original).
+ * Returns the updated full wishlist.
  */
 export async function removeItem(
   id: string,
   shopperId: string,
   authCookie: string,
-): Promise<void> {
-  await gql<unknown>(
-    REMOVE_FROM_WISHLIST,
+): Promise<WishlistItem[]> {
+  if (!authCookie) throw new Error("User must be logged in to remove from wishlist");
+  await vtexIOGraphQL<unknown>(
     {
-      id,
-      name: "Wishlist",
-      shopperId,
+      query: REMOVE_FROM_WISHLIST,
+      variables: {
+        id,
+        name: "Wishlist",
+        shopperId,
+      },
     },
-    authCookie,
+    { Cookie: buildCookieHeader(authCookie) },
   );
+  return fetchWishlist(shopperId, authCookie);
 }

@@ -84,4 +84,20 @@ export function isVtexLoggedIn(request: Request): boolean {
   return parseVtexAuthToken(token).isLoggedIn;
 }
 
+/**
+ * Build a complete auth cookie header string from either a raw token
+ * or an already-formatted cookie string.
+ *
+ * VTEX requires both `VtexIdclientAutCookie` and the account-suffixed
+ * variant `VtexIdclientAutCookie_{account}` for authenticated GraphQL
+ * calls to myvtex.com.
+ *
+ * If `authCookie` already contains `=` (i.e. it's a full cookie string),
+ * it's returned as-is. Otherwise the token is wrapped in both cookie names.
+ */
+export function buildAuthCookieHeader(authCookie: string, account: string): string {
+  if (authCookie.includes("=")) return authCookie;
+  return `${VTEX_AUTH_COOKIE}=${authCookie}; ${VTEX_AUTH_COOKIE}_${account}=${authCookie}`;
+}
+
 export { VTEX_AUTH_COOKIE };

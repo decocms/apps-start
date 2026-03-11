@@ -6,6 +6,7 @@
  * @see https://developers.vtex.com/docs/guides/newsletter
  */
 import { vtexFetch, getVtexConfig } from "../client";
+import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,7 +41,7 @@ async function gql<T>(
     {
       method: "POST",
       body: JSON.stringify({ query, variables }),
-      headers: { Cookie: `VtexIdclientAutCookie=${authCookie}` },
+      headers: { Cookie: buildAuthCookieHeader(authCookie, account) },
     },
   );
   if (result.errors?.length) {

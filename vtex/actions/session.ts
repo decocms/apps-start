@@ -1,19 +1,31 @@
 /**
  * VTEX Sessions API actions.
+ * All session-mutating actions return Set-Cookie headers for propagation.
  */
-import { vtexFetch, vtexIOGraphQL } from "../client";
+import { vtexFetchWithCookies, vtexIOGraphQL, getVtexConfig } from "../client";
+import type { VtexFetchResult } from "../client";
+import { buildAuthCookieHeader } from "../utils/vtexId";
 
-export async function createSession(data: Record<string, any>): Promise<boolean> {
-  try {
-    await vtexFetch<any>("/api/sessions", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    return true;
-  } catch (e) {
-    console.error("[VTEX] Failed to create session:", e);
-    return false;
-  }
+// ---------------------------------------------------------------------------
+// createSession
+// ---------------------------------------------------------------------------
+
+export interface SessionData {
+  id: string;
+  namespaces: Record<string, Record<string, { value: string }>>;
+}
+
+export async function createSession(
+  data: Record<string, any>,
+  cookieHeader?: string,
+): Promise<VtexFetchResult<SessionData>> {
+  const headers: Record<string, string> = {};
+  if (cookieHeader) headers["cookie"] = cookieHeader;
+  return vtexFetchWithCookies<SessionData>("/api/sessions", {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -27,21 +39,16 @@ export interface EditSessionResponse {
 
 /**
  * Edit the current VTEX session (public properties).
- *
- * Ported from `vtex/_to-port/actions/editSession.ts`.
- * Original used `vcs["PATCH /api/sessions"]` + proxySetCookie.
- *
- * @param publicProperties - Key/value map to patch into the session.
- * @param authCookie       - Raw cookie header forwarded for auth.
+ * Returns data + Set-Cookie headers.
  */
 export async function editSession(
   publicProperties: Record<string, { value: string }>,
-  authCookie?: string,
-): Promise<EditSessionResponse> {
+  cookieHeader?: string,
+): Promise<VtexFetchResult<EditSessionResponse>> {
   const headers: Record<string, string> = {};
-  if (authCookie) headers["cookie"] = authCookie;
+  if (cookieHeader) headers["cookie"] = cookieHeader;
 
-  return vtexFetch<EditSessionResponse>("/api/sessions", {
+  return vtexFetchWithCookies<EditSessionResponse>("/api/sessions", {
     method: "PATCH",
     body: JSON.stringify({ public: { ...publicProperties } }),
     headers,
@@ -62,22 +69,19 @@ const DELETE_SESSION_MUTATION = `mutation LogOutFromSession($sessionId: ID) {
 
 /**
  * Log out / delete a VTEX session via the store-graphql mutation.
- *
- * Ported from `vtex/_to-port/actions/deleteSession.ts`.
- * Original used `ctx.io.query(...)` with parseCookie auth.
- *
- * @param sessionId  - Session to delete.
- * @param authCookie - Raw cookie header forwarded for auth.
+ * Requires a valid auth cookie.
  */
 export async function deleteSession(
   sessionId: string,
   authCookie: string,
 ): Promise<DeleteSessionResponse> {
+  if (!authCookie) throw new Error("Auth cookie is required to delete session");
+  const { account } = getVtexConfig();
   return vtexIOGraphQL<DeleteSessionResponse>(
     {
       query: DELETE_SESSION_MUTATION,
       variables: { sessionId },
     },
-    { cookie: authCookie },
+    { cookie: buildAuthCookieHeader(authCookie, account) },
   );
 }

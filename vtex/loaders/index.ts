@@ -15,4 +15,5 @@ export * from "./search";
 export * from "./session";
 export * from "./user";
 export * from "./wishlist";
+export * from "./wishlistProducts";
 export * from "./workflow";

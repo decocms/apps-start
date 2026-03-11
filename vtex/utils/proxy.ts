@@ -177,14 +177,13 @@ export async function proxyToVtex(
     );
   }
 
-  responseHeaders.delete("content-encoding");
-
   if (originResponse.status >= 300 && originResponse.status < 400) {
     const location = originResponse.headers.get("location");
     if (location) {
       const originVtexHost = vtexHost(environment, config);
-      const storefrontHost = new URL(request.url).host;
-      const rewritten = location.replace(originVtexHost, storefrontHost);
+      const storefrontOrigin = new URL(request.url).origin;
+      const vtexOrigin = `https://${originVtexHost}`;
+      const rewritten = location.replace(vtexOrigin, storefrontOrigin);
       responseHeaders.set("location", rewritten);
     }
   }

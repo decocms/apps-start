@@ -26,12 +26,14 @@
 
 import {
   SEGMENT_COOKIE_NAME,
+  SALES_CHANNEL_COOKIE,
   parseSegment,
   buildSegmentFromParams,
   serializeSegment,
   DEFAULT_SEGMENT,
   type WrappedSegment,
 } from "./utils/segment";
+import { SESSION_COOKIE, ANONYMOUS_COOKIE } from "./utils/intelligentSearch";
 import { isVtexLoggedIn, extractVtexAuthCookie, parseVtexAuthToken } from "./utils/vtexId";
 import type { Segment } from "./utils/types";
 
@@ -52,6 +54,10 @@ export interface VtexRequestContext {
   salesChannel: string;
   /** Whether this request carries price tables (B2B). */
   hasCustomPricing: boolean;
+  /** Intelligent Search session cookie. */
+  isSessionId: string;
+  /** Intelligent Search anonymous cookie. */
+  isAnonymousId: string;
 }
 
 // -------------------------------------------------------------------------
@@ -75,29 +81,41 @@ function getCookieValue(cookieHeader: string, name: string): string | null {
  * Reads the segment cookie, URL params (utm_*, sc), and auth cookie
  * to build a complete picture of the user's VTEX session state.
  */
+function generateUUID(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export function extractVtexContext(request: Request): VtexRequestContext {
   const cookies = request.headers.get("cookie") ?? "";
   const url = new URL(request.url);
 
-  // 1. Parse segment from cookie
   const segmentCookie = getCookieValue(cookies, SEGMENT_COOKIE_NAME);
   const cookieSegment = segmentCookie ? parseSegment(segmentCookie) : null;
 
-  // 2. Parse segment overrides from URL params
   const paramSegment = buildSegmentFromParams(url.searchParams);
 
-  // 3. Merge: URL params override cookie values, cookie overrides defaults
+  const vtexsc = getCookieValue(cookies, SALES_CHANNEL_COOKIE);
+
   const segment: Partial<Segment> = {
     ...DEFAULT_SEGMENT,
     ...cookieSegment,
     ...paramSegment,
   };
+  if (vtexsc) segment.channel = vtexsc;
 
   const segmentToken = serializeSegment(segment);
 
-  // 4. Auth state
   const authToken = extractVtexAuthCookie(cookies);
   const authInfo = authToken ? parseVtexAuthToken(authToken) : null;
+
+  const isSessionId = getCookieValue(cookies, SESSION_COOKIE) ?? generateUUID();
+  const isAnonymousId = getCookieValue(cookies, ANONYMOUS_COOKIE) ?? generateUUID();
 
   return {
     segment,
@@ -108,6 +126,8 @@ export function extractVtexContext(request: Request): VtexRequestContext {
     hasCustomPricing: Boolean(
       segment.priceTables && segment.priceTables.length > 0,
     ),
+    isSessionId,
+    isAnonymousId,
   };
 }
 
@@ -147,31 +167,25 @@ export function vtexCacheControl(
 // -------------------------------------------------------------------------
 
 /**
- * Propagate Intelligent Search cookies from request to response.
+ * Ensure Intelligent Search cookies exist on the response.
  *
- * VTEX IS uses cookies (vtex_is_*) for search personalization and
- * analytics. These must be forwarded from the original request to
- * the storefront response so the browser maintains them.
+ * If the browser already has them, they are forwarded as-is.
+ * If not, new UUIDs from the context are set. This ensures
+ * every user has IS cookies for personalization and analytics.
  */
 export function propagateISCookies(
-  request: Request,
+  ctx: VtexRequestContext,
   response: Response,
 ): void {
-  const cookies = request.headers.get("cookie") ?? "";
-  const pairs = cookies.split(";").map((p) => p.trim());
-
-  for (const pair of pairs) {
-    const eqIdx = pair.indexOf("=");
-    if (eqIdx < 0) continue;
-    const name = pair.slice(0, eqIdx);
-    if (name.startsWith(IS_COOKIE_PREFIX)) {
-      const value = pair.slice(eqIdx + 1);
-      response.headers.append(
-        "Set-Cookie",
-        `${name}=${value}; Path=/; SameSite=Lax`,
-      );
-    }
-  }
+  const maxAge = 365 * 24 * 60 * 60;
+  response.headers.append(
+    "Set-Cookie",
+    `${SESSION_COOKIE}=${ctx.isSessionId}; Path=/; SameSite=Lax; Max-Age=${maxAge}`,
+  );
+  response.headers.append(
+    "Set-Cookie",
+    `${ANONYMOUS_COOKIE}=${ctx.isAnonymousId}; Path=/; SameSite=Lax; Max-Age=${maxAge}`,
+  );
 }
 
 /**
