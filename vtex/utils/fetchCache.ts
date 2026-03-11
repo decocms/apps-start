@@ -96,11 +96,10 @@ export function fetchWithCache<T>(
 			entry.refreshing = true;
 			executeFetch(cacheKey, doFetch)
 				.then((fresh) => {
-					// Only overwrite a good cached value with a response that is
-					// itself cacheable. A transient 4xx during revalidation must
-					// not replace a previously successful cache entry.
-					const ttl = opts?.ttl ?? ttlForStatus(fresh.status);
-					if (ttl > 0) {
+					// Only overwrite when the fresh response is successful (2xx).
+					// A transient 4xx/5xx during revalidation must not replace a
+					// previously successful cache entry with null or error data.
+					if (fresh.status >= 200 && fresh.status < 300) {
 						store.set(cacheKey, fresh);
 					} else {
 						entry.refreshing = false;
