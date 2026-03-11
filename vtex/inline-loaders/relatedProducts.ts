@@ -33,7 +33,7 @@ export interface RelatedProductsProps {
 function fetchCrossSelling(
 	type: CrossSellingType,
 	productId: string,
-): Promise<LegacyProduct[]> {
+): Promise<LegacyProduct[] | null> {
 	return vtexCachedFetch<LegacyProduct[]>(
 		`/api/catalog_system/pub/products/crossselling/${type}/${productId}`,
 	);

@@ -183,7 +183,7 @@ export async function vtexCachedFetch<T>(
 	path: string,
 	init?: RequestInit,
 	cacheOpts?: VtexCachedFetchOptions,
-): Promise<T> {
+): Promise<T | null> {
 	const method = (init?.method ?? "GET").toUpperCase();
 	if (method !== "GET") return vtexFetch<T>(path, init);
 
@@ -258,19 +258,20 @@ export async function intelligentSearch<T>(
 
 	const headers: Record<string, string> = { ...authHeaders() };
 	if (opts?.cookieHeader) {
-		headers["cookie"] = opts.cookieHeader;
+		headers.cookie = opts.cookieHeader;
 	}
 
 	const fullUrl = url.toString();
 
-	// IS GET requests go through SWR cache (3 min TTL via status-based defaults)
+	// IS GET requests go through SWR cache (3 min TTL via status-based defaults).
+	// The doFetch callback throws on non-ok responses, so null is never returned.
 	return fetchWithCache<T>(fullUrl, async () => {
 		const response = await _fetch(fullUrl, { headers });
 		if (!response.ok) {
 			throw new Error(`VTEX IS error: ${response.status} - ${fullUrl}`);
 		}
 		return response;
-	});
+	}) as Promise<T>;
 }
 
 /**
@@ -344,7 +345,7 @@ function pageTypeToMapParam(
 	return PAGE_TYPE_TO_MAP_PARAM[type] ?? null;
 }
 
-function cachedPageType(term: string): Promise<PageType> {
+function cachedPageType(term: string): Promise<PageType | null> {
 	return vtexCachedFetch<PageType>(
 		`/api/catalog_system/pub/portal/pagetype/${term}`,
 	);
@@ -357,12 +358,13 @@ function cachedPageType(term: string): Promise<PageType> {
  */
 export async function pageTypesFromPath(pagePath: string): Promise<PageType[]> {
 	const segments = pagePath.split("/").filter(Boolean);
-	return Promise.all(
+	const results = await Promise.all(
 		segments.map((_, index) => {
 			const term = segments.slice(0, index + 1).join("/");
 			return cachedPageType(term);
 		}),
 	);
+	return results.filter((pt): pt is PageType => pt !== null);
 }
 
 const slugify = (str: string) =>
@@ -403,7 +405,7 @@ export function toFacetPath(
 }
 
 export function initVtexFromBlocks(blocks: Record<string, any>) {
-	const vtexBlock = blocks["vtex"] || blocks["deco-vtex"];
+	const vtexBlock = blocks.vtex || blocks["deco-vtex"];
 	if (!vtexBlock) {
 		console.warn("[VTEX] No vtex.json block found.");
 		return;

@@ -506,11 +506,12 @@ export function withReviews(): ProductEnricher {
 export function withInventory(): ProductEnricher {
 	return async (products) => {
 		const inventories = await Promise.all(
-			products.map((product) =>
-				vtexFetch<any>(
-					`/api/logistics/pvt/inventory/skus/${product.sku ?? ""}`,
-				).catch(() => ({})),
-			),
+			products.map((product) => {
+				if (!product.sku) return Promise.resolve({});
+				return vtexFetch<any>(
+					`/api/logistics/pvt/inventory/skus/${product.sku}`,
+				).catch(() => ({}));
+			}),
 		);
 
 		return toInventories(products, inventories);

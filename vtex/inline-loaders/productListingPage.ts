@@ -282,7 +282,9 @@ export default async function vtexProductListingPage(
 	const sort = props.sort || pageUrl?.searchParams.get("sort") || "";
 	const fuzzy = props.fuzzy ?? pageUrl?.searchParams.get("fuzzy") ?? undefined;
 	const pageFromUrl = pageUrl?.searchParams.get("page");
-	const page = props.page ?? (pageFromUrl ? Number(pageFromUrl) - 1 : 0);
+	const rawPage = props.page ?? (pageFromUrl ? Number(pageFromUrl) - 1 : 0);
+	const page =
+		Number.isFinite(rawPage) && rawPage >= 0 ? Math.floor(rawPage) : 0;
 
 	const {
 		selectedFacets: cmsSelectedFacets,

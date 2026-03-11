@@ -70,16 +70,19 @@ export interface FetchCacheOptions {
 /**
  * Wrap a GET fetch call with SWR caching and in-flight dedup.
  *
+ * Returns `null` for non-2xx responses that are cached (e.g. 404).
+ * 5xx responses throw so the caller can handle them explicitly.
+ *
  * @param cacheKey - Unique key (typically the full URL)
  * @param doFetch - The actual fetch call to execute
  * @param opts - Optional overrides
- * @returns Parsed JSON body (or null for error responses)
+ * @returns Parsed JSON body, or null for cacheable error responses (e.g. 404)
  */
 export function fetchWithCache<T>(
 	cacheKey: string,
 	doFetch: () => Promise<Response>,
 	opts?: FetchCacheOptions,
-): Promise<T> {
+): Promise<T | null> {
 	const now = Date.now();
 	const entry = store.get(cacheKey);
 
@@ -87,25 +90,33 @@ export function fetchWithCache<T>(
 		const maxAge = opts?.ttl ?? ttlForStatus(entry.status);
 		const isStale = now - entry.createdAt > maxAge;
 
-		if (!isStale) return Promise.resolve(entry.body as T);
+		if (!isStale) return Promise.resolve(entry.body as T | null);
 
 		if (isStale && !entry.refreshing) {
 			entry.refreshing = true;
 			executeFetch(cacheKey, doFetch)
 				.then((fresh) => {
-					store.set(cacheKey, fresh);
+					// Only overwrite a good cached value with a response that is
+					// itself cacheable. A transient 4xx during revalidation must
+					// not replace a previously successful cache entry.
+					const ttl = opts?.ttl ?? ttlForStatus(fresh.status);
+					if (ttl > 0) {
+						store.set(cacheKey, fresh);
+					} else {
+						entry.refreshing = false;
+					}
 				})
 				.catch(() => {
 					entry.refreshing = false;
 				});
-			return Promise.resolve(entry.body as T);
+			return Promise.resolve(entry.body as T | null);
 		}
 
-		return Promise.resolve(entry.body as T);
+		return Promise.resolve(entry.body as T | null);
 	}
 
 	const existing = inflight.get(cacheKey);
-	if (existing) return existing.then((e) => e.body as T);
+	if (existing) return existing.then((e) => e.body as T | null);
 
 	const promise = executeFetch(cacheKey, doFetch)
 		.then((fresh) => {
@@ -119,7 +130,7 @@ export function fetchWithCache<T>(
 		.finally(() => inflight.delete(cacheKey));
 
 	inflight.set(cacheKey, promise);
-	return promise.then((e) => e.body as T);
+	return promise.then((e) => e.body as T | null);
 }
 
 export function clearFetchCache() {
