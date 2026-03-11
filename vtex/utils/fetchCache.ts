@@ -96,10 +96,15 @@ export function fetchWithCache<T>(
 			entry.refreshing = true;
 			executeFetch(cacheKey, doFetch)
 				.then((fresh) => {
-					// Only overwrite when the fresh response is successful (2xx).
-					// A transient 4xx/5xx during revalidation must not replace a
-					// previously successful cache entry with null or error data.
-					if (fresh.status >= 200 && fresh.status < 300) {
+					const ttl = opts?.ttl ?? ttlForStatus(fresh.status);
+					// Prevent a transient 4xx from downgrading a previously
+					// successful (2xx) cache entry. If the existing entry was
+					// already a 4xx (e.g. a stale 404), revalidating with
+					// another cacheable 4xx is fine — the 404 TTL is still valid.
+					const existingWasSuccess = entry.status >= 200 && entry.status < 300;
+					const freshIsError = fresh.status >= 400;
+					const wouldDowngrade = existingWasSuccess && freshIsError;
+					if (ttl > 0 && !wouldDowngrade) {
 						store.set(cacheKey, fresh);
 					} else {
 						entry.refreshing = false;
