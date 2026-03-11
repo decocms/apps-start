@@ -1,6 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
+    "vtex/*.ts",
     "vtex/inline-loaders/*.ts",
     "commerce/components/*.tsx",
     "commerce/sdk/*.ts"
@@ -11,5 +12,8 @@
   ],
   "ignoreBinaries": [
     "semantic-release"
+  ],
+  "ignoreDependencies": [
+    "@decocms/start"
   ]
 }

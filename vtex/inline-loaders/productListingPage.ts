@@ -24,6 +24,8 @@ export interface PLPProps {
   hideUnavailableItems?: boolean;
   /** Injected by CMS resolve — the matched page path (e.g. "/pisos/piso-vinilico-clicado") */
   __pagePath?: string;
+  /** Injected by CMS resolve — the full request URL (e.g. "https://site.com/s?q=telha&sort=price:asc") */
+  __pageUrl?: string;
 }
 
 // -- Types matching VTEX IS API responses --
@@ -204,6 +206,21 @@ function buildISParams(opts: {
   return params;
 }
 
+const INVALID_PLP_PREFIXES = [
+  "/image/", "/.well-known/", "/assets/", "/favicon",
+  "/_serverFn/", "/_build/", "/node_modules/",
+];
+
+function isValidPLPPath(path: string): boolean {
+  const lower = path.toLowerCase();
+  if (INVALID_PLP_PREFIXES.some((p) => lower.startsWith(p))) return false;
+  const ext = lower.split("/").pop()?.split(".")?.pop();
+  if (ext && ["png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "css", "js", "woff", "woff2", "ttf"].includes(ext)) {
+    return false;
+  }
+  return true;
+}
+
 /**
  * Mirrors the original deco-cx/apps PLP loader:
  *
@@ -216,26 +233,46 @@ function buildISParams(opts: {
 export default async function vtexProductListingPage(
   props: PLPProps,
 ): Promise<any | null> {
+  const pageUrl = props.__pageUrl
+    ? new URL(props.__pageUrl, "https://localhost")
+    : null;
+
+  const query = props.query ?? pageUrl?.searchParams.get("q") ?? "";
+  const countFromUrl = pageUrl?.searchParams.get("PS");
+  const count = Number(countFromUrl ?? props.count ?? 12);
+  const sort = props.sort || pageUrl?.searchParams.get("sort") || "";
+  const fuzzy = props.fuzzy ?? pageUrl?.searchParams.get("fuzzy") ?? undefined;
+  const pageFromUrl = pageUrl?.searchParams.get("page");
+  const page = props.page ?? (pageFromUrl ? Number(pageFromUrl) - 1 : 0);
+
   const {
-    query = "",
-    count = 12,
-    sort = "",
-    fuzzy,
-    page = 0,
     selectedFacets: cmsSelectedFacets,
     hideUnavailableItems = false,
     __pagePath,
   } = props;
 
   try {
-    // 1. Resolve selected facets
+    // 1. Resolve selected facets (CMS + URL filter.* params, matching original)
     let facets: SelectedFacet[] = cmsSelectedFacets && cmsSelectedFacets.length > 0
-      ? cmsSelectedFacets
+      ? [...cmsSelectedFacets]
       : [];
+
+    // Extract filter.* params from URL (e.g. filter.category-1=telhas)
+    if (pageUrl) {
+      for (const [name, value] of pageUrl.searchParams.entries()) {
+        const dotIndex = name.indexOf(".");
+        if (dotIndex > 0 && name.slice(0, dotIndex) === "filter") {
+          const key = name.slice(dotIndex + 1);
+          if (key && !facets.some((f) => f.key === key && f.value === value)) {
+            facets.push({ key, value });
+          }
+        }
+      }
+    }
 
     let pageTypes: PageType[] = [];
 
-    if (facets.length === 0 && __pagePath && __pagePath !== "/" && __pagePath !== "/*") {
+    if (facets.length === 0 && __pagePath && __pagePath !== "/" && __pagePath !== "/*" && isValidPLPPath(__pagePath)) {
       const allPageTypes = await pageTypesFromPath(__pagePath);
       pageTypes = getValidPageTypes(allPageTypes);
       facets = filtersFromPageTypes(pageTypes);
@@ -285,25 +322,30 @@ export default async function vtexProductListingPage(
       return toProduct(p, sku, 0, { baseUrl, priceCurrency: "BRL" });
     });
 
+    // Persist URL params (q, sort, filter.*) across filter toggles and pagination links
+    const paramsToPersist = new URLSearchParams();
+    if (pageUrl) {
+      for (const [k, v] of pageUrl.searchParams.entries()) {
+        if (k !== "page" && k !== "PS" && !k.startsWith("filter.")) {
+          paramsToPersist.append(k, v);
+        }
+      }
+    } else {
+      if (query) paramsToPersist.set("q", query);
+      if (sort) paramsToPersist.set("sort", sort);
+    }
+
     // 4. Transform facets to filters (matching original toFilter)
     const visibleFacets = facetsResult.facets.filter((f) => !f.hidden);
-    const filters = visibleFacets.map(toFilter(facets));
+    const filters = visibleFacets.map(toFilter(facets, paramsToPersist));
 
     // 5. Build pagination (matching original logic)
     const currentPageoffset = 1;
     const hasNextPage = Boolean(pagination.next?.proxyUrl);
     const hasPreviousPage = page > 0;
 
-    const nextPageParams = new URLSearchParams();
-    const prevPageParams = new URLSearchParams();
-    if (query) {
-      nextPageParams.set("q", query);
-      prevPageParams.set("q", query);
-    }
-    if (sort) {
-      nextPageParams.set("sort", sort);
-      prevPageParams.set("sort", sort);
-    }
+    const nextPageParams = new URLSearchParams(paramsToPersist);
+    const prevPageParams = new URLSearchParams(paramsToPersist);
 
     if (hasNextPage) {
       nextPageParams.set("page", String(page + currentPageoffset + 1));

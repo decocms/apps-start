@@ -2,7 +2,7 @@
  * VTEX MasterData v2 API actions.
  * Generic CRUD operations on data entities.
  */
-import { vtexFetch, vtexFetchResponse } from "../client";
+import { vtexFetch, vtexFetchResponse, getVtexConfig } from "../client";
 
 function removeEmptyFields(obj: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
@@ -108,4 +108,58 @@ export async function searchDocumentsFull<T = Record<string, unknown>>(
     `/api/dataentities/${acronym}/search?${params}`,
     { headers },
   ).then((res) => res.json());
+}
+
+// ---------------------------------------------------------------------------
+// Attachments (file upload)
+// ---------------------------------------------------------------------------
+
+export interface UploadAttachmentOpts {
+  entity: string;
+  documentId: string;
+  field: string;
+  fileName: string;
+  /** Base64-encoded file content */
+  fileBase64: string;
+  contentType: string;
+}
+
+/**
+ * Upload a file attachment to a MasterData document.
+ * Uses the VTEX MasterData attachment API with appKey/appToken auth.
+ */
+export async function uploadAttachment(
+  opts: UploadAttachmentOpts,
+): Promise<{ ok: true }> {
+  const { entity, documentId, field, fileName, fileBase64, contentType } = opts;
+  const config = getVtexConfig();
+  const url = `https://${config.account}.vtexcommercestable.com.br/api/dataentities/${entity}/documents/${documentId}/${field}/attachments`;
+
+  const binary = atob(fileBase64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  const blob = new Blob([bytes], { type: contentType });
+  const formData = new FormData();
+  formData.append("file", blob, fileName);
+
+  const headers: Record<string, string> = {};
+  if (config.appKey && config.appToken) {
+    headers["X-VTEX-API-AppKey"] = config.appKey;
+    headers["X-VTEX-API-AppToken"] = config.appToken;
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `VTEX attachment upload failed: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return { ok: true };
 }

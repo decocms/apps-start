@@ -3,10 +3,11 @@
  * Maps VTEX catalog response to schema.org ProductDetailsPage
  * following the same pattern as deco-cx/apps.
  */
-import { vtexFetch, getVtexConfig } from "../client";
+import { vtexCachedFetch, getVtexConfig } from "../client";
 import { toProductPage, pickSku } from "../utils/transform";
 import type { LegacyProduct } from "../utils/types";
 import type { ProductDetailsPage } from "../../commerce/types/commerce";
+import { searchBySlug } from "../utils/slugCache";
 
 export interface PDPProps {
   slug?: string;
@@ -27,11 +28,8 @@ export default async function vtexProductDetailsPage(
     const linkText = slug.replace(/\/p$/, "").replace(/^\//, "").toLowerCase();
     const config = getVtexConfig();
     const sc = config.salesChannel;
-    const scParam = sc ? `?sc=${sc}` : "";
 
-    const products = await vtexFetch<LegacyProduct[]>(
-      `/api/catalog_system/pub/products/search/${linkText}/p${scParam}`,
-    );
+    const products = await searchBySlug(linkText);
 
     if (!products || products.length === 0) {
       return null;
@@ -46,7 +44,7 @@ export default async function vtexProductDetailsPage(
 
     const kitItems: LegacyProduct[] =
       Array.isArray(sku.kitItems) && sku.kitItems.length > 0
-        ? await vtexFetch<LegacyProduct[]>(
+        ? await vtexCachedFetch<LegacyProduct[]>(
             `/api/catalog_system/pub/products/search/?fq=${sku.kitItems.map((item: any) => `skuId:${item.itemId}`).join("&fq=")}&_from=0&_to=49${sc ? `&sc=${sc}` : ""}`,
           )
         : [];

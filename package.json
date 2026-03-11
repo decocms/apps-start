@@ -34,7 +34,8 @@
     "./vtex/hooks": "./vtex/hooks/index.ts",
     "./vtex/hooks/*": "./vtex/hooks/*.ts",
     "./vtex/inline-loaders/workflowProducts": "./vtex/inline-loaders/workflowProducts.ts",
-    "./vtex/middleware": "./vtex/middleware.ts"
+    "./vtex/middleware": "./vtex/middleware.ts",
+    "./vtex/invoke": "./vtex/invoke.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -58,11 +59,13 @@
     "registry": "https://npm.pkg.github.com"
   },
   "peerDependencies": {
+    "@decocms/start": ">=0.6.0",
     "@tanstack/react-query": ">=5",
     "react": ">=18",
     "react-dom": ">=18"
   },
   "devDependencies": {
+    "@decocms/start": "file:../deco-start",
     "@tanstack/react-query": "^5.90.21",
     "@types/react": "^19.0.0",
     "knip": "^5.86.0",

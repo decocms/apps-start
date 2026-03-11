@@ -3,6 +3,8 @@
  * Uses VTEX's public REST APIs (Intelligent Search + Catalog + Checkout).
  */
 
+import { fetchWithCache, type FetchCacheOptions } from "./utils/fetchCache";
+
 // ---------------------------------------------------------------------------
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
 // ---------------------------------------------------------------------------
@@ -158,6 +160,39 @@ export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T>
   return response.json();
 }
 
+export interface VtexCachedFetchOptions {
+  /** SWR cache TTL override in ms */
+  cacheTTL?: number;
+}
+
+/**
+ * Like vtexFetch but routes GET requests through the SWR in-memory cache.
+ * Uses in-flight dedup + stale-while-revalidate.
+ * Non-GET requests fall through to regular vtexFetch.
+ */
+export async function vtexCachedFetch<T>(
+  path: string,
+  init?: RequestInit,
+  cacheOpts?: VtexCachedFetchOptions,
+): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method !== "GET") return vtexFetch<T>(path, init);
+
+  const raw = path.startsWith("http") ? path : `${baseUrl()}${path}`;
+  const url = sanitizeUrl(raw);
+  const opts: FetchCacheOptions | undefined = cacheOpts?.cacheTTL
+    ? { ttl: cacheOpts.cacheTTL }
+    : undefined;
+
+  return fetchWithCache<T>(url, () =>
+    _fetch(url, {
+      ...init,
+      headers: { ...authHeaders(), ...init?.headers },
+    }),
+    opts,
+  );
+}
+
 /**
  * Result type for actions that need to propagate VTEX Set-Cookie headers.
  * In TanStack Start, the caller (server function) is responsible for
@@ -214,11 +249,16 @@ export async function intelligentSearch<T>(
     headers["cookie"] = opts.cookieHeader;
   }
 
-  const response = await _fetch(url.toString(), { headers });
-  if (!response.ok) {
-    throw new Error(`VTEX IS error: ${response.status} - ${url}`);
-  }
-  return response.json();
+  const fullUrl = url.toString();
+
+  // IS GET requests go through SWR cache (3 min TTL via status-based defaults)
+  return fetchWithCache<T>(fullUrl, async () => {
+    const response = await _fetch(fullUrl, { headers });
+    if (!response.ok) {
+      throw new Error(`VTEX IS error: ${response.status} - ${fullUrl}`);
+    }
+    return response;
+  });
 }
 
 /**
@@ -277,16 +317,21 @@ function pageTypeToMapParam(type: PageType["pageType"], index: number): string |
   return PAGE_TYPE_TO_MAP_PARAM[type] ?? null;
 }
 
+function cachedPageType(term: string): Promise<PageType> {
+  return vtexCachedFetch<PageType>(`/api/catalog_system/pub/portal/pagetype/${term}`);
+}
+
 /**
  * Query VTEX Page Type API for each path segment (cumulative).
  * Mirrors deco-cx/apps `pageTypesFromUrl`.
+ * Uses in-flight deduplication to avoid duplicate calls for the same segment.
  */
 export async function pageTypesFromPath(pagePath: string): Promise<PageType[]> {
   const segments = pagePath.split("/").filter(Boolean);
   return Promise.all(
     segments.map((_, index) => {
       const term = segments.slice(0, index + 1).join("/");
-      return vtexFetch<PageType>(`/api/catalog_system/pub/portal/pagetype/${term}`);
+      return cachedPageType(term);
     }),
   );
 }
