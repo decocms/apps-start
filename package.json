@@ -68,6 +68,7 @@
   },
   "devDependencies": {
     "@decocms/start": "file:../deco-start",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@tanstack/react-query": "^5.90.21",
     "@types/react": "^19.0.0",
