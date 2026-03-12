@@ -51,6 +51,7 @@
   ],
   "author": "deco.cx",
   "license": "MIT",
+  "homepage": "https://www.npmjs.com/package/@decocms/apps",
   "repository": {
     "type": "git",
     "url": "https://github.com/decocms/apps-start.git"
