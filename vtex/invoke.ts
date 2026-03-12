@@ -30,6 +30,7 @@ import {
   simulateCart,
   getSellersByRegion,
   setShippingPostalCode,
+  updateOrderFormAttachment,
   type SimulationItem,
 } from "./actions/checkout";
 import {
@@ -139,6 +140,26 @@ export const invoke = {
           country?: string;
         };
       }) => Promise<boolean>,
+
+      updateOrderFormAttachment: createInvokeFn(
+        (input: {
+          orderFormId: string;
+          attachment: string;
+          body: Record<string, unknown>;
+        }) =>
+          updateOrderFormAttachment(
+            input.orderFormId,
+            input.attachment,
+            input.body,
+          ),
+        { unwrap: true },
+      ) as unknown as (ctx: {
+        data: {
+          orderFormId: string;
+          attachment: string;
+          body: Record<string, unknown>;
+        };
+      }) => Promise<OrderForm>,
 
       // -- Session ----------------------------------------------------------
 
