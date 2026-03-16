@@ -8,6 +8,8 @@
  */
 
 const DEFAULT_MAX_ENTRIES = 500;
+const MAX_RETRIES = 2;
+const RETRY_DELAYS = [200, 400];
 
 interface CacheEntry {
 	body: unknown;
@@ -41,23 +43,61 @@ function evictIfNeeded() {
 	for (const [key] of toRemove) store.delete(key);
 }
 
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryable(response: Response): boolean {
+	return response.status >= 500 || response.status === 429;
+}
+
 async function executeFetch(
-	_url: string,
+	url: string,
 	doFetch: () => Promise<Response>,
+	retry = true,
 ): Promise<CacheEntry> {
-	const response = await doFetch();
-	if (response.status >= 500) {
-		throw new Error(
-			`fetchWithCache: ${response.status} ${response.statusText}`,
-		);
+	let lastError: Error | undefined;
+
+	const attempts = retry ? MAX_RETRIES + 1 : 1;
+	for (let attempt = 0; attempt < attempts; attempt++) {
+		try {
+			const response = await doFetch();
+
+			if (isRetryable(response) && attempt < attempts - 1) {
+				console.warn(
+					`[vtex-fetch] ${response.status} on attempt ${attempt + 1}/${attempts} — ${url}`,
+				);
+				await sleep(RETRY_DELAYS[attempt] ?? 400);
+				continue;
+			}
+
+			if (response.status >= 500) {
+				throw new Error(
+					`fetchWithCache: ${response.status} ${response.statusText} after ${attempt + 1} attempt(s) — ${url}`,
+				);
+			}
+
+			const body = response.ok ? await response.json() : null;
+			return {
+				body,
+				status: response.status,
+				createdAt: Date.now(),
+				refreshing: false,
+			};
+		} catch (error) {
+			lastError = error instanceof Error ? error : new Error(String(error));
+
+			if (attempt < attempts - 1) {
+				console.warn(
+					`[vtex-fetch] attempt ${attempt + 1}/${attempts} failed — ${url}: ${lastError.message}`,
+				);
+				await sleep(RETRY_DELAYS[attempt] ?? 400);
+				continue;
+			}
+		}
 	}
-	const body = response.ok ? await response.json() : null;
-	return {
-		body,
-		status: response.status,
-		createdAt: Date.now(),
-		refreshing: false,
-	};
+
+	throw lastError ?? new Error(`fetchWithCache: all ${attempts} attempts failed — ${url}`);
 }
 
 export interface FetchCacheOptions {
@@ -94,13 +134,10 @@ export function fetchWithCache<T>(
 
 		if (isStale && !entry.refreshing) {
 			entry.refreshing = true;
-			executeFetch(cacheKey, doFetch)
+			// Background refresh: no retry — stale data is already being served
+			executeFetch(cacheKey, doFetch, false)
 				.then((fresh) => {
 					const ttl = opts?.ttl ?? ttlForStatus(fresh.status);
-					// Prevent a transient 4xx from downgrading a previously
-					// successful (2xx) cache entry. If the existing entry was
-					// already a 4xx (e.g. a stale 404), revalidating with
-					// another cacheable 4xx is fine — the 404 TTL is still valid.
 					const existingWasSuccess = entry.status >= 200 && entry.status < 300;
 					const freshIsError = fresh.status >= 400;
 					const wouldDowngrade = existingWasSuccess && freshIsError;
