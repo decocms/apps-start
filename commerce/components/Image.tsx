@@ -1,4 +1,5 @@
 import type { ImgHTMLAttributes } from "react";
+import { forwardRef } from "react";
 
 // -------------------------------------------------------------------------
 // Known asset prefixes that get stripped to produce a relative src path
@@ -34,7 +35,7 @@ export function getImageCdnDomain(): string {
 // Fit options & optimization types
 // -------------------------------------------------------------------------
 
-export type FitOptions = "contain" | "cover";
+export type FitOptions = "contain" | "cover" | "fill";
 
 export const FACTORS = [1, 2];
 
@@ -163,92 +164,77 @@ export interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "s
   height?: number;
   /** @description Object-fit */
   fit?: FitOptions;
-  /** @description Preload the image (adds fetchPriority="high") */
+  /**
+   * @description Web Vitals (LCP). Injects a `<link rel="preload">` tag
+   * alongside the `<img>`, sets `fetchPriority="high"` and `loading="eager"`.
+   * Use once per page for the LCP image.
+   */
   preload?: boolean;
+  /** @description Media query for responsive preloading (e.g. "(min-width: 768px)") */
+  media?: string;
 }
 
-export function Image({
-  src,
-  width,
-  height,
-  fit = "cover",
-  preload,
-  loading,
-  decoding,
-  srcSet: srcSetProp,
-  sizes,
-  ...rest
-}: ImageProps) {
-  if (!height && typeof process !== "undefined") {
-    console.warn(`Missing height. This image will NOT be optimized: ${src}`);
-  }
+export const Image = forwardRef<HTMLImageElement, ImageProps>(
+  function Image(
+    {
+      src,
+      width,
+      height,
+      fit = "cover",
+      preload,
+      media,
+      loading,
+      decoding,
+      srcSet: srcSetProp,
+      sizes,
+      fetchPriority,
+      ...rest
+    },
+    ref,
+  ) {
+    if (!height && typeof process !== "undefined") {
+      console.warn(`Missing height. This image will NOT be optimized: ${src}`);
+    }
 
-  const srcSet = srcSetProp ?? getSrcSet(src, width, height, fit);
+    const optimizedSrc = getOptimizedMediaUrl({
+      originalSrc: src,
+      width,
+      height,
+      fit,
+    });
+    const srcSet = srcSetProp ?? getSrcSet(src, width, height, fit);
+    const resolvedSizes = srcSet
+      ? (sizes ?? "(max-width: 768px) 100vw, 50vw")
+      : undefined;
 
-  return (
-    <img
-      {...rest}
-      src={src}
-      srcSet={srcSet}
-      sizes={srcSet ? (sizes ?? "(max-width: 768px) 100vw, 50vw") : undefined}
-      width={width}
-      height={height}
-      loading={loading ?? (preload ? "eager" : "lazy")}
-      decoding={decoding ?? "async"}
-      fetchPriority={preload ? "high" : undefined}
-    />
-  );
-}
-
-// -------------------------------------------------------------------------
-// Picture (responsive art direction)
-// -------------------------------------------------------------------------
-
-export interface PictureSourceProps {
-  src: string;
-  width: number;
-  height?: number;
-  media: string;
-  fit?: FitOptions;
-}
-
-export interface PictureProps extends Omit<ImageProps, "sizes"> {
-  sources: PictureSourceProps[];
-}
-
-export function Picture({
-  sources,
-  src,
-  width,
-  height,
-  fit = "cover",
-  preload,
-  ...rest
-}: PictureProps) {
-  return (
-    <picture>
-      {sources.map((source, i) => {
-        const srcSet = getSrcSet(source.src, source.width, source.height, source.fit ?? fit);
-        return (
-          <source
-            key={i}
-            srcSet={srcSet}
-            media={source.media}
-            width={source.width}
-            height={source.height}
+    return (
+      <>
+        {preload && (
+          <link
+            as="image"
+            rel="preload"
+            href={optimizedSrc}
+            imageSrcSet={srcSet}
+            imageSizes={resolvedSizes}
+            fetchPriority={fetchPriority ?? "high"}
+            media={media}
           />
-        );
-      })}
-      <Image
-        src={src}
-        width={width}
-        height={height}
-        fit={fit}
-        preload={preload}
-        {...rest}
-      />
-    </picture>
-  );
-}
+        )}
+        <img
+          {...rest}
+          src={optimizedSrc}
+          srcSet={srcSet}
+          sizes={resolvedSizes}
+          width={width}
+          height={height}
+          loading={loading ?? (preload ? "eager" : "lazy")}
+          decoding={decoding ?? "async"}
+          fetchPriority={preload ? "high" : fetchPriority}
+          ref={ref}
+        />
+      </>
+    );
+  },
+);
 
 export default Image;
