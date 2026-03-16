@@ -158,7 +158,7 @@ export async function proxyToVtex(
     }
   }
 
-  if (config.appKey && config.appToken) {
+  if (typeof config.appKey === "string" && typeof config.appToken === "string") {
     forwardHeaders.set("X-VTEX-API-AppKey", config.appKey);
     forwardHeaders.set("X-VTEX-API-AppToken", config.appToken);
   }

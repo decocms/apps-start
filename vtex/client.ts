@@ -483,13 +483,15 @@ export function initVtexFromBlocks(blocks: Record<string, any>) {
 		console.warn("[VTEX] No vtex.json block found.");
 		return;
 	}
+	const appKey = typeof vtexBlock.appKey === "string" ? vtexBlock.appKey : undefined;
+	const appToken = typeof vtexBlock.appToken === "string" ? vtexBlock.appToken : undefined;
 	configureVtex({
 		account: vtexBlock.account,
 		publicUrl: vtexBlock.publicUrl,
 		salesChannel: vtexBlock.salesChannel || "1",
 		locale: vtexBlock.locale || vtexBlock.defaultLocale,
-		appKey: vtexBlock.appKey,
-		appToken: vtexBlock.appToken,
+		appKey,
+		appToken,
 		country: vtexBlock.country,
 		domain: vtexBlock.domain,
 	});
