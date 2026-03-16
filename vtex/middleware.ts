@@ -52,6 +52,12 @@ export interface VtexRequestContext {
   email?: string;
   /** Sales channel derived from segment. */
   salesChannel: string;
+  /**
+   * VTEX region ID from the segment cookie.
+   * Present when the user has set a postal code (CEP) for regionalization.
+   * Null when no region is set (anonymous default segment).
+   */
+  regionId: string | null;
   /** Whether this request carries price tables (B2B). */
   hasCustomPricing: boolean;
   /** Intelligent Search session cookie. */
@@ -123,6 +129,7 @@ export function extractVtexContext(request: Request): VtexRequestContext {
     isLoggedIn: authInfo?.isLoggedIn ?? false,
     email: authInfo?.email,
     salesChannel: segment.channel ?? "1",
+    regionId: segment.regionId ?? null,
     hasCustomPricing: Boolean(
       segment.priceTables && segment.priceTables.length > 0,
     ),
@@ -217,7 +224,9 @@ export function buildSegmentSetCookie(
  */
 export function vtexCacheKeySuffix(ctx: VtexRequestContext): string {
   if (ctx.isLoggedIn) return "__vtex_auth";
-  return `__vtex_sc=${ctx.salesChannel}`;
+  const parts = [`sc=${ctx.salesChannel}`];
+  if (ctx.regionId) parts.push(`r=${ctx.regionId}`);
+  return `__vtex_${parts.join("_")}`;
 }
 
 // -------------------------------------------------------------------------

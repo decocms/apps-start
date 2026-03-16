@@ -42,7 +42,7 @@ import {
   type UploadAttachmentOpts,
   type CreateDocumentResult,
 } from "./actions/masterData";
-import { createSession } from "./actions/session";
+import { createSession, editSession, type SessionData } from "./actions/session";
 import { subscribe, type SubscribeProps } from "./actions/newsletter";
 import { notifyMe, type NotifyMeProps } from "./actions/misc";
 import type { OrderForm } from "./types";
@@ -167,6 +167,14 @@ export const invoke = {
         (input: Record<string, any>) => createSession(input),
         { unwrap: true },
       ),
+
+      editSession: createInvokeFn(
+        (input: { public: Record<string, { value: string }> }) =>
+          editSession(input.public),
+        { unwrap: true },
+      ) as unknown as (ctx: {
+        data: { public: Record<string, { value: string }> };
+      }) => Promise<SessionData>,
 
       // -- MasterData -------------------------------------------------------
 

@@ -4,6 +4,7 @@
  */
 
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
+import { SEGMENT_COOKIE_NAME, parseSegment } from "./utils/segment";
 
 // ---------------------------------------------------------------------------
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
@@ -176,6 +177,22 @@ function authHeaders(): Record<string, string> {
 	return headers;
 }
 
+/**
+ * Read regionId from the current request's vtex_segment cookie.
+ * Returns null when no cookie provider is registered or no regionId is set.
+ */
+function extractRegionIdFromCookies(): string | null {
+	if (!_getCookieHeader) return null;
+	const cookies = _getCookieHeader();
+	if (!cookies) return null;
+	const match = cookies.match(
+		new RegExp(`(?:^|;\\s*)${SEGMENT_COOKIE_NAME}=([^;]+)`),
+	);
+	if (!match?.[1]) return null;
+	const segment = parseSegment(match[1]);
+	return segment?.regionId ?? null;
+}
+
 export async function vtexFetchResponse(
 	path: string,
 	init?: RequestInit,
@@ -293,7 +310,7 @@ export async function vtexFetchWithCookies<T>(
 export async function intelligentSearch<T>(
 	path: string,
 	params?: Record<string, string>,
-	opts?: { cookieHeader?: string; locale?: string },
+	opts?: { cookieHeader?: string; locale?: string; regionId?: string },
 ): Promise<T> {
 	const url = new URL(`${isUrl()}${path}`);
 	if (params) {
@@ -309,6 +326,11 @@ export async function intelligentSearch<T>(
 		url.searchParams.set("locale", locale);
 	}
 
+	const regionId = opts?.regionId ?? extractRegionIdFromCookies();
+	if (regionId) {
+		url.searchParams.set("regionId", regionId);
+	}
+
 	const headers: Record<string, string> = { ...authHeaders() };
 	if (opts?.cookieHeader) {
 		headers.cookie = opts.cookieHeader;
@@ -316,8 +338,6 @@ export async function intelligentSearch<T>(
 
 	const fullUrl = url.toString();
 
-	// IS GET requests go through SWR cache (3 min TTL via status-based defaults).
-	// The doFetch callback throws on non-ok responses, so null is never returned.
 	return fetchWithCache<T>(fullUrl, async () => {
 		const response = await _fetch(fullUrl, { headers });
 		if (!response.ok) {

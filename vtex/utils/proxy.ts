@@ -104,10 +104,20 @@ function buildOriginUrl(
   return new URL(`https://${originHost}${url.pathname}${url.search}`);
 }
 
+/**
+ * Copy headers excluding hop-by-hop and Set-Cookie.
+ *
+ * Set-Cookie is excluded intentionally: Headers.forEach / .set() joins
+ * multiple Set-Cookie values with ", " which corrupts cookies containing
+ * commas (e.g. Expires dates). proxySetCookie handles Set-Cookie
+ * separately using Headers.getSetCookie() for correct multi-cookie support.
+ */
 function filterHeaders(headers: Headers): Headers {
   const filtered = new Headers();
   headers.forEach((value, key) => {
-    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) {
+    const lower = key.toLowerCase();
+    if (lower === "set-cookie") return;
+    if (!HOP_BY_HOP_HEADERS.has(lower)) {
       filtered.set(key, value);
     }
   });
@@ -169,13 +179,13 @@ export async function proxyToVtex(
 
   const responseHeaders = filterHeaders(new Headers(originResponse.headers));
 
-  if (options?.rewriteCookieDomain !== false) {
-    proxySetCookie(
-      originResponse.headers,
-      responseHeaders,
-      new URL(request.url).origin,
-    );
-  }
+  proxySetCookie(
+    originResponse.headers,
+    responseHeaders,
+    options?.rewriteCookieDomain !== false
+      ? new URL(request.url).origin
+      : undefined,
+  );
 
   if (originResponse.status >= 300 && originResponse.status < 400) {
     const location = originResponse.headers.get("location");

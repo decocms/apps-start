@@ -10,30 +10,71 @@ interface Cookie {
   sameSite?: "Strict" | "Lax" | "None";
 }
 
+function parseSingleSetCookie(raw: string): Cookie | null {
+  const parts = raw.split(";").map((p) => p.trim());
+  const [nameValue, ...attrs] = parts;
+  const eqIdx = nameValue.indexOf("=");
+  if (eqIdx < 0) return null;
+  const cookie: Cookie = {
+    name: nameValue.slice(0, eqIdx),
+    value: nameValue.slice(eqIdx + 1),
+  };
+  for (const attr of attrs) {
+    const [k, v] = attr.split("=").map((s) => s.trim());
+    const lower = k.toLowerCase();
+    if (lower === "domain") cookie.domain = v;
+    else if (lower === "path") cookie.path = v;
+    else if (lower === "secure") cookie.secure = true;
+    else if (lower === "httponly") cookie.httpOnly = true;
+    else if (lower === "samesite") cookie.sameSite = v as Cookie["sameSite"];
+  }
+  return cookie;
+}
+
+/**
+ * Extract individual Set-Cookie values from a Headers object.
+ *
+ * Uses Headers.getSetCookie() (available in Cloudflare Workers and Node 18+)
+ * which returns each Set-Cookie as a separate string — unlike Headers.get()
+ * or Headers.forEach() which join multiple values with ", " and corrupt
+ * cookie strings that contain commas in Expires dates.
+ */
 function getSetCookies(headers: Headers): Cookie[] {
+  const rawCookies: string[] =
+    typeof headers.getSetCookie === "function"
+      ? headers.getSetCookie()
+      : getRawSetCookiesFallback(headers);
+
   const cookies: Cookie[] = [];
-  headers.forEach((value, key) => {
-    if (key.toLowerCase() !== "set-cookie") return;
-    const parts = value.split(";").map((p) => p.trim());
-    const [nameValue, ...attrs] = parts;
-    const eqIdx = nameValue.indexOf("=");
-    if (eqIdx < 0) return;
-    const cookie: Cookie = {
-      name: nameValue.slice(0, eqIdx),
-      value: nameValue.slice(eqIdx + 1),
-    };
-    for (const attr of attrs) {
-      const [k, v] = attr.split("=").map((s) => s.trim());
-      const lower = k.toLowerCase();
-      if (lower === "domain") cookie.domain = v;
-      else if (lower === "path") cookie.path = v;
-      else if (lower === "secure") cookie.secure = true;
-      else if (lower === "httponly") cookie.httpOnly = true;
-      else if (lower === "samesite") cookie.sameSite = v as Cookie["sameSite"];
-    }
-    cookies.push(cookie);
-  });
+  for (const raw of rawCookies) {
+    const cookie = parseSingleSetCookie(raw);
+    if (cookie) cookies.push(cookie);
+  }
   return cookies;
+}
+
+/**
+ * Fallback for runtimes without Headers.getSetCookie().
+ * Splits the comma-joined string heuristically — not perfect for cookies
+ * with Expires containing commas, but better than the old approach.
+ */
+function getRawSetCookiesFallback(headers: Headers): string[] {
+  const joined = headers.get("set-cookie");
+  if (!joined) return [];
+  const results: string[] = [];
+  let current = "";
+  for (const segment of joined.split(",")) {
+    const trimmed = segment.trimStart();
+    const looksLikeNewCookie = /^[^=;]+=[^;]/.test(trimmed) && current.length > 0;
+    if (looksLikeNewCookie) {
+      results.push(current.trim());
+      current = trimmed;
+    } else {
+      current += (current ? "," : "") + segment;
+    }
+  }
+  if (current.trim()) results.push(current.trim());
+  return results;
 }
 
 function setCookie(headers: Headers, cookie: Cookie): void {
