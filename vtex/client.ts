@@ -82,6 +82,8 @@ export interface VtexConfig {
 
 let _config: VtexConfig | null = null;
 let _fetch: typeof fetch = globalThis.fetch;
+let _getCookieHeader: (() => string | undefined) | null = null;
+let _forwardSetCookies: ((cookies: string[]) => void) | null = null;
 
 export function configureVtex(config: VtexConfig) {
 	_config = config;
@@ -101,6 +103,37 @@ export function configureVtex(config: VtexConfig) {
  */
 export function setVtexFetch(fetchFn: typeof fetch) {
 	_fetch = fetchFn;
+}
+
+/**
+ * Register a provider that returns the Cookie header from the current request.
+ * Called automatically by vtexFetchWithCookies when no explicit cookieHeader
+ * is present in the request init — so checkout/session/auth actions
+ * transparently forward browser cookies to the VTEX API.
+ *
+ * @example
+ * ```ts
+ * import { getRequestHeader } from "@tanstack/react-start/server";
+ * setRequestCookieProvider(() => getRequestHeader("cookie") ?? undefined);
+ * ```
+ */
+export function setRequestCookieProvider(fn: () => string | undefined) {
+	_getCookieHeader = fn;
+}
+
+/**
+ * Register a callback that forwards VTEX Set-Cookie headers back to the browser.
+ * Called automatically by vtexFetchWithCookies after every response that
+ * carries Set-Cookie headers.
+ *
+ * @example
+ * ```ts
+ * import { setResponseHeader } from "@tanstack/react-start/server";
+ * setResponseCookieForwarder((cookies) => setResponseHeader("set-cookie", cookies));
+ * ```
+ */
+export function setResponseCookieForwarder(fn: (cookies: string[]) => void) {
+	_forwardSetCookies = fn;
 }
 
 export function getVtexConfig(): VtexConfig {
@@ -222,6 +255,20 @@ export async function vtexFetchWithCookies<T>(
 	path: string,
 	init?: RequestInit,
 ): Promise<VtexFetchResult<T>> {
+	// Auto-inject request cookies when no explicit cookie header is set
+	if (_getCookieHeader) {
+		const existingHeaders = init?.headers as Record<string, string> | undefined;
+		if (!existingHeaders?.["cookie"]) {
+			const cookies = _getCookieHeader();
+			if (cookies) {
+				init = {
+					...init,
+					headers: { ...existingHeaders, cookie: cookies },
+				};
+			}
+		}
+	}
+
 	const response = await vtexFetchResponse(path, init);
 	const data = (await response.json()) as T;
 	const setCookies: string[] = [];
@@ -234,6 +281,12 @@ export async function vtexFetchWithCookies<T>(
 			}
 		});
 	}
+
+	// Auto-forward Set-Cookie headers to the browser response
+	if (_forwardSetCookies && setCookies.length) {
+		_forwardSetCookies(setCookies);
+	}
+
 	return { data, setCookies };
 }
 
