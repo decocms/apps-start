@@ -57,7 +57,7 @@ const DEFAULT_PROXY_PATHS = [
   "/login/",
   "/logout",
   "/logout/",
-  "/assets/",
+  "/assets/vtex",
   "/_secure/account",
   "/XMLData/",
 ] as const;
