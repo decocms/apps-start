@@ -30,6 +30,7 @@
     "./vtex/inline-loaders/productDetailsPage": "./vtex/inline-loaders/productDetailsPage.ts",
     "./vtex/inline-loaders/productListingPage": "./vtex/inline-loaders/productListingPage.ts",
     "./vtex/inline-loaders/productList": "./vtex/inline-loaders/productList.ts",
+    "./vtex/inline-loaders/productListShelf": "./vtex/inline-loaders/productListShelf.ts",
     "./vtex/inline-loaders/relatedProducts": "./vtex/inline-loaders/relatedProducts.ts",
     "./vtex/inline-loaders/suggestions": "./vtex/inline-loaders/suggestions.ts",
     "./vtex/hooks": "./vtex/hooks/index.ts",
