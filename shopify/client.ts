@@ -1,9 +1,9 @@
 import { createGraphqlClient, type GraphQLClient } from "./utils/graphql";
 
 export interface ShopifyConfig {
-  storeName: string;
-  storefrontAccessToken: string;
-  publicUrl?: string;
+	storeName: string;
+	storefrontAccessToken: string;
+	publicUrl?: string;
 }
 
 let _client: GraphQLClient | null = null;
@@ -22,37 +22,37 @@ let _fetch: typeof fetch | undefined;
  * ```
  */
 export function setShopifyFetch(fetchFn: typeof fetch) {
-  _fetch = fetchFn;
-  if (_config) configureShopify(_config);
+	_fetch = fetchFn;
+	if (_config) configureShopify(_config);
 }
 
 export function configureShopify(config: ShopifyConfig) {
-  _config = config;
-  _client = createGraphqlClient(
-    `https://${config.storeName}.myshopify.com/api/2025-04/graphql.json`,
-    {
-      "X-Shopify-Storefront-Access-Token": config.storefrontAccessToken,
-    },
-    _fetch,
-  );
+	_config = config;
+	_client = createGraphqlClient(
+		`https://${config.storeName}.myshopify.com/api/2025-04/graphql.json`,
+		{
+			"X-Shopify-Storefront-Access-Token": config.storefrontAccessToken,
+		},
+		_fetch,
+	);
 }
 
 export function getShopifyClient(): GraphQLClient {
-  if (!_client || !_config) {
-    throw new Error(
-      "Shopify not configured. Call configureShopify() first or check deco-shopify.json block."
-    );
-  }
-  return _client;
+	if (!_client || !_config) {
+		throw new Error(
+			"Shopify not configured. Call configureShopify() first or check deco-shopify.json block.",
+		);
+	}
+	return _client;
 }
 
 export function getShopifyConfig(): ShopifyConfig {
-  if (!_config) {
-    throw new Error("Shopify not configured.");
-  }
-  return _config;
+	if (!_config) {
+		throw new Error("Shopify not configured.");
+	}
+	return _config;
 }
 
 export function getBaseUrl(): string {
-  return _config?.publicUrl || "";
+	return _config?.publicUrl || "";
 }

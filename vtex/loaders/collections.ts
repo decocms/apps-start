@@ -11,8 +11,8 @@ import { vtexFetch } from "../client";
 import type { CollectionList } from "../utils/types";
 
 export interface CollectionOption {
-  value: string;
-  label: string;
+	value: string;
+	label: string;
 }
 
 /**
@@ -24,34 +24,32 @@ export interface CollectionOption {
  *
  * Note: uses the **pvt** (private) endpoint — requires appKey/appToken.
  */
-export async function getCollections(
-  term?: string,
-): Promise<CollectionOption[]> {
-  const params = new URLSearchParams();
+export async function getCollections(term?: string): Promise<CollectionOption[]> {
+	const params = new URLSearchParams();
 
-  if (term) {
-    params.set("page", "1");
-    params.set("pageSize", "15");
-    const list = await vtexFetch<CollectionList>(
-      `/api/catalog_system/pvt/collection/search/${encodeURIComponent(term)}?${params}`,
-    );
-    return mapToOptions(list);
-  }
+	if (term) {
+		params.set("page", "1");
+		params.set("pageSize", "15");
+		const list = await vtexFetch<CollectionList>(
+			`/api/catalog_system/pvt/collection/search/${encodeURIComponent(term)}?${params}`,
+		);
+		return mapToOptions(list);
+	}
 
-  params.set("page", "1");
-  params.set("pageSize", "3000");
-  params.set("orderByAsc", "false");
-  const list = await vtexFetch<CollectionList>(
-    `/api/catalog_system/pvt/collection/search?${params}`,
-  );
-  return mapToOptions(list);
+	params.set("page", "1");
+	params.set("pageSize", "3000");
+	params.set("orderByAsc", "false");
+	const list = await vtexFetch<CollectionList>(
+		`/api/catalog_system/pvt/collection/search?${params}`,
+	);
+	return mapToOptions(list);
 }
 
 function mapToOptions(list: CollectionList): CollectionOption[] {
-  return (
-    list.items?.map((c) => ({
-      value: `${c.id}`,
-      label: `${c.id} - ${c.name}`,
-    })) ?? []
-  );
+	return (
+		list.items?.map((c) => ({
+			value: `${c.id}`,
+			label: `${c.id} - ${c.name}`,
+		})) ?? []
+	);
 }

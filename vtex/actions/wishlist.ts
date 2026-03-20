@@ -5,31 +5,29 @@
  *   - vtex/actions/wishlist/removeItem.ts
  * @see https://developers.vtex.com/docs/apps/vtex.wish-list
  */
-import { vtexFetch, getVtexConfig, vtexIOGraphQL } from "../client";
+import { getVtexConfig, vtexIOGraphQL } from "../client";
 import { buildAuthCookieHeader } from "../utils/vtexId";
+
+/** Maximum wishlist items to fetch in a single query. */
+const WISHLIST_MAX_ITEMS = 500;
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface WishlistItem {
-  id?: string;
-  productId: string;
-  sku: string;
-  title?: string;
+	id?: string;
+	productId: string;
+	sku: string;
+	title?: string;
 }
 
 // ---------------------------------------------------------------------------
 // GraphQL helper (myvtex.com private graphql)
 // ---------------------------------------------------------------------------
 
-interface GqlResponse<T> {
-  data: T;
-  errors?: Array<{ message: string }>;
-}
-
 function buildCookieHeader(authCookie: string): string {
-  return buildAuthCookieHeader(authCookie, getVtexConfig().account);
+	return buildAuthCookieHeader(authCookie, getVtexConfig().account);
 }
 
 // ---------------------------------------------------------------------------
@@ -55,16 +53,16 @@ const VIEW_WISHLIST = `query ViewList($shopperId: String!, $name: String!, $from
 // ---------------------------------------------------------------------------
 
 async function fetchWishlist(shopperId: string, authCookie: string): Promise<WishlistItem[]> {
-  const data = await vtexIOGraphQL<{
-    viewList: { data: WishlistItem[] | null };
-  }>(
-    {
-      query: VIEW_WISHLIST,
-      variables: { shopperId, name: "Wishlist", from: 0, to: 500 },
-    },
-    { Cookie: buildCookieHeader(authCookie) },
-  );
-  return data.viewList?.data ?? [];
+	const data = await vtexIOGraphQL<{
+		viewList: { data: WishlistItem[] | null };
+	}>(
+		{
+			query: VIEW_WISHLIST,
+			variables: { shopperId, name: "Wishlist", from: 0, to: WISHLIST_MAX_ITEMS },
+		},
+		{ Cookie: buildCookieHeader(authCookie) },
+	);
+	return data.viewList?.data ?? [];
 }
 
 /**
@@ -72,23 +70,23 @@ async function fetchWishlist(shopperId: string, authCookie: string): Promise<Wis
  * Returns the updated full wishlist.
  */
 export async function addItem(
-  item: { productId: string; sku: string; title?: string },
-  shopperId: string,
-  authCookie: string,
+	item: { productId: string; sku: string; title?: string },
+	shopperId: string,
+	authCookie: string,
 ): Promise<WishlistItem[]> {
-  if (!authCookie) throw new Error("User must be logged in to add to wishlist");
-  await vtexIOGraphQL<unknown>(
-    {
-      query: ADD_TO_WISHLIST,
-      variables: {
-        name: "Wishlist",
-        shopperId,
-        listItem: item,
-      },
-    },
-    { Cookie: buildCookieHeader(authCookie) },
-  );
-  return fetchWishlist(shopperId, authCookie);
+	if (!authCookie) throw new Error("User must be logged in to add to wishlist");
+	await vtexIOGraphQL<unknown>(
+		{
+			query: ADD_TO_WISHLIST,
+			variables: {
+				name: "Wishlist",
+				shopperId,
+				listItem: item,
+			},
+		},
+		{ Cookie: buildCookieHeader(authCookie) },
+	);
+	return fetchWishlist(shopperId, authCookie);
 }
 
 /**
@@ -96,21 +94,21 @@ export async function addItem(
  * Returns the updated full wishlist.
  */
 export async function removeItem(
-  id: string,
-  shopperId: string,
-  authCookie: string,
+	id: string,
+	shopperId: string,
+	authCookie: string,
 ): Promise<WishlistItem[]> {
-  if (!authCookie) throw new Error("User must be logged in to remove from wishlist");
-  await vtexIOGraphQL<unknown>(
-    {
-      query: REMOVE_FROM_WISHLIST,
-      variables: {
-        id,
-        name: "Wishlist",
-        shopperId,
-      },
-    },
-    { Cookie: buildCookieHeader(authCookie) },
-  );
-  return fetchWishlist(shopperId, authCookie);
+	if (!authCookie) throw new Error("User must be logged in to remove from wishlist");
+	await vtexIOGraphQL<unknown>(
+		{
+			query: REMOVE_FROM_WISHLIST,
+			variables: {
+				id,
+				name: "Wishlist",
+				shopperId,
+			},
+		},
+		{ Cookie: buildCookieHeader(authCookie) },
+	);
+	return fetchWishlist(shopperId, authCookie);
 }

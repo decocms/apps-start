@@ -4,7 +4,7 @@
  *   - vtex/actions/profile/updateProfile.ts
  * @see https://developers.vtex.com/docs/guides/profile-system
  */
-import { vtexFetch, getVtexConfig } from "../client";
+import { getVtexConfig, vtexFetch } from "../client";
 import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
@@ -12,36 +12,36 @@ import { buildAuthCookieHeader } from "../utils/vtexId";
 // ---------------------------------------------------------------------------
 
 export interface ProfileInput {
-  firstName?: string;
-  lastName?: string;
-  birthDate?: string;
-  gender?: string;
-  homePhone?: string;
-  businessPhone?: string;
-  document?: string;
-  email: string;
-  tradeName?: string;
-  corporateName?: string;
-  corporateDocument?: string;
-  stateRegistration?: string;
-  isCorporate?: boolean;
+	firstName?: string;
+	lastName?: string;
+	birthDate?: string;
+	gender?: string;
+	homePhone?: string;
+	businessPhone?: string;
+	document?: string;
+	email: string;
+	tradeName?: string;
+	corporateName?: string;
+	corporateDocument?: string;
+	stateRegistration?: string;
+	isCorporate?: boolean;
 }
 
 export interface Profile {
-  cacheId: string;
-  firstName: string;
-  lastName: string;
-  birthDate: string;
-  gender: string;
-  homePhone: string;
-  businessPhone: string;
-  document: string;
-  email: string;
-  tradeName: string;
-  corporateName: string;
-  corporateDocument: string;
-  stateRegistration: string;
-  isCorporate: boolean;
+	cacheId: string;
+	firstName: string;
+	lastName: string;
+	birthDate: string;
+	gender: string;
+	homePhone: string;
+	businessPhone: string;
+	document: string;
+	email: string;
+	tradeName: string;
+	corporateName: string;
+	corporateDocument: string;
+	stateRegistration: string;
+	isCorporate: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,28 +49,28 @@ export interface Profile {
 // ---------------------------------------------------------------------------
 
 interface GqlResponse<T> {
-  data: T;
-  errors?: Array<{ message: string }>;
+	data: T;
+	errors?: Array<{ message: string }>;
 }
 
 async function gql<T>(
-  query: string,
-  variables: Record<string, unknown>,
-  authCookie: string,
+	query: string,
+	variables: Record<string, unknown>,
+	authCookie: string,
 ): Promise<T> {
-  const { account } = getVtexConfig();
-  const result = await vtexFetch<GqlResponse<T>>(
-    `https://${account}.myvtex.com/_v/private/graphql/v1`,
-    {
-      method: "POST",
-      body: JSON.stringify({ query, variables }),
-      headers: { Cookie: buildAuthCookieHeader(authCookie, account) },
-    },
-  );
-  if (result.errors?.length) {
-    throw new Error(`GraphQL error: ${result.errors[0].message}`);
-  }
-  return result.data;
+	const { account } = getVtexConfig();
+	const result = await vtexFetch<GqlResponse<T>>(
+		`https://${account}.myvtex.com/_v/private/graphql/v1`,
+		{
+			method: "POST",
+			body: JSON.stringify({ query, variables }),
+			headers: { Cookie: buildAuthCookieHeader(authCookie, account) },
+		},
+	);
+	if (result.errors?.length) {
+		throw new Error(`GraphQL error: ${result.errors[0].message}`);
+	}
+	return result.data;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,14 +106,14 @@ const UPDATE_PROFILE = `mutation UpdateProfile($input: ProfileInput!) {
  * Here the caller must provide it explicitly.
  */
 export async function updateProfile(
-  fields: Omit<ProfileInput, "email">,
-  email: string,
-  authCookie: string,
+	fields: Omit<ProfileInput, "email">,
+	email: string,
+	authCookie: string,
 ): Promise<Profile> {
-  const { updateProfile: profile } = await gql<{ updateProfile: Profile }>(
-    UPDATE_PROFILE,
-    { input: { ...fields, email } },
-    authCookie,
-  );
-  return profile;
+	const { updateProfile: profile } = await gql<{ updateProfile: Profile }>(
+		UPDATE_PROFILE,
+		{ input: { ...fields, email } },
+		authCookie,
+	);
+	return profile;
 }

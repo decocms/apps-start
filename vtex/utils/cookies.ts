@@ -1,34 +1,34 @@
 interface Cookie {
-  name: string;
-  value: string;
-  domain?: string;
-  path?: string;
-  expires?: Date;
-  maxAge?: number;
-  secure?: boolean;
-  httpOnly?: boolean;
-  sameSite?: "Strict" | "Lax" | "None";
+	name: string;
+	value: string;
+	domain?: string;
+	path?: string;
+	expires?: Date;
+	maxAge?: number;
+	secure?: boolean;
+	httpOnly?: boolean;
+	sameSite?: "Strict" | "Lax" | "None";
 }
 
 function parseSingleSetCookie(raw: string): Cookie | null {
-  const parts = raw.split(";").map((p) => p.trim());
-  const [nameValue, ...attrs] = parts;
-  const eqIdx = nameValue.indexOf("=");
-  if (eqIdx < 0) return null;
-  const cookie: Cookie = {
-    name: nameValue.slice(0, eqIdx),
-    value: nameValue.slice(eqIdx + 1),
-  };
-  for (const attr of attrs) {
-    const [k, v] = attr.split("=").map((s) => s.trim());
-    const lower = k.toLowerCase();
-    if (lower === "domain") cookie.domain = v;
-    else if (lower === "path") cookie.path = v;
-    else if (lower === "secure") cookie.secure = true;
-    else if (lower === "httponly") cookie.httpOnly = true;
-    else if (lower === "samesite") cookie.sameSite = v as Cookie["sameSite"];
-  }
-  return cookie;
+	const parts = raw.split(";").map((p) => p.trim());
+	const [nameValue, ...attrs] = parts;
+	const eqIdx = nameValue.indexOf("=");
+	if (eqIdx < 0) return null;
+	const cookie: Cookie = {
+		name: nameValue.slice(0, eqIdx),
+		value: nameValue.slice(eqIdx + 1),
+	};
+	for (const attr of attrs) {
+		const [k, v] = attr.split("=").map((s) => s.trim());
+		const lower = k.toLowerCase();
+		if (lower === "domain") cookie.domain = v;
+		else if (lower === "path") cookie.path = v;
+		else if (lower === "secure") cookie.secure = true;
+		else if (lower === "httponly") cookie.httpOnly = true;
+		else if (lower === "samesite") cookie.sameSite = v as Cookie["sameSite"];
+	}
+	return cookie;
 }
 
 /**
@@ -40,17 +40,17 @@ function parseSingleSetCookie(raw: string): Cookie | null {
  * cookie strings that contain commas in Expires dates.
  */
 function getSetCookies(headers: Headers): Cookie[] {
-  const rawCookies: string[] =
-    typeof headers.getSetCookie === "function"
-      ? headers.getSetCookie()
-      : getRawSetCookiesFallback(headers);
+	const rawCookies: string[] =
+		typeof headers.getSetCookie === "function"
+			? headers.getSetCookie()
+			: getRawSetCookiesFallback(headers);
 
-  const cookies: Cookie[] = [];
-  for (const raw of rawCookies) {
-    const cookie = parseSingleSetCookie(raw);
-    if (cookie) cookies.push(cookie);
-  }
-  return cookies;
+	const cookies: Cookie[] = [];
+	for (const raw of rawCookies) {
+		const cookie = parseSingleSetCookie(raw);
+		if (cookie) cookies.push(cookie);
+	}
+	return cookies;
 }
 
 /**
@@ -59,58 +59,54 @@ function getSetCookies(headers: Headers): Cookie[] {
  * with Expires containing commas, but better than the old approach.
  */
 function getRawSetCookiesFallback(headers: Headers): string[] {
-  const joined = headers.get("set-cookie");
-  if (!joined) return [];
-  const results: string[] = [];
-  let current = "";
-  for (const segment of joined.split(",")) {
-    const trimmed = segment.trimStart();
-    const looksLikeNewCookie = /^[^=;]+=[^;]/.test(trimmed) && current.length > 0;
-    if (looksLikeNewCookie) {
-      results.push(current.trim());
-      current = trimmed;
-    } else {
-      current += (current ? "," : "") + segment;
-    }
-  }
-  if (current.trim()) results.push(current.trim());
-  return results;
+	const joined = headers.get("set-cookie");
+	if (!joined) return [];
+	const results: string[] = [];
+	let current = "";
+	for (const segment of joined.split(",")) {
+		const trimmed = segment.trimStart();
+		const looksLikeNewCookie = /^[^=;]+=[^;]/.test(trimmed) && current.length > 0;
+		if (looksLikeNewCookie) {
+			results.push(current.trim());
+			current = trimmed;
+		} else {
+			current += (current ? "," : "") + segment;
+		}
+	}
+	if (current.trim()) results.push(current.trim());
+	return results;
 }
 
 function setCookie(headers: Headers, cookie: Cookie): void {
-  let str = `${cookie.name}=${cookie.value}`;
-  if (cookie.domain) str += `; Domain=${cookie.domain}`;
-  if (cookie.path) str += `; Path=${cookie.path}`;
-  if (cookie.secure) str += "; Secure";
-  if (cookie.httpOnly) str += "; HttpOnly";
-  if (cookie.sameSite) str += `; SameSite=${cookie.sameSite}`;
-  if (cookie.maxAge != null) str += `; Max-Age=${cookie.maxAge}`;
-  if (cookie.expires) str += `; Expires=${cookie.expires.toUTCString()}`;
-  headers.append("Set-Cookie", str);
+	let str = `${cookie.name}=${cookie.value}`;
+	if (cookie.domain) str += `; Domain=${cookie.domain}`;
+	if (cookie.path) str += `; Path=${cookie.path}`;
+	if (cookie.secure) str += "; Secure";
+	if (cookie.httpOnly) str += "; HttpOnly";
+	if (cookie.sameSite) str += `; SameSite=${cookie.sameSite}`;
+	if (cookie.maxAge != null) str += `; Max-Age=${cookie.maxAge}`;
+	if (cookie.expires) str += `; Expires=${cookie.expires.toUTCString()}`;
+	headers.append("Set-Cookie", str);
 }
 
 export const stringify = (cookies: Record<string, string>) =>
-  Object.entries(cookies)
-    .map(([key, value]) => `${key}=${value}`)
-    .join("; ");
+	Object.entries(cookies)
+		.map(([key, value]) => `${key}=${value}`)
+		.join("; ");
 
-export const proxySetCookie = (
-  from: Headers,
-  to: Headers,
-  toDomain?: URL | string,
-) => {
-  const newDomain = toDomain && new URL(toDomain);
+export const proxySetCookie = (from: Headers, to: Headers, toDomain?: URL | string) => {
+	const newDomain = toDomain && new URL(toDomain);
 
-  for (const cookie of getSetCookies(from)) {
-    const newCookie = newDomain
-      ? {
-        ...cookie,
-        domain: newDomain.hostname,
-      }
-      : cookie;
+	for (const cookie of getSetCookies(from)) {
+		const newCookie = newDomain
+			? {
+					...cookie,
+					domain: newDomain.hostname,
+				}
+			: cookie;
 
-    setCookie(to, newCookie);
-  }
+		setCookie(to, newCookie);
+	}
 };
 
 export const CHECKOUT_DATA_ACCESS_COOKIE = "CheckoutDataAccess";

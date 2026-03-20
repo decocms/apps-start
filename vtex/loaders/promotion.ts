@@ -20,14 +20,11 @@ import type { Document } from "../utils/types";
  * @param authCookie  - Optional cookie string for authenticated requests
  */
 export async function getPromotionById(
-  promotionId: string,
-  authCookie?: string,
+	promotionId: string,
+	authCookie?: string,
 ): Promise<Document[]> {
-  const headers: Record<string, string> = {};
-  if (authCookie) headers.cookie = authCookie;
+	const headers: Record<string, string> = {};
+	if (authCookie) headers.cookie = authCookie;
 
-  return vtexFetch<Document[]>(
-    `/api/rnb/pvt/calculatorconfiguration/${promotionId}`,
-    { headers },
-  );
+	return vtexFetch<Document[]>(`/api/rnb/pvt/calculatorconfiguration/${promotionId}`, { headers });
 }

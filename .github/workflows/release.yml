@@ -26,7 +26,9 @@ jobs:
 
       - run: npm install -g npm@latest
 
-      - run: npm install
+      - run: npm ci
+
+      - run: npm test
 
       - name: Release
         run: npx semantic-release

@@ -4,7 +4,7 @@
  *   - vtex/actions/orders/cancel.ts
  * @see https://developers.vtex.com/docs/api-reference/orders-api
  */
-import { vtexFetch, getVtexConfig } from "../client";
+import { getVtexConfig, vtexFetch } from "../client";
 import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
@@ -17,21 +17,18 @@ import { buildAuthCookieHeader } from "../utils/vtexId";
  * on vtexcommercestable.com.br.
  */
 export async function cancelOrder(
-  orderId: string,
-  reason: string,
-  authCookie?: string,
+	orderId: string,
+	reason: string,
+	authCookie?: string,
 ): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (authCookie) {
-    headers.Cookie = buildAuthCookieHeader(authCookie, getVtexConfig().account);
-  }
+	const headers: Record<string, string> = {};
+	if (authCookie) {
+		headers.Cookie = buildAuthCookieHeader(authCookie, getVtexConfig().account);
+	}
 
-  await vtexFetch<unknown>(
-    `/api/checkout/pub/orders/${orderId}/user-cancel-request`,
-    {
-      method: "POST",
-      body: JSON.stringify({ reason }),
-      headers,
-    },
-  );
+	await vtexFetch<unknown>(`/api/checkout/pub/orders/${orderId}/user-cancel-request`, {
+		method: "POST",
+		body: JSON.stringify({ reason }),
+		headers,
+	});
 }

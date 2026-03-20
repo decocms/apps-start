@@ -60,7 +60,7 @@ export async function getOrCreateCart(
 ): Promise<VtexFetchResult<OrderForm>> {
 	const sc = scParam();
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 
 	if (orderFormId) {
 		const result = await vtexFetchWithCookies<OrderForm>(
@@ -99,7 +99,7 @@ export async function addItemsToCart(
 	const params = appendSc(new URLSearchParams());
 	for (const d of allowedOutdatedData) params.append("allowedOutdatedData", d);
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items?${params}`,
 		{ method: "POST", body: JSON.stringify({ orderItems }), headers },
@@ -122,7 +122,7 @@ export async function updateCartItems(
 		params.append("allowedOutdatedData", d);
 	}
 	const headers: Record<string, string> = {};
-	if (opts?.cookieHeader) headers["cookie"] = opts.cookieHeader;
+	if (opts?.cookieHeader) headers.cookie = opts.cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items/update?${params}`,
 		{
@@ -144,7 +144,7 @@ export async function removeAllItems(
 ): Promise<VtexFetchResult<OrderForm>> {
 	const sc = scParam();
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items/removeAll${sc ? `?${sc}` : ""}`,
 		{ method: "POST", body: JSON.stringify({}), headers },
@@ -160,7 +160,7 @@ export async function addCouponToCart(
 ): Promise<VtexFetchResult<OrderForm>> {
 	const sc = scParam();
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/coupons${sc ? `?${sc}` : ""}`,
 		{ method: "POST", body: JSON.stringify({ text }), headers },
@@ -187,11 +187,9 @@ export async function simulateCart(
 	cookieHeader?: string,
 ) {
 	const config = getVtexConfig();
-	const params = appendSc(
-		new URLSearchParams({ RnbBehavior: String(RnbBehavior) }),
-	);
+	const params = appendSc(new URLSearchParams({ RnbBehavior: String(RnbBehavior) }));
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	return vtexFetch<any>(`/api/checkout/pub/orderForms/simulation?${params}`, {
 		method: "POST",
 		body: JSON.stringify({
@@ -215,7 +213,7 @@ export async function addOffering(
 	cookieHeader?: string,
 ): Promise<VtexFetchResult<OrderForm>> {
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items/${itemIndex}/offerings`,
 		{
@@ -240,7 +238,7 @@ export async function removeOffering(
 	cookieHeader?: string,
 ): Promise<VtexFetchResult<OrderForm>> {
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items/${itemIndex}/offerings/${offeringId}/remove`,
 		{
@@ -266,7 +264,7 @@ export async function updateOrderFormAttachment(
 ): Promise<VtexFetchResult<OrderForm>> {
 	if (!orderFormId) throw new Error("Order form ID is required");
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/attachments/${attachment}`,
 		{
@@ -292,7 +290,7 @@ export async function updateItemAttachment(
 ): Promise<VtexFetchResult<OrderForm>> {
 	const sections = opts?.expectedOrderFormSections ?? DEFAULT_EXPECTED_SECTIONS;
 	const headers: Record<string, string> = {};
-	if (opts?.cookieHeader) headers["cookie"] = opts.cookieHeader;
+	if (opts?.cookieHeader) headers.cookie = opts.cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items/${itemIndex}/attachments/${attachment}`,
 		{
@@ -322,7 +320,7 @@ export async function removeItemAttachment(
 ): Promise<VtexFetchResult<OrderForm>> {
 	const sections = opts?.expectedOrderFormSections ?? DEFAULT_EXPECTED_SECTIONS;
 	const headers: Record<string, string> = {};
-	if (opts?.cookieHeader) headers["cookie"] = opts.cookieHeader;
+	if (opts?.cookieHeader) headers.cookie = opts.cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items/${itemIndex}/attachments/${attachment}`,
 		{
@@ -366,7 +364,7 @@ export async function updateSelectableGifts(
 	cookieHeader?: string,
 ): Promise<VtexFetchResult<OrderForm>> {
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/selectable-gifts/${giftId}`,
 		{
@@ -395,11 +393,10 @@ export async function getInstallments(
 	const params = new URLSearchParams({ paymentSystem: String(paymentSystem) });
 	appendSc(params);
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
-	return vtexFetch<any>(
-		`/api/checkout/pub/orderForm/${orderFormId}/installments?${params}`,
-		{ headers },
-	);
+	if (cookieHeader) headers.cookie = cookieHeader;
+	return vtexFetch<any>(`/api/checkout/pub/orderForm/${orderFormId}/installments?${params}`, {
+		headers,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -411,11 +408,9 @@ export async function updateOrderFormProfile(
 	fields: Record<string, unknown>,
 	opts?: { ignoreProfileData?: boolean; cookieHeader?: string },
 ): Promise<VtexFetchResult<OrderForm>> {
-	const body = opts?.ignoreProfileData
-		? { ...fields, ignoreProfileData: true }
-		: fields;
+	const body = opts?.ignoreProfileData ? { ...fields, ignoreProfileData: true } : fields;
 	const headers: Record<string, string> = {};
-	if (opts?.cookieHeader) headers["cookie"] = opts.cookieHeader;
+	if (opts?.cookieHeader) headers.cookie = opts.cookieHeader;
 	const result = await vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/profile`,
 		{ method: "PATCH", body: JSON.stringify(body), headers },
@@ -424,12 +419,8 @@ export async function updateOrderFormProfile(
 	return result;
 }
 
-export async function changeToAnonymousUser(
-	orderFormId: string,
-): Promise<OrderForm> {
-	return vtexFetch<OrderForm>(
-		`/api/checkout/changeToAnonymousUser/${orderFormId}`,
-	);
+export async function changeToAnonymousUser(orderFormId: string): Promise<OrderForm> {
+	return vtexFetch<OrderForm>(`/api/checkout/changeToAnonymousUser/${orderFormId}`);
 }
 
 export async function clearOrderFormMessages(
@@ -437,11 +428,12 @@ export async function clearOrderFormMessages(
 	cookieHeader?: string,
 ): Promise<OrderForm> {
 	const headers: Record<string, string> = {};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
-	return vtexFetch<OrderForm>(
-		`/api/checkout/pub/orderForm/${orderFormId}/messages/clear`,
-		{ method: "POST", body: JSON.stringify({}), headers },
-	);
+	if (cookieHeader) headers.cookie = cookieHeader;
+	return vtexFetch<OrderForm>(`/api/checkout/pub/orderForm/${orderFormId}/messages/clear`, {
+		method: "POST",
+		body: JSON.stringify({}),
+		headers,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -465,9 +457,7 @@ export async function getSellersByRegion(
 	const params = new URLSearchParams({ country: "BRA", postalCode });
 	const sc = salesChannel ?? getVtexConfig().salesChannel;
 	if (sc) params.set("sc", sc);
-	const resp = await vtexFetch<RegionResult[]>(
-		`/api/checkout/pub/regions/?${params}`,
-	);
+	const resp = await vtexFetch<RegionResult[]>(`/api/checkout/pub/regions/?${params}`);
 	return resp[0]?.sellers?.length > 0 ? resp[0] : null;
 }
 
@@ -479,17 +469,14 @@ export async function setShippingPostalCode(
 ): Promise<boolean> {
 	try {
 		const headers: Record<string, string> = {};
-		if (cookieHeader) headers["cookie"] = cookieHeader;
-		await vtexFetch<any>(
-			`/api/checkout/pub/orderForm/${orderFormId}/attachments/shippingData`,
-			{
-				method: "POST",
-				body: JSON.stringify({
-					selectedAddresses: [{ postalCode, country }],
-				}),
-				headers,
-			},
-		);
+		if (cookieHeader) headers.cookie = cookieHeader;
+		await vtexFetch<any>(`/api/checkout/pub/orderForm/${orderFormId}/attachments/shippingData`, {
+			method: "POST",
+			body: JSON.stringify({
+				selectedAddresses: [{ postalCode, country }],
+			}),
+			headers,
+		});
 		return true;
 	} catch {
 		return false;

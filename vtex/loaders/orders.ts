@@ -20,13 +20,10 @@ import { vtexFetch } from "../client";
  *
  * @see https://developers.vtex.com/docs/api-reference/orders-api#get-/api/oms/user/orders/-orderId-
  */
-export async function getOrderById<T = any>(
-  orderId: string,
-  authCookie: string,
-): Promise<T> {
-  return vtexFetch<T>(`/api/oms/user/orders/${orderId}`, {
-    headers: { cookie: authCookie },
-  });
+export async function getOrderById<T = any>(orderId: string, authCookie: string): Promise<T> {
+	return vtexFetch<T>(`/api/oms/user/orders/${orderId}`, {
+		headers: { cookie: authCookie },
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -34,9 +31,9 @@ export async function getOrderById<T = any>(
 // ---------------------------------------------------------------------------
 
 export interface ListOrdersOpts {
-  clientEmail: string;
-  page?: string;
-  perPage?: string;
+	clientEmail: string;
+	page?: string;
+	perPage?: string;
 }
 
 /**
@@ -45,20 +42,17 @@ export interface ListOrdersOpts {
  *
  * @see https://developers.vtex.com/docs/api-reference/orders-api#get-/api/oms/user/orders
  */
-export async function listOrders<T = any>(
-  opts: ListOrdersOpts,
-  authCookie: string,
-): Promise<T> {
-  const { clientEmail, page = "0", perPage = "15" } = opts;
-  const params = new URLSearchParams({
-    clientEmail,
-    page,
-    per_page: perPage,
-  });
+export async function listOrders<T = any>(opts: ListOrdersOpts, authCookie: string): Promise<T> {
+	const { clientEmail, page = "0", perPage = "15" } = opts;
+	const params = new URLSearchParams({
+		clientEmail,
+		page,
+		per_page: perPage,
+	});
 
-  return vtexFetch<T>(`/api/oms/user/orders?${params}`, {
-    headers: { cookie: authCookie },
-  });
+	return vtexFetch<T>(`/api/oms/user/orders?${params}`, {
+		headers: { cookie: authCookie },
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -81,23 +75,18 @@ export async function listOrders<T = any>(
  *
  * @see https://developers.vtex.com/docs/api-reference/checkout-api#get-/api/checkout/pub/orders/order-group/-orderGroupId-
  */
-export async function getOrderPlaced<T = any>(
-  orderId: string,
-  authCookie: string,
-): Promise<T[]> {
-  const isOrderGroup = !orderId.includes("-");
+export async function getOrderPlaced<T = any>(orderId: string, authCookie: string): Promise<T[]> {
+	const isOrderGroup = !orderId.includes("-");
 
-  if (isOrderGroup) {
-    return vtexFetch<T[]>(
-      `/api/checkout/pub/orders/order-group/${orderId}`,
-      { headers: { cookie: authCookie } },
-    );
-  }
+	if (isOrderGroup) {
+		return vtexFetch<T[]>(`/api/checkout/pub/orders/order-group/${orderId}`, {
+			headers: { cookie: authCookie },
+		});
+	}
 
-  const order = await vtexFetch<T>(
-    `/api/checkout/pub/orders/${orderId}`,
-    { headers: { cookie: authCookie } },
-  );
+	const order = await vtexFetch<T>(`/api/checkout/pub/orders/${orderId}`, {
+		headers: { cookie: authCookie },
+	});
 
-  return [order];
+	return [order];
 }

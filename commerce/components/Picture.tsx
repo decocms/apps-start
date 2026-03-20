@@ -1,12 +1,12 @@
 import {
-  createContext,
-  forwardRef,
-  useContext,
-  useMemo,
-  type ComponentPropsWithoutRef,
-  type ReactNode,
+	type ComponentPropsWithoutRef,
+	createContext,
+	forwardRef,
+	type ReactNode,
+	useContext,
+	useMemo,
 } from "react";
-import { getOptimizedMediaUrl, getSrcSet, type FitOptions } from "./Image";
+import { type FitOptions, getOptimizedMediaUrl, getSrcSet } from "./Image";
 
 // -------------------------------------------------------------------------
 // Preload context — flows from <Picture preload> to child <Source> elements
@@ -15,7 +15,7 @@ import { getOptimizedMediaUrl, getSrcSet, type FitOptions } from "./Image";
 // -------------------------------------------------------------------------
 
 interface PreloadContextValue {
-  preload: boolean;
+	preload: boolean;
 }
 
 const PreloadContext = createContext<PreloadContextValue>({ preload: false });
@@ -25,59 +25,48 @@ const PreloadContext = createContext<PreloadContextValue>({ preload: false });
 // preload link injection when inside a <Picture preload>.
 // -------------------------------------------------------------------------
 
-export type SourceProps = Omit<
-  ComponentPropsWithoutRef<"source">,
-  "width" | "height"
-> & {
-  src: string;
-  /** @description Improves Web Vitals (CLS|LCP) */
-  width: number;
-  /** @description Improves Web Vitals (CLS|LCP) */
-  height?: number;
-  /** @description Improves Web Vitals (LCP). Use high for LCP image. */
-  fetchPriority?: "high" | "low" | "auto";
-  /** @description Object-fit */
-  fit?: FitOptions;
+export type SourceProps = Omit<ComponentPropsWithoutRef<"source">, "width" | "height"> & {
+	src: string;
+	/** @description Improves Web Vitals (CLS|LCP) */
+	width: number;
+	/** @description Improves Web Vitals (CLS|LCP) */
+	height?: number;
+	/** @description Improves Web Vitals (LCP). Use high for LCP image. */
+	fetchPriority?: "high" | "low" | "auto";
+	/** @description Object-fit */
+	fit?: FitOptions;
 };
 
-export const Source = forwardRef<HTMLSourceElement, SourceProps>(
-  function Source(
-    { src, width, height, fetchPriority, fit = "cover", ...rest },
-    ref,
-  ) {
-    const { preload } = useContext(PreloadContext);
+export const Source = forwardRef<HTMLSourceElement, SourceProps>(function Source(
+	{ src, width, height, fetchPriority, fit = "cover", ...rest },
+	ref,
+) {
+	const { preload } = useContext(PreloadContext);
 
-    const optimizedSrc = getOptimizedMediaUrl({
-      originalSrc: src,
-      width,
-      height,
-      fit,
-    });
-    const srcSet = rest.srcSet ?? getSrcSet(src, width, height, fit);
+	const optimizedSrc = getOptimizedMediaUrl({
+		originalSrc: src,
+		width,
+		height,
+		fit,
+	});
+	const srcSet = rest.srcSet ?? getSrcSet(src, width, height, fit);
 
-    return (
-      <>
-        {preload && (
-          <link
-            as="image"
-            rel="preload"
-            href={optimizedSrc}
-            imageSrcSet={srcSet}
-            fetchPriority={fetchPriority ?? "high"}
-            media={rest.media}
-          />
-        )}
-        <source
-          {...rest}
-          srcSet={srcSet ?? optimizedSrc}
-          width={width}
-          height={height}
-          ref={ref}
-        />
-      </>
-    );
-  },
-);
+	return (
+		<>
+			{preload && (
+				<link
+					as="image"
+					rel="preload"
+					href={optimizedSrc}
+					imageSrcSet={srcSet}
+					fetchPriority={fetchPriority ?? "high"}
+					media={rest.media}
+				/>
+			)}
+			<source {...rest} srcSet={srcSet ?? optimizedSrc} width={width} height={height} ref={ref} />
+		</>
+	);
+});
 
 // -------------------------------------------------------------------------
 // Picture — composable wrapper that provides preload context to children.
@@ -91,24 +80,25 @@ export const Source = forwardRef<HTMLSourceElement, SourceProps>(
 // -------------------------------------------------------------------------
 
 export type PictureProps = ComponentPropsWithoutRef<"picture"> & {
-  children: ReactNode;
-  /**
-   * @description When true, child <Source> and <Image> elements inject
-   * `<link rel="preload">` tags for their respective media queries.
-   */
-  preload?: boolean;
+	children: ReactNode;
+	/**
+	 * @description When true, child <Source> and <Image> elements inject
+	 * `<link rel="preload">` tags for their respective media queries.
+	 */
+	preload?: boolean;
 };
 
-export const Picture = forwardRef<HTMLPictureElement, PictureProps>(
-  function Picture({ children, preload = false, ...props }, ref) {
-    const value = useMemo(() => ({ preload }), [preload]);
+export const Picture = forwardRef<HTMLPictureElement, PictureProps>(function Picture(
+	{ children, preload = false, ...props },
+	ref,
+) {
+	const value = useMemo(() => ({ preload }), [preload]);
 
-    return (
-      <PreloadContext.Provider value={value}>
-        <picture {...props} ref={ref}>
-          {children}
-        </picture>
-      </PreloadContext.Provider>
-    );
-  },
-);
+	return (
+		<PreloadContext.Provider value={value}>
+			<picture {...props} ref={ref}>
+				{children}
+			</picture>
+		</PreloadContext.Provider>
+	);
+});

@@ -6,10 +6,7 @@
  */
 
 import type { VtexFetchResult } from "../client";
-import {
-	getVtexConfig,
-	vtexFetchWithCookies,
-} from "../client";
+import { getVtexConfig, vtexFetchWithCookies } from "../client";
 import { VTEX_AUTH_COOKIE } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
@@ -77,9 +74,7 @@ const FORM_HEADERS = {
  * Extract login cookies from an AuthResponse.
  * Returns null if auth failed.
  */
-export function extractLoginCookies(
-	response: AuthResponse,
-): LoginCookies | null {
+export function extractLoginCookies(response: AuthResponse): LoginCookies | null {
 	if (response.authStatus !== "Success" || !response.authCookie) {
 		return null;
 	}
@@ -138,10 +133,7 @@ export async function classicSignIn(
 		const startResult = await startAuthentication();
 		token = startResult.data.authenticationToken ?? undefined;
 		startCookies = startResult.setCookies;
-		if (!token)
-			throw new Error(
-				"Failed to obtain authentication token from startAuthentication",
-			);
+		if (!token) throw new Error("Failed to obtain authentication token from startAuthentication");
 	}
 
 	const body = new URLSearchParams({
@@ -172,10 +164,11 @@ export async function accessKeySignIn(
 		authenticationToken,
 	});
 
-	return vtexFetchWithCookies<AuthResponse>(
-		"/api/vtexid/pub/authentication/accesskey/validate",
-		{ method: "POST", body, headers: FORM_HEADERS },
-	);
+	return vtexFetchWithCookies<AuthResponse>("/api/vtexid/pub/authentication/accesskey/validate", {
+		method: "POST",
+		body,
+		headers: FORM_HEADERS,
+	});
 }
 
 /**
@@ -201,14 +194,11 @@ export async function refreshToken(
 	cookieHeader: string,
 	fingerprint?: string,
 ): Promise<VtexFetchResult<RefreshTokenResponse>> {
-	return vtexFetchWithCookies<RefreshTokenResponse>(
-		"/api/vtexid/refreshtoken/webstore",
-		{
-			method: "POST",
-			body: JSON.stringify({ fingerprint }),
-			headers: { cookie: cookieHeader },
-		},
-	);
+	return vtexFetchWithCookies<RefreshTokenResponse>("/api/vtexid/refreshtoken/webstore", {
+		method: "POST",
+		body: JSON.stringify({ fingerprint }),
+		headers: { cookie: cookieHeader },
+	});
 }
 
 /**
@@ -260,10 +250,7 @@ export async function resetPassword(
 		const startResult = await startAuthentication({ locale });
 		token = startResult.data.authenticationToken ?? undefined;
 		startCookies = startResult.setCookies;
-		if (!token)
-			throw new Error(
-				"Failed to obtain authentication token from startAuthentication",
-			);
+		if (!token) throw new Error("Failed to obtain authentication token from startAuthentication");
 	}
 
 	const params = new URLSearchParams({

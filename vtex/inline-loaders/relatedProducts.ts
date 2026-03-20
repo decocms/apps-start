@@ -69,9 +69,7 @@ export default async function vtexRelatedProducts(
 
 		if (props.hideUnavailableItems) {
 			result = result.filter((p) =>
-				p.offers?.offers?.some(
-					(o) => o.availability === "https://schema.org/InStock",
-				),
+				p.offers?.offers?.some((o) => o.availability === "https://schema.org/InStock"),
 			);
 		}
 

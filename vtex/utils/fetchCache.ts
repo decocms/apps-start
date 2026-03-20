@@ -36,9 +36,7 @@ const inflight = new Map<string, Promise<CacheEntry>>();
 
 function evictIfNeeded() {
 	if (store.size <= DEFAULT_MAX_ENTRIES) return;
-	const sorted = [...store.entries()].sort(
-		(a, b) => a[1].createdAt - b[1].createdAt,
-	);
+	const sorted = [...store.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
 	const toRemove = sorted.slice(0, store.size - DEFAULT_MAX_ENTRIES);
 	for (const [key] of toRemove) store.delete(key);
 }
@@ -92,7 +90,6 @@ async function executeFetch(
 					`[vtex-fetch] attempt ${attempt + 1}/${attempts} failed — ${url}: ${lastError.message}`,
 				);
 				await sleep(RETRY_DELAYS[attempt] ?? 400);
-				continue;
 			}
 		}
 	}
