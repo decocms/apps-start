@@ -45,7 +45,7 @@ import {
 } from "./actions/masterData";
 import { type NotifyMeProps, notifyMe } from "./actions/misc";
 import { type SubscribeProps, subscribe } from "./actions/newsletter";
-import { createSession } from "./actions/session";
+import { createSession, editSession, type SessionData } from "./actions/session";
 import type { OrderForm } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -141,6 +141,14 @@ export const invoke = {
 			createSession: createInvokeFn((input: Record<string, any>) => createSession(input), {
 				unwrap: true,
 			}),
+
+			editSession: createInvokeFn(
+				(input: { public: Record<string, { value: string }> }) =>
+					editSession(input.public),
+				{ unwrap: true },
+			) as unknown as (ctx: {
+				data: { public: Record<string, { value: string }> };
+			}) => Promise<SessionData>,
 
 			// -- MasterData -------------------------------------------------------
 

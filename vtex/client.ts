@@ -4,6 +4,7 @@
  */
 
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
+import { SEGMENT_COOKIE_NAME, parseSegment } from "./utils/segment";
 
 // ---------------------------------------------------------------------------
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
@@ -81,6 +82,8 @@ export interface VtexConfig {
 
 let _config: VtexConfig | null = null;
 let _fetch: typeof fetch = globalThis.fetch;
+let _getCookieHeader: (() => string | undefined) | null = null;
+let _forwardSetCookies: ((cookies: string[]) => void) | null = null;
 
 export function configureVtex(config: VtexConfig) {
 	_config = config;
@@ -100,6 +103,37 @@ export function configureVtex(config: VtexConfig) {
  */
 export function setVtexFetch(fetchFn: typeof fetch) {
 	_fetch = fetchFn;
+}
+
+/**
+ * Register a provider that returns the Cookie header from the current request.
+ * Called automatically by vtexFetchWithCookies when no explicit cookieHeader
+ * is present in the request init — so checkout/session/auth actions
+ * transparently forward browser cookies to the VTEX API.
+ *
+ * @example
+ * ```ts
+ * import { getRequestHeader } from "@tanstack/react-start/server";
+ * setRequestCookieProvider(() => getRequestHeader("cookie") ?? undefined);
+ * ```
+ */
+export function setRequestCookieProvider(fn: () => string | undefined) {
+	_getCookieHeader = fn;
+}
+
+/**
+ * Register a callback that forwards VTEX Set-Cookie headers back to the browser.
+ * Called automatically by vtexFetchWithCookies after every response that
+ * carries Set-Cookie headers.
+ *
+ * @example
+ * ```ts
+ * import { setResponseHeader } from "@tanstack/react-start/server";
+ * setResponseCookieForwarder((cookies) => setResponseHeader("set-cookie", cookies));
+ * ```
+ */
+export function setResponseCookieForwarder(fn: (cookies: string[]) => void) {
+	_forwardSetCookies = fn;
 }
 
 export function getVtexConfig(): VtexConfig {
@@ -136,6 +170,22 @@ function authHeaders(): Record<string, string> {
 		headers["X-VTEX-API-AppToken"] = c.appToken;
 	}
 	return headers;
+}
+
+/**
+ * Read regionId from the current request's vtex_segment cookie.
+ * Returns null when no cookie provider is registered or no regionId is set.
+ */
+function extractRegionIdFromCookies(): string | null {
+	if (!_getCookieHeader) return null;
+	const cookies = _getCookieHeader();
+	if (!cookies) return null;
+	const match = cookies.match(
+		new RegExp(`(?:^|;\\s*)${SEGMENT_COOKIE_NAME}=([^;]+)`),
+	);
+	if (!match?.[1]) return null;
+	const segment = parseSegment(match[1]);
+	return segment?.regionId ?? null;
 }
 
 export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
@@ -209,6 +259,20 @@ export async function vtexFetchWithCookies<T>(
 	path: string,
 	init?: RequestInit,
 ): Promise<VtexFetchResult<T>> {
+	// Auto-inject request cookies when no explicit cookie header is set
+	if (_getCookieHeader) {
+		const existingHeaders = init?.headers as Record<string, string> | undefined;
+		if (!existingHeaders?.["cookie"]) {
+			const cookies = _getCookieHeader();
+			if (cookies) {
+				init = {
+					...init,
+					headers: { ...existingHeaders, cookie: cookies },
+				};
+			}
+		}
+	}
+
 	const response = await vtexFetchResponse(path, init);
 	const data = (await response.json()) as T;
 	const setCookies: string[] = [];
@@ -221,13 +285,19 @@ export async function vtexFetchWithCookies<T>(
 			}
 		});
 	}
+
+	// Auto-forward Set-Cookie headers to the browser response
+	if (_forwardSetCookies && setCookies.length) {
+		_forwardSetCookies(setCookies);
+	}
+
 	return { data, setCookies };
 }
 
 export async function intelligentSearch<T>(
 	path: string,
 	params?: Record<string, string>,
-	opts?: { cookieHeader?: string; locale?: string },
+	opts?: { cookieHeader?: string; locale?: string; regionId?: string },
 ): Promise<T> {
 	const url = new URL(`${isUrl()}${path}`);
 	if (params) {
@@ -243,6 +313,11 @@ export async function intelligentSearch<T>(
 		url.searchParams.set("locale", locale);
 	}
 
+	const regionId = opts?.regionId ?? extractRegionIdFromCookies();
+	if (regionId) {
+		url.searchParams.set("regionId", regionId);
+	}
+
 	const headers: Record<string, string> = { ...authHeaders() };
 	if (opts?.cookieHeader) {
 		headers.cookie = opts.cookieHeader;
@@ -250,8 +325,6 @@ export async function intelligentSearch<T>(
 
 	const fullUrl = url.toString();
 
-	// IS GET requests go through SWR cache (3 min TTL via status-based defaults).
-	// The doFetch callback throws on non-ok responses, so null is never returned.
 	return fetchWithCache<T>(fullUrl, async () => {
 		const response = await _fetch(fullUrl, { headers });
 		if (!response.ok) {
@@ -384,13 +457,15 @@ export function initVtexFromBlocks(blocks: Record<string, any>) {
 		console.warn("[VTEX] No vtex.json block found.");
 		return;
 	}
+	const appKey = typeof vtexBlock.appKey === "string" ? vtexBlock.appKey : undefined;
+	const appToken = typeof vtexBlock.appToken === "string" ? vtexBlock.appToken : undefined;
 	configureVtex({
 		account: vtexBlock.account,
 		publicUrl: vtexBlock.publicUrl,
 		salesChannel: vtexBlock.salesChannel || "1",
 		locale: vtexBlock.locale || vtexBlock.defaultLocale,
-		appKey: vtexBlock.appKey,
-		appToken: vtexBlock.appToken,
+		appKey,
+		appToken,
 		country: vtexBlock.country,
 		domain: vtexBlock.domain,
 	});
