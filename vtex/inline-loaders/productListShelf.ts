@@ -110,7 +110,9 @@ function resolveParams(props: ProductListProps): {
 	};
 }
 
-export default async function vtexProductListShelf(props: ProductListProps): Promise<Product[] | null> {
+export default async function vtexProductListShelf(
+	props: ProductListProps,
+): Promise<Product[] | null> {
 	try {
 		const { query, count, sort, facetPath, fuzzy, hideUnavailableItems, ids } =
 			resolveParams(props);

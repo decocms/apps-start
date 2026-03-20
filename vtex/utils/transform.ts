@@ -497,11 +497,7 @@ export const toProduct = <P extends LegacyProductVTEX | ProductVTEX>(
  * billingDuration * billingIncrement ≈ total price (within 1 cent tolerance).
  */
 const isNoInterest = (spec: UnitPriceSpecification): boolean => {
-	if (
-		spec.billingDuration == null ||
-		spec.billingIncrement == null ||
-		spec.price == null
-	) {
+	if (spec.billingDuration == null || spec.billingIncrement == null || spec.price == null) {
 		return false;
 	}
 	return Math.abs(spec.billingDuration * spec.billingIncrement - spec.price) < 0.01;
@@ -533,10 +529,7 @@ const buildOfferShelf = (offer: Offer): Offer => {
 		}
 
 		// Keep PIX installment
-		if (
-			spec.priceComponentType === SCHEMA_INSTALLMENT &&
-			spec.name?.toUpperCase() === "PIX"
-		) {
+		if (spec.priceComponentType === SCHEMA_INSTALLMENT && spec.name?.toUpperCase() === "PIX") {
 			leanSpecs.push(spec);
 			continue;
 		}
@@ -622,9 +615,7 @@ export const toProductShelf = <P extends LegacyProductVTEX | ProductVTEX>(
 		level < 1
 			? (() => {
 					const inStockSku = findFirstAvailable(items) ?? items[0];
-					const singleVariant = inStockSku
-						? [toProductShelf(product, inStockSku, 1, options)]
-						: [];
+					const singleVariant = inStockSku ? [toProductShelf(product, inStockSku, 1, options)] : [];
 					return {
 						"@type": "ProductGroup" as const,
 						productGroupID: productId,
