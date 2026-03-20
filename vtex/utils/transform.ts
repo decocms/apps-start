@@ -492,6 +492,181 @@ export const toProduct = <P extends LegacyProductVTEX | ProductVTEX>(
 	};
 };
 
+/**
+ * Determines if an installment has no interest by checking if
+ * billingDuration * billingIncrement ≈ total price (within 1 cent tolerance).
+ */
+const isNoInterest = (spec: UnitPriceSpecification): boolean => {
+	if (
+		spec.billingDuration == null ||
+		spec.billingIncrement == null ||
+		spec.price == null
+	) {
+		return false;
+	}
+	return Math.abs(spec.billingDuration * spec.billingIncrement - spec.price) < 0.01;
+};
+
+/**
+ * Build a lean offer for shelf display. Keeps only:
+ * - ListPrice, SalePrice, SRP price types
+ * - PIX installment (name?.toUpperCase() === "PIX")
+ * - Best no-interest installment (highest billingDuration)
+ * Drops: inventoryLevel, giftSkuIds, priceValidUntil
+ */
+const buildOfferShelf = (offer: Offer): Offer => {
+	const leanSpecs: UnitPriceSpecification[] = [];
+
+	let bestNoInterest: UnitPriceSpecification | null = null;
+
+	for (const spec of offer.priceSpecification ?? []) {
+		// Keep base price types
+		if (
+			spec.priceType === SCHEMA_LIST_PRICE ||
+			spec.priceType === SCHEMA_SALE_PRICE ||
+			spec.priceType === SCHEMA_SRP
+		) {
+			if (spec.priceComponentType !== SCHEMA_INSTALLMENT) {
+				leanSpecs.push(spec);
+				continue;
+			}
+		}
+
+		// Keep PIX installment
+		if (
+			spec.priceComponentType === SCHEMA_INSTALLMENT &&
+			spec.name?.toUpperCase() === "PIX"
+		) {
+			leanSpecs.push(spec);
+			continue;
+		}
+
+		// Track best no-interest installment (highest billingDuration)
+		if (
+			spec.priceComponentType === SCHEMA_INSTALLMENT &&
+			isNoInterest(spec) &&
+			(bestNoInterest == null ||
+				(spec.billingDuration ?? 0) > (bestNoInterest.billingDuration ?? 0))
+		) {
+			bestNoInterest = spec;
+		}
+	}
+
+	if (bestNoInterest) {
+		leanSpecs.push(bestNoInterest);
+	}
+
+	return {
+		"@type": "Offer",
+		identifier: offer.identifier,
+		price: offer.price,
+		seller: offer.seller,
+		sellerName: offer.sellerName,
+		teasers: offer.teasers,
+		priceSpecification: leanSpecs,
+		availability: offer.availability,
+		inventoryLevel: { value: 0 },
+	};
+};
+
+/** Property names commonly used by ProductCard/Shelf components */
+const SHELF_PROPERTY_NAMES = new Set([
+	"category",
+	"cluster",
+	"Cor",
+	"Tamanho",
+	"Voltagem",
+	"sellerId",
+]);
+
+/**
+ * Lean product transform for shelf/card display. Same signature as toProduct().
+ *
+ * Differences from toProduct():
+ * - Images: capped at 2 per SKU (front + back)
+ * - Offers: first seller only, stripped installments (keeps ListPrice, SalePrice, SRP, PIX, best no-interest)
+ * - isVariantOf: single in-stock variant at level 0
+ * - additionalProperty: filtered to known-used property names
+ * - Drops: description, video, isAccessoryOrSparePartFor, alternateName, gtin, releaseDate, model
+ */
+export const toProductShelf = <P extends LegacyProductVTEX | ProductVTEX>(
+	product: P,
+	sku: P["items"][number],
+	level = 0,
+	options: ProductOptions,
+): Product => {
+	const { baseUrl, priceCurrency } = options;
+	const { productId, items } = product;
+	const { name, itemId: skuId } = sku;
+
+	// Images: cap at 2
+	const rawImages = nonEmptyArray(sku.images);
+	const mappedImages = (rawImages ?? []).slice(0, 2).map(({ imageUrl, imageText, imageLabel }) => ({
+		"@type": "ImageObject" as const,
+		alternateName: imageText || imageLabel || "",
+		url: imageUrl,
+		name: imageLabel || "",
+		encodingFormat: "image",
+	}));
+	const finalImages = mappedImages.length > 0 ? mappedImages : [DEFAULT_IMAGE];
+
+	// Offers: first seller only, lean
+	const firstSeller = (sku.sellers ?? [])[0];
+	const fullOffer = firstSeller
+		? (isLegacyProduct(product) ? toOfferLegacy : toOffer)(firstSeller)
+		: undefined;
+	const leanOffers = fullOffer ? [buildOfferShelf(fullOffer)] : [];
+
+	// isVariantOf: single in-stock variant at level 0
+	const isVariantOf =
+		level < 1
+			? (() => {
+					const inStockSku = findFirstAvailable(items) ?? items[0];
+					const singleVariant = inStockSku
+						? [toProductShelf(product, inStockSku, 1, options)]
+						: [];
+					return {
+						"@type": "ProductGroup" as const,
+						productGroupID: productId,
+						hasVariant: singleVariant,
+						url: getProductGroupURL(baseUrl, product).href,
+						name: product.productName,
+						additionalProperty: [],
+					} satisfies ProductGroup;
+				})()
+			: undefined;
+
+	// additionalProperty: filter to known-used names
+	const specificationsAdditionalProperty = isLegacySku(sku)
+		? toAdditionalPropertiesLegacy(sku)
+		: toAdditionalProperties(sku);
+	const categoryAdditionalProperties = toAdditionalPropertyCategories(product) ?? [];
+	const clusterAdditionalProperties = toAdditionalPropertyClusters(product) ?? [];
+
+	const additionalProperty = [
+		...specificationsAdditionalProperty,
+		...categoryAdditionalProperties,
+		...clusterAdditionalProperties,
+	].filter((prop) => SHELF_PROPERTY_NAMES.has(prop.name ?? ""));
+
+	const categoriesString = splitCategory(product.categories[0]).join(DEFAULT_CATEGORY_SEPARATOR);
+
+	return {
+		"@type": "Product",
+		category: categoriesString,
+		productID: skuId,
+		url: getProductURL(baseUrl, product, sku.itemId).href,
+		name,
+		brand: { "@type": "Brand", name: product.brand },
+		inProductGroupWithID: productId,
+		sku: skuId,
+		image: finalImages,
+		offers: aggregateOffers(leanOffers, priceCurrency),
+		isVariantOf,
+		additionalProperty,
+	};
+};
+
 const toBreadcrumbList = (
 	product: ProductVTEX | LegacyProductVTEX,
 	{ baseUrl }: ProductOptions,
