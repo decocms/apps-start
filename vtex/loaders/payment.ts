@@ -13,26 +13,26 @@ import { vtexIOGraphQL } from "../client";
 // ---------------------------------------------------------------------------
 
 export interface PaymentSystem {
-  name: string;
-  groupName: string;
-  requiresDocument: boolean;
-  displayDocument: boolean;
-  validator: {
-    regex: string | null;
-    mask: string | null;
-    cardCodeMask: string | null;
-    cardCodeRegex: string | null;
-  };
+	name: string;
+	groupName: string;
+	requiresDocument: boolean;
+	displayDocument: boolean;
+	validator: {
+		regex: string | null;
+		mask: string | null;
+		cardCodeMask: string | null;
+		cardCodeRegex: string | null;
+	};
 }
 
 export interface Payment {
-  accountStatus: string | null;
-  cardNumber: string;
-  expirationDate: string;
-  id: string;
-  isExpired: boolean;
-  paymentSystem: string;
-  paymentSystemName: string;
+	accountStatus: string | null;
+	cardNumber: string;
+	expirationDate: string;
+	id: string;
+	isExpired: boolean;
+	paymentSystem: string;
+	paymentSystemName: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,17 +58,12 @@ const PAYMENT_SYSTEMS_QUERY = `query getPaymentSystems {
  * List available payment systems for the authenticated user.
  * Requires a valid VTEX auth cookie.
  */
-export async function getPaymentSystems(
-  authCookie: string,
-): Promise<PaymentSystem[]> {
-  const { paymentSystems } = await vtexIOGraphQL<{
-    paymentSystems: PaymentSystem[];
-  }>(
-    { query: PAYMENT_SYSTEMS_QUERY },
-    { cookie: authCookie },
-  );
+export async function getPaymentSystems(authCookie: string): Promise<PaymentSystem[]> {
+	const { paymentSystems } = await vtexIOGraphQL<{
+		paymentSystems: PaymentSystem[];
+	}>({ query: PAYMENT_SYSTEMS_QUERY }, { cookie: authCookie });
 
-  return paymentSystems;
+	return paymentSystems;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,15 +88,10 @@ const USER_PAYMENTS_QUERY = `query getUserPayments {
  * List saved payment methods for the authenticated user.
  * Requires a valid VTEX auth cookie.
  */
-export async function getUserPayments(
-  authCookie: string,
-): Promise<Payment[]> {
-  const data = await vtexIOGraphQL<{
-    profile: { payments: Payment[] } | null;
-  }>(
-    { query: USER_PAYMENTS_QUERY },
-    { cookie: authCookie },
-  );
+export async function getUserPayments(authCookie: string): Promise<Payment[]> {
+	const data = await vtexIOGraphQL<{
+		profile: { payments: Payment[] } | null;
+	}>({ query: USER_PAYMENTS_QUERY }, { cookie: authCookie });
 
-  return data.profile?.payments ?? [];
+	return data.profile?.payments ?? [];
 }

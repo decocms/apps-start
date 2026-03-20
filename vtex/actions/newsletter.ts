@@ -5,7 +5,7 @@
  *   - vtex/actions/newsletter/updateNewsletterOptIn.ts
  * @see https://developers.vtex.com/docs/guides/newsletter
  */
-import { vtexFetch, getVtexConfig } from "../client";
+import { getVtexConfig, vtexFetch } from "../client";
 import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
@@ -13,12 +13,12 @@ import { buildAuthCookieHeader } from "../utils/vtexId";
 // ---------------------------------------------------------------------------
 
 export interface SubscribeProps {
-  email: string;
-  name?: string;
-  page?: string;
-  part?: string;
-  /** Intentionally preserving the original typo from the VTEX legacy form field. */
-  campaing?: string;
+	email: string;
+	name?: string;
+	page?: string;
+	part?: string;
+	/** Intentionally preserving the original typo from the VTEX legacy form field. */
+	campaing?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -26,28 +26,28 @@ export interface SubscribeProps {
 // ---------------------------------------------------------------------------
 
 interface GqlResponse<T> {
-  data: T;
-  errors?: Array<{ message: string }>;
+	data: T;
+	errors?: Array<{ message: string }>;
 }
 
 async function gql<T>(
-  query: string,
-  variables: Record<string, unknown>,
-  authCookie: string,
+	query: string,
+	variables: Record<string, unknown>,
+	authCookie: string,
 ): Promise<T> {
-  const { account } = getVtexConfig();
-  const result = await vtexFetch<GqlResponse<T>>(
-    `https://${account}.myvtex.com/_v/private/graphql/v1`,
-    {
-      method: "POST",
-      body: JSON.stringify({ query, variables }),
-      headers: { Cookie: buildAuthCookieHeader(authCookie, account) },
-    },
-  );
-  if (result.errors?.length) {
-    throw new Error(`GraphQL error: ${result.errors[0].message}`);
-  }
-  return result.data;
+	const { account } = getVtexConfig();
+	const result = await vtexFetch<GqlResponse<T>>(
+		`https://${account}.myvtex.com/_v/private/graphql/v1`,
+		{
+			method: "POST",
+			body: JSON.stringify({ query, variables }),
+			headers: { Cookie: buildAuthCookieHeader(authCookie, account) },
+		},
+	);
+	if (result.errors?.length) {
+		throw new Error(`GraphQL error: ${result.errors[0].message}`);
+	}
+	return result.data;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,26 +67,26 @@ const SUBSCRIBE_NEWSLETTER = `mutation SubscribeNewsletter($email: String!, $isN
  * Uses raw fetch because the body is FormData (not JSON).
  */
 export async function subscribe(props: SubscribeProps): Promise<void> {
-  const { account } = getVtexConfig();
-  const {
-    email,
-    name = "",
-    part = "newsletter",
-    page = "_",
-    campaing = "newsletter:opt-in",
-  } = props;
+	const { account } = getVtexConfig();
+	const {
+		email,
+		name = "",
+		part = "newsletter",
+		page = "_",
+		campaing = "newsletter:opt-in",
+	} = props;
 
-  const form = new FormData();
-  form.append("newsletterClientName", name);
-  form.append("newsletterClientEmail", email);
-  form.append("newsInternalPage", page);
-  form.append("newsInternalPart", part);
-  form.append("newsInternalCampaign", campaing);
+	const form = new FormData();
+	form.append("newsletterClientName", name);
+	form.append("newsletterClientEmail", email);
+	form.append("newsInternalPage", page);
+	form.append("newsInternalPart", part);
+	form.append("newsInternalCampaign", campaing);
 
-  await fetch(
-    `https://${account}.vtexcommercestable.com.br/no-cache/Newsletter.aspx`,
-    { method: "POST", body: form },
-  );
+	await fetch(`https://${account}.vtexcommercestable.com.br/no-cache/Newsletter.aspx`, {
+		method: "POST",
+		body: form,
+	});
 }
 
 /**
@@ -95,14 +95,10 @@ export async function subscribe(props: SubscribeProps): Promise<void> {
  * Here the caller must provide it explicitly.
  */
 export async function updateNewsletterOptIn(
-  subscribed: boolean,
-  email: string,
-  authCookie: string,
+	subscribed: boolean,
+	email: string,
+	authCookie: string,
 ): Promise<{ subscribed: boolean }> {
-  await gql<unknown>(
-    SUBSCRIBE_NEWSLETTER,
-    { email, isNewsletterOptIn: subscribed },
-    authCookie,
-  );
-  return { subscribed };
+	await gql<unknown>(SUBSCRIBE_NEWSLETTER, { email, isNewsletterOptIn: subscribed }, authCookie);
+	return { subscribed };
 }

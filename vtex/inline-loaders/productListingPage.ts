@@ -149,18 +149,13 @@ function facetToToggle(
 	};
 }
 
-function toFilter(
-	selectedFacets: SelectedFacet[],
-	paramsToPersist?: URLSearchParams,
-) {
+function toFilter(selectedFacets: SelectedFacet[], paramsToPersist?: URLSearchParams) {
 	return (facet: ISFacet) => ({
 		"@type": "FilterToggle" as const,
 		key: facet.key,
 		label: facet.name,
 		quantity: facet.quantity,
-		values: facet.values.map(
-			facetToToggle(selectedFacets, facet.key, paramsToPersist),
-		),
+		values: facet.values.map(facetToToggle(selectedFacets, facet.key, paramsToPersist)),
 	});
 }
 
@@ -169,9 +164,7 @@ function toFilter(
 function pageTypesToBreadcrumb(pageTypes: PageType[]) {
 	const filtered = pageTypes.filter(
 		(pt) =>
-			pt.pageType === "Category" ||
-			pt.pageType === "Department" ||
-			pt.pageType === "SubCategory",
+			pt.pageType === "Category" || pt.pageType === "Department" || pt.pageType === "SubCategory",
 	);
 	return filtered.map((page, index) => {
 		const position = index + 1;
@@ -268,12 +261,8 @@ function isValidPLPPath(path: string): boolean {
  * 4. Transform facets to FilterToggle format
  * 5. Build pagination from IS response
  */
-export default async function vtexProductListingPage(
-	props: PLPProps,
-): Promise<any | null> {
-	const pageUrl = props.__pageUrl
-		? new URL(props.__pageUrl, "https://localhost")
-		: null;
+export default async function vtexProductListingPage(props: PLPProps): Promise<any | null> {
+	const pageUrl = props.__pageUrl ? new URL(props.__pageUrl, "https://localhost") : null;
 
 	const query = props.query ?? pageUrl?.searchParams.get("q") ?? "";
 	const countFromUrl = pageUrl?.searchParams.get("PS");
@@ -283,21 +272,14 @@ export default async function vtexProductListingPage(
 	const fuzzy = props.fuzzy ?? pageUrl?.searchParams.get("fuzzy") ?? undefined;
 	const pageFromUrl = pageUrl?.searchParams.get("page");
 	const rawPage = props.page ?? (pageFromUrl ? Number(pageFromUrl) - 1 : 0);
-	const page =
-		Number.isFinite(rawPage) && rawPage >= 0 ? Math.floor(rawPage) : 0;
+	const page = Number.isFinite(rawPage) && rawPage >= 0 ? Math.floor(rawPage) : 0;
 
-	const {
-		selectedFacets: cmsSelectedFacets,
-		hideUnavailableItems = false,
-		__pagePath,
-	} = props;
+	const { selectedFacets: cmsSelectedFacets, hideUnavailableItems = false, __pagePath } = props;
 
 	try {
 		// 1. Resolve selected facets (CMS + URL filter.* params, matching original)
 		let facets: SelectedFacet[] =
-			cmsSelectedFacets && cmsSelectedFacets.length > 0
-				? [...cmsSelectedFacets]
-				: [];
+			cmsSelectedFacets && cmsSelectedFacets.length > 0 ? [...cmsSelectedFacets] : [];
 
 		// Extract filter.* params from URL (e.g. filter.category-1=telhas)
 		if (pageUrl) {
@@ -344,9 +326,7 @@ export default async function vtexProductListingPage(
 			hideUnavailableItems,
 		});
 
-		const productEndpoint = facetPath
-			? `/product_search/${facetPath}`
-			: "/product_search/";
+		const productEndpoint = facetPath ? `/product_search/${facetPath}` : "/product_search/";
 
 		const facetsEndpoint = facetPath ? `/facets/${facetPath}` : "/facets/";
 
@@ -356,11 +336,7 @@ export default async function vtexProductListingPage(
 			intelligentSearch<ISFacetsResult>(facetsEndpoint, params),
 		]);
 
-		const {
-			products: vtexProducts,
-			pagination,
-			recordsFiltered,
-		} = productsResult;
+		const { products: vtexProducts, pagination, recordsFiltered } = productsResult;
 
 		// 3. Transform products using shared transform pipeline (same as deco-cx/apps)
 		const baseUrl = config.publicUrl

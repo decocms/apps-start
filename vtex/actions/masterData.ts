@@ -20,16 +20,13 @@ export async function createDocument(
 	entity: string,
 	data: Record<string, any>,
 ): Promise<CreateDocumentResult> {
-	return vtexFetch<CreateDocumentResult>(
-		`/api/dataentities/${entity}/documents`,
-		{ method: "POST", body: JSON.stringify(removeEmptyFields(data)) },
-	);
+	return vtexFetch<CreateDocumentResult>(`/api/dataentities/${entity}/documents`, {
+		method: "POST",
+		body: JSON.stringify(removeEmptyFields(data)),
+	});
 }
 
-export async function getDocument<T = unknown>(
-	entity: string,
-	documentId: string,
-): Promise<T> {
+export async function getDocument<T = unknown>(entity: string, documentId: string): Promise<T> {
 	return vtexFetch<T>(`/api/dataentities/${entity}/documents/${documentId}`);
 }
 
@@ -59,9 +56,7 @@ export async function searchDocuments<T = MasterDataSearchResult>(
 	entity: string,
 	filter: string,
 ): Promise<T[]> {
-	return vtexFetch<T[]>(
-		`/api/dataentities/${entity}/search?_where=${encodeURIComponent(filter)}`,
-	);
+	return vtexFetch<T[]>(`/api/dataentities/${entity}/search?_where=${encodeURIComponent(filter)}`);
 }
 
 /**
@@ -86,15 +81,7 @@ export interface SearchDocumentsOpts {
 export async function searchDocumentsFull<T = Record<string, unknown>>(
 	opts: SearchDocumentsOpts,
 ): Promise<T[]> {
-	const {
-		acronym,
-		fields,
-		where,
-		sort,
-		skip = 0,
-		take = 10,
-		cookieHeader,
-	} = opts;
+	const { acronym, fields, where, sort, skip = 0, take = 10, cookieHeader } = opts;
 	const from = Math.max(skip, 0);
 	const to = from + Math.min(100, take);
 
@@ -108,7 +95,7 @@ export async function searchDocumentsFull<T = Record<string, unknown>>(
 		"content-type": "application/json",
 		"REST-Range": `resources=${from}-${to}`,
 	};
-	if (cookieHeader) headers["cookie"] = cookieHeader;
+	if (cookieHeader) headers.cookie = cookieHeader;
 
 	return vtexFetchResponse(`/api/dataentities/${acronym}/search?${params}`, {
 		headers,
@@ -133,9 +120,7 @@ export interface UploadAttachmentOpts {
  * Upload a file attachment to a MasterData document.
  * Uses the VTEX MasterData attachment API with appKey/appToken auth.
  */
-export async function uploadAttachment(
-	opts: UploadAttachmentOpts,
-): Promise<{ ok: true }> {
+export async function uploadAttachment(opts: UploadAttachmentOpts): Promise<{ ok: true }> {
 	const { entity, documentId, field, fileName, fileBase64, contentType } = opts;
 	const config = getVtexConfig();
 	const url = `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}/api/dataentities/${entity}/documents/${documentId}/${field}/attachments`;
@@ -161,9 +146,7 @@ export async function uploadAttachment(
 	});
 
 	if (!response.ok) {
-		throw new Error(
-			`VTEX attachment upload failed: ${response.status} ${response.statusText}`,
-		);
+		throw new Error(`VTEX attachment upload failed: ${response.status} ${response.statusText}`);
 	}
 
 	return { ok: true };

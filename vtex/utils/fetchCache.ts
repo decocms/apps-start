@@ -34,22 +34,15 @@ const inflight = new Map<string, Promise<CacheEntry>>();
 
 function evictIfNeeded() {
 	if (store.size <= DEFAULT_MAX_ENTRIES) return;
-	const sorted = [...store.entries()].sort(
-		(a, b) => a[1].createdAt - b[1].createdAt,
-	);
+	const sorted = [...store.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
 	const toRemove = sorted.slice(0, store.size - DEFAULT_MAX_ENTRIES);
 	for (const [key] of toRemove) store.delete(key);
 }
 
-async function executeFetch(
-	_url: string,
-	doFetch: () => Promise<Response>,
-): Promise<CacheEntry> {
+async function executeFetch(_url: string, doFetch: () => Promise<Response>): Promise<CacheEntry> {
 	const response = await doFetch();
 	if (response.status >= 500) {
-		throw new Error(
-			`fetchWithCache: ${response.status} ${response.statusText}`,
-		);
+		throw new Error(`fetchWithCache: ${response.status} ${response.statusText}`);
 	}
 	const body = response.ok ? await response.json() : null;
 	return {

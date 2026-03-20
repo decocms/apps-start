@@ -21,24 +21,25 @@ import type { ImgHTMLAttributes } from "react";
 
 export type ImageCDN = "vtex" | "shopify" | "deco" | "cloudflare" | "none";
 
-export interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "width" | "height"> {
-  src: string;
-  width: number;
-  height: number;
-  /** Image CDN to use for URL transforms. @default "none" */
-  cdn?: ImageCDN;
-  /**
-   * Responsive sizes descriptor.
-   * @default "(max-width: 768px) 100vw, 50vw"
-   */
-  sizes?: string;
-  /**
-   * Multipliers for srcset generation.
-   * @default [1, 2]
-   */
-  srcSetMultipliers?: number[];
-  /** Preload the image (adds fetchPriority="high"). */
-  preload?: boolean;
+export interface ImageProps
+	extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "width" | "height"> {
+	src: string;
+	width: number;
+	height: number;
+	/** Image CDN to use for URL transforms. @default "none" */
+	cdn?: ImageCDN;
+	/**
+	 * Responsive sizes descriptor.
+	 * @default "(max-width: 768px) 100vw, 50vw"
+	 */
+	sizes?: string;
+	/**
+	 * Multipliers for srcset generation.
+	 * @default [1, 2]
+	 */
+	srcSetMultipliers?: number[];
+	/** Preload the image (adds fetchPriority="high"). */
+	preload?: boolean;
 }
 
 // -------------------------------------------------------------------------
@@ -46,65 +47,67 @@ export interface ImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, "s
 // -------------------------------------------------------------------------
 
 function vtexImageUrl(src: string, width: number, height: number): string {
-  if (src.includes("vteximg.com.br") || src.includes("vtexassets.com")) {
-    return src.replace(
-      /(-\d+-\d+)(\.\w+)$/,
-      `-${width}-${height}$2`,
-    );
-  }
+	if (src.includes("vteximg.com.br") || src.includes("vtexassets.com")) {
+		return src.replace(/(-\d+-\d+)(\.\w+)$/, `-${width}-${height}$2`);
+	}
 
-  const url = new URL(src, "https://placeholder.com");
-  url.searchParams.set("width", String(width));
-  url.searchParams.set("height", String(height));
-  return url.toString();
+	const url = new URL(src, "https://placeholder.com");
+	url.searchParams.set("width", String(width));
+	url.searchParams.set("height", String(height));
+	return url.toString();
 }
 
 function shopifyImageUrl(src: string, width: number): string {
-  if (src.includes("cdn.shopify.com")) {
-    return src.replace(/(\.\w+)(\?.*)?$/, `_${width}x$1$2`);
-  }
-  return src;
+	if (src.includes("cdn.shopify.com")) {
+		return src.replace(/(\.\w+)(\?.*)?$/, `_${width}x$1$2`);
+	}
+	return src;
 }
 
 function decoImageUrl(src: string, width: number, height: number): string {
-  if (src.includes("decocache.com") || src.includes("ozksgdmyrqcxcwhnbepg")) {
-    const url = new URL(src);
-    url.searchParams.set("width", String(width));
-    url.searchParams.set("height", String(height));
-    url.searchParams.set("fit", "cover");
-    return url.toString();
-  }
-  return src;
+	if (src.includes("decocache.com") || src.includes("ozksgdmyrqcxcwhnbepg")) {
+		const url = new URL(src);
+		url.searchParams.set("width", String(width));
+		url.searchParams.set("height", String(height));
+		url.searchParams.set("fit", "cover");
+		return url.toString();
+	}
+	return src;
 }
 
 function cloudflareImageUrl(src: string, width: number, height: number): string {
-  return `/cdn-cgi/image/width=${width},height=${height},fit=cover,format=auto,quality=80/${src}`;
+	return `/cdn-cgi/image/width=${width},height=${height},fit=cover,format=auto,quality=80/${src}`;
 }
 
 function buildUrl(src: string, width: number, height: number, cdn: ImageCDN): string {
-  switch (cdn) {
-    case "vtex": return vtexImageUrl(src, width, height);
-    case "shopify": return shopifyImageUrl(src, width);
-    case "deco": return decoImageUrl(src, width, height);
-    case "cloudflare": return cloudflareImageUrl(src, width, height);
-    default: return src;
-  }
+	switch (cdn) {
+		case "vtex":
+			return vtexImageUrl(src, width, height);
+		case "shopify":
+			return shopifyImageUrl(src, width);
+		case "deco":
+			return decoImageUrl(src, width, height);
+		case "cloudflare":
+			return cloudflareImageUrl(src, width, height);
+		default:
+			return src;
+	}
 }
 
 function buildSrcSet(
-  src: string,
-  width: number,
-  height: number,
-  cdn: ImageCDN,
-  multipliers: number[],
+	src: string,
+	width: number,
+	height: number,
+	cdn: ImageCDN,
+	multipliers: number[],
 ): string {
-  return multipliers
-    .map((m) => {
-      const w = Math.round(width * m);
-      const h = Math.round(height * m);
-      return `${buildUrl(src, w, h, cdn)} ${w}w`;
-    })
-    .join(", ");
+	return multipliers
+		.map((m) => {
+			const w = Math.round(width * m);
+			const h = Math.round(height * m);
+			return `${buildUrl(src, w, h, cdn)} ${w}w`;
+		})
+		.join(", ");
 }
 
 // -------------------------------------------------------------------------
@@ -112,35 +115,34 @@ function buildSrcSet(
 // -------------------------------------------------------------------------
 
 export function Image({
-  src,
-  width,
-  height,
-  cdn = "none",
-  sizes = "(max-width: 768px) 100vw, 50vw",
-  srcSetMultipliers = [1, 2],
-  preload,
-  loading,
-  decoding,
-  ...rest
+	src,
+	width,
+	height,
+	cdn = "none",
+	sizes = "(max-width: 768px) 100vw, 50vw",
+	srcSetMultipliers = [1, 2],
+	preload,
+	loading,
+	decoding,
+	...rest
 }: ImageProps) {
-  const optimizedSrc = buildUrl(src, width, height, cdn);
-  const srcSet = cdn !== "none"
-    ? buildSrcSet(src, width, height, cdn, srcSetMultipliers)
-    : undefined;
+	const optimizedSrc = buildUrl(src, width, height, cdn);
+	const srcSet =
+		cdn !== "none" ? buildSrcSet(src, width, height, cdn, srcSetMultipliers) : undefined;
 
-  return (
-    <img
-      src={optimizedSrc}
-      srcSet={srcSet}
-      sizes={srcSet ? sizes : undefined}
-      width={width}
-      height={height}
-      loading={loading ?? (preload ? "eager" : "lazy")}
-      decoding={decoding ?? "async"}
-      fetchPriority={preload ? "high" : undefined}
-      {...rest}
-    />
-  );
+	return (
+		<img
+			src={optimizedSrc}
+			srcSet={srcSet}
+			sizes={srcSet ? sizes : undefined}
+			width={width}
+			height={height}
+			loading={loading ?? (preload ? "eager" : "lazy")}
+			decoding={decoding ?? "async"}
+			fetchPriority={preload ? "high" : undefined}
+			{...rest}
+		/>
+	);
 }
 
 // -------------------------------------------------------------------------
@@ -148,15 +150,15 @@ export function Image({
 // -------------------------------------------------------------------------
 
 export interface PictureSource {
-  src: string;
-  width: number;
-  height: number;
-  media: string;
-  cdn?: ImageCDN;
+	src: string;
+	width: number;
+	height: number;
+	media: string;
+	cdn?: ImageCDN;
 }
 
 export interface PictureProps extends Omit<ImageProps, "sizes"> {
-  sources: PictureSource[];
+	sources: PictureSource[];
 }
 
 /**
@@ -177,33 +179,26 @@ export interface PictureProps extends Omit<ImageProps, "sizes"> {
  * ```
  */
 export function Picture({
-  sources,
-  src,
-  width,
-  height,
-  cdn = "none",
-  preload,
-  ...rest
+	sources,
+	src,
+	width,
+	height,
+	cdn = "none",
+	preload,
+	...rest
 }: PictureProps) {
-  return (
-    <picture>
-      {sources.map((source, i) => (
-        <source
-          key={i}
-          srcSet={buildUrl(source.src, source.width, source.height, source.cdn ?? cdn)}
-          media={source.media}
-          width={source.width}
-          height={source.height}
-        />
-      ))}
-      <Image
-        src={src}
-        width={width}
-        height={height}
-        cdn={cdn}
-        preload={preload}
-        {...rest}
-      />
-    </picture>
-  );
+	return (
+		<picture>
+			{sources.map((source, i) => (
+				<source
+					key={i}
+					srcSet={buildUrl(source.src, source.width, source.height, source.cdn ?? cdn)}
+					media={source.media}
+					width={source.width}
+					height={source.height}
+				/>
+			))}
+			<Image src={src} width={width} height={height} cdn={cdn} preload={preload} {...rest} />
+		</picture>
+	);
 }

@@ -15,34 +15,34 @@ import { vtexFetch, vtexIOGraphQL } from "../client";
 // ---------------------------------------------------------------------------
 
 export interface PostalAddress {
-  "@type": "PostalAddress";
-  postalCode?: string;
-  addressLocality?: string;
-  addressRegion?: string;
-  addressCountry?: string;
-  streetAddress?: string;
-  identifier?: string;
-  areaServed?: string;
-  description?: string;
-  disambiguatingDescription?: string;
-  latitude?: number;
-  longitude?: number;
+	"@type": "PostalAddress";
+	postalCode?: string;
+	addressLocality?: string;
+	addressRegion?: string;
+	addressCountry?: string;
+	streetAddress?: string;
+	identifier?: string;
+	areaServed?: string;
+	description?: string;
+	disambiguatingDescription?: string;
+	latitude?: number;
+	longitude?: number;
 }
 
 export interface VtexAddress {
-  addressId: string;
-  addressType: string;
-  addressName: string;
-  city: string;
-  complement: string;
-  country: string;
-  neighborhood: string;
-  number: string;
-  postalCode: string;
-  geoCoordinates: number[];
-  receiverName: string;
-  state: string;
-  street: string;
+	addressId: string;
+	addressType: string;
+	addressName: string;
+	city: string;
+	complement: string;
+	country: string;
+	neighborhood: string;
+	number: string;
+	postalCode: string;
+	geoCoordinates: number[];
+	receiverName: string;
+	state: string;
+	street: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,27 +54,27 @@ export interface VtexAddress {
  * @see https://developers.vtex.com/docs/api-reference/checkout-api#get-/api/checkout/pub/postal-code/-countryCode-/-postalCode-
  */
 export async function getAddressByPostalCode(
-  countryCode: string,
-  postalCode: string,
+	countryCode: string,
+	postalCode: string,
 ): Promise<PostalAddress> {
-  const data = await vtexFetch<Record<string, any>>(
-    `/api/checkout/pub/postal-code/${countryCode}/${postalCode}`,
-  );
+	const data = await vtexFetch<Record<string, any>>(
+		`/api/checkout/pub/postal-code/${countryCode}/${postalCode}`,
+	);
 
-  return {
-    "@type": "PostalAddress",
-    postalCode: data.postalCode,
-    addressLocality: data.city,
-    addressRegion: data.state,
-    addressCountry: data.country,
-    streetAddress: data.street || undefined,
-    identifier: data.number || undefined,
-    areaServed: data.neighborhood || undefined,
-    description: data.complement || undefined,
-    disambiguatingDescription: data.reference || undefined,
-    latitude: data.geoCoordinates?.[0] || undefined,
-    longitude: data.geoCoordinates?.[1] || undefined,
-  };
+	return {
+		"@type": "PostalAddress",
+		postalCode: data.postalCode,
+		addressLocality: data.city,
+		addressRegion: data.state,
+		addressCountry: data.country,
+		streetAddress: data.street || undefined,
+		identifier: data.number || undefined,
+		areaServed: data.neighborhood || undefined,
+		description: data.complement || undefined,
+		disambiguatingDescription: data.reference || undefined,
+		latitude: data.geoCoordinates?.[0] || undefined,
+		longitude: data.geoCoordinates?.[1] || undefined,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -106,15 +106,10 @@ const USER_ADDRESSES_QUERY = `query Addresses @context(scope: "private") {
  * Fetch addresses for the currently authenticated user.
  * Requires a valid VTEX auth cookie.
  */
-export async function getUserAddresses(
-  authCookie: string,
-): Promise<VtexAddress[]> {
-  const { profile } = await vtexIOGraphQL<{
-    profile: { addresses: VtexAddress[] };
-  }>(
-    { query: USER_ADDRESSES_QUERY },
-    { cookie: authCookie },
-  );
+export async function getUserAddresses(authCookie: string): Promise<VtexAddress[]> {
+	const { profile } = await vtexIOGraphQL<{
+		profile: { addresses: VtexAddress[] };
+	}>({ query: USER_ADDRESSES_QUERY }, { cookie: authCookie });
 
-  return profile?.addresses ?? [];
+	return profile?.addresses ?? [];
 }

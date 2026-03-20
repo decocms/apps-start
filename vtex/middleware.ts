@@ -24,51 +24,56 @@
  * ```
  */
 
+import { ANONYMOUS_COOKIE, SESSION_COOKIE } from "./utils/intelligentSearch";
 import {
-  SEGMENT_COOKIE_NAME,
-  SALES_CHANNEL_COOKIE,
-  parseSegment,
-  buildSegmentFromParams,
-  serializeSegment,
-  DEFAULT_SEGMENT,
-  type WrappedSegment,
+	buildSegmentFromParams,
+	DEFAULT_SEGMENT,
+	parseSegment,
+	SALES_CHANNEL_COOKIE,
+	SEGMENT_COOKIE_NAME,
+	serializeSegment,
 } from "./utils/segment";
-import { SESSION_COOKIE, ANONYMOUS_COOKIE } from "./utils/intelligentSearch";
-import { isVtexLoggedIn, extractVtexAuthCookie, parseVtexAuthToken } from "./utils/vtexId";
 import type { Segment } from "./utils/types";
+import { extractVtexAuthCookie, parseVtexAuthToken } from "./utils/vtexId";
 
 // -------------------------------------------------------------------------
 // Types
 // -------------------------------------------------------------------------
 
 export interface VtexRequestContext {
-  /** Decoded segment from cookie or URL params. */
-  segment: Partial<Segment>;
-  /** Serialized segment token for cache key use. */
-  segmentToken: string;
-  /** Whether the user has a valid (non-expired) VTEX auth cookie. */
-  isLoggedIn: boolean;
-  /** Extracted email from the auth JWT, if available. */
-  email?: string;
-  /** Sales channel derived from segment. */
-  salesChannel: string;
-  /** Whether this request carries price tables (B2B). */
-  hasCustomPricing: boolean;
-  /** Intelligent Search session cookie. */
-  isSessionId: string;
-  /** Intelligent Search anonymous cookie. */
-  isAnonymousId: string;
+	/** Decoded segment from cookie or URL params. */
+	segment: Partial<Segment>;
+	/** Serialized segment token for cache key use. */
+	segmentToken: string;
+	/** Whether the user has a valid (non-expired) VTEX auth cookie. */
+	isLoggedIn: boolean;
+	/** Extracted email from the auth JWT, if available. */
+	email?: string;
+	/** Sales channel derived from segment. */
+	salesChannel: string;
+	/** Whether this request carries price tables (B2B). */
+	hasCustomPricing: boolean;
+	/** Intelligent Search session cookie. */
+	isSessionId: string;
+	/** Intelligent Search anonymous cookie. */
+	isAnonymousId: string;
 }
 
 // -------------------------------------------------------------------------
 // Cookie helpers
 // -------------------------------------------------------------------------
 
-const IS_COOKIE_PREFIX = "vtex_is_";
+const _IS_COOKIE_PREFIX = "vtex_is_";
+
+/** Seconds in one day (86 400). Used for cookie Max-Age and stale-if-error. */
+const ONE_DAY_SECONDS = 86_400;
+
+/** Seconds in one year (~365 days). Used for long-lived IS cookie Max-Age. */
+const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
 
 function getCookieValue(cookieHeader: string, name: string): string | null {
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
-  return match?.[1] ?? null;
+	const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+	return match?.[1] ?? null;
 }
 
 // -------------------------------------------------------------------------
@@ -82,53 +87,51 @@ function getCookieValue(cookieHeader: string, name: string): string | null {
  * to build a complete picture of the user's VTEX session state.
  */
 function generateUUID(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
+	if (typeof crypto !== "undefined" && crypto.randomUUID) {
+		return crypto.randomUUID();
+	}
+	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+		const r = (Math.random() * 16) | 0;
+		return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+	});
 }
 
 export function extractVtexContext(request: Request): VtexRequestContext {
-  const cookies = request.headers.get("cookie") ?? "";
-  const url = new URL(request.url);
+	const cookies = request.headers.get("cookie") ?? "";
+	const url = new URL(request.url);
 
-  const segmentCookie = getCookieValue(cookies, SEGMENT_COOKIE_NAME);
-  const cookieSegment = segmentCookie ? parseSegment(segmentCookie) : null;
+	const segmentCookie = getCookieValue(cookies, SEGMENT_COOKIE_NAME);
+	const cookieSegment = segmentCookie ? parseSegment(segmentCookie) : null;
 
-  const paramSegment = buildSegmentFromParams(url.searchParams);
+	const paramSegment = buildSegmentFromParams(url.searchParams);
 
-  const vtexsc = getCookieValue(cookies, SALES_CHANNEL_COOKIE);
+	const vtexsc = getCookieValue(cookies, SALES_CHANNEL_COOKIE);
 
-  const segment: Partial<Segment> = {
-    ...DEFAULT_SEGMENT,
-    ...cookieSegment,
-    ...paramSegment,
-  };
-  if (vtexsc) segment.channel = vtexsc;
+	const segment: Partial<Segment> = {
+		...DEFAULT_SEGMENT,
+		...cookieSegment,
+		...paramSegment,
+	};
+	if (vtexsc) segment.channel = vtexsc;
 
-  const segmentToken = serializeSegment(segment);
+	const segmentToken = serializeSegment(segment);
 
-  const authToken = extractVtexAuthCookie(cookies);
-  const authInfo = authToken ? parseVtexAuthToken(authToken) : null;
+	const authToken = extractVtexAuthCookie(cookies);
+	const authInfo = authToken ? parseVtexAuthToken(authToken) : null;
 
-  const isSessionId = getCookieValue(cookies, SESSION_COOKIE) ?? generateUUID();
-  const isAnonymousId = getCookieValue(cookies, ANONYMOUS_COOKIE) ?? generateUUID();
+	const isSessionId = getCookieValue(cookies, SESSION_COOKIE) ?? generateUUID();
+	const isAnonymousId = getCookieValue(cookies, ANONYMOUS_COOKIE) ?? generateUUID();
 
-  return {
-    segment,
-    segmentToken,
-    isLoggedIn: authInfo?.isLoggedIn ?? false,
-    email: authInfo?.email,
-    salesChannel: segment.channel ?? "1",
-    hasCustomPricing: Boolean(
-      segment.priceTables && segment.priceTables.length > 0,
-    ),
-    isSessionId,
-    isAnonymousId,
-  };
+	return {
+		segment,
+		segmentToken,
+		isLoggedIn: authInfo?.isLoggedIn ?? false,
+		email: authInfo?.email,
+		salesChannel: segment.channel ?? "1",
+		hasCustomPricing: Boolean(segment.priceTables && segment.priceTables.length > 0),
+		isSessionId,
+		isAnonymousId,
+	};
 }
 
 // -------------------------------------------------------------------------
@@ -144,22 +147,22 @@ export function extractVtexContext(request: Request): VtexRequestContext {
  * - Anonymous default segment: public with CDN caching
  */
 export function vtexCacheControl(
-  ctx: VtexRequestContext,
-  options?: {
-    /** Max age for public (anonymous) responses in seconds. @default 60 */
-    publicMaxAge?: number;
-    /** Stale-while-revalidate for public responses in seconds. @default 3600 */
-    publicSWR?: number;
-  },
+	ctx: VtexRequestContext,
+	options?: {
+		/** Max age for public (anonymous) responses in seconds. @default 60 */
+		publicMaxAge?: number;
+		/** Stale-while-revalidate for public responses in seconds. @default 3600 */
+		publicSWR?: number;
+	},
 ): string {
-  if (ctx.isLoggedIn || ctx.hasCustomPricing) {
-    return "private, no-cache, no-store, must-revalidate";
-  }
+	if (ctx.isLoggedIn || ctx.hasCustomPricing) {
+		return "private, no-cache, no-store, must-revalidate";
+	}
 
-  const maxAge = options?.publicMaxAge ?? 60;
-  const swr = options?.publicSWR ?? 3600;
+	const maxAge = options?.publicMaxAge ?? 60;
+	const swr = options?.publicSWR ?? 3600;
 
-  return `public, s-maxage=${maxAge}, stale-while-revalidate=${swr}, stale-if-error=86400`;
+	return `public, s-maxage=${maxAge}, stale-while-revalidate=${swr}, stale-if-error=${ONE_DAY_SECONDS}`;
 }
 
 // -------------------------------------------------------------------------
@@ -173,19 +176,16 @@ export function vtexCacheControl(
  * If not, new UUIDs from the context are set. This ensures
  * every user has IS cookies for personalization and analytics.
  */
-export function propagateISCookies(
-  ctx: VtexRequestContext,
-  response: Response,
-): void {
-  const maxAge = 365 * 24 * 60 * 60;
-  response.headers.append(
-    "Set-Cookie",
-    `${SESSION_COOKIE}=${ctx.isSessionId}; Path=/; SameSite=Lax; Max-Age=${maxAge}`,
-  );
-  response.headers.append(
-    "Set-Cookie",
-    `${ANONYMOUS_COOKIE}=${ctx.isAnonymousId}; Path=/; SameSite=Lax; Max-Age=${maxAge}`,
-  );
+export function propagateISCookies(ctx: VtexRequestContext, response: Response): void {
+	const maxAge = ONE_YEAR_SECONDS;
+	response.headers.append(
+		"Set-Cookie",
+		`${SESSION_COOKIE}=${ctx.isSessionId}; Path=/; SameSite=Lax; Max-Age=${maxAge}`,
+	);
+	response.headers.append(
+		"Set-Cookie",
+		`${ANONYMOUS_COOKIE}=${ctx.isAnonymousId}; Path=/; SameSite=Lax; Max-Age=${maxAge}`,
+	);
 }
 
 /**
@@ -194,14 +194,11 @@ export function propagateISCookies(
  * Use this when URL params change the segment (e.g., ?sc=2) so the
  * browser persists the new segment for subsequent requests.
  */
-export function buildSegmentSetCookie(
-  segment: Partial<Segment>,
-  domain?: string,
-): string {
-  const token = serializeSegment(segment);
-  let cookie = `${SEGMENT_COOKIE_NAME}=${token}; Path=/; SameSite=Lax; Max-Age=86400`;
-  if (domain) cookie += `; Domain=${domain}`;
-  return cookie;
+export function buildSegmentSetCookie(segment: Partial<Segment>, domain?: string): string {
+	const token = serializeSegment(segment);
+	let cookie = `${SEGMENT_COOKIE_NAME}=${token}; Path=/; SameSite=Lax; Max-Age=${ONE_DAY_SECONDS}`;
+	if (domain) cookie += `; Domain=${domain}`;
+	return cookie;
 }
 
 // -------------------------------------------------------------------------
@@ -216,14 +213,14 @@ export function buildSegmentSetCookie(
  * get the same cache key; a logged-in user gets a unique (uncached) key.
  */
 export function vtexCacheKeySuffix(ctx: VtexRequestContext): string {
-  if (ctx.isLoggedIn) return "__vtex_auth";
-  return `__vtex_sc=${ctx.salesChannel}`;
+	if (ctx.isLoggedIn) return "__vtex_auth";
+	return `__vtex_sc=${ctx.salesChannel}`;
 }
 
 // -------------------------------------------------------------------------
 // Re-exports for convenience
 // -------------------------------------------------------------------------
 
-export { isVtexLoggedIn } from "./utils/vtexId";
-export type { VtexAuthInfo } from "./utils/vtexId";
 export type { Segment } from "./utils/types";
+export type { VtexAuthInfo } from "./utils/vtexId";
+export { isVtexLoggedIn } from "./utils/vtexId";

@@ -61,9 +61,7 @@ export default async function vtexProductDetailsPage(
 				title: product.productTitle || product.productName,
 				description: preferDescription
 					? product.description
-					: product.metaTagDescription ||
-						product.description?.substring(0, 160) ||
-						"",
+					: product.metaTagDescription || product.description?.substring(0, 160) || "",
 				canonical: `/${product.linkText}/p`,
 				noIndexing: indexingSkus ? false : !!skuId,
 			},

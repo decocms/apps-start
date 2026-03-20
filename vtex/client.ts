@@ -9,8 +9,7 @@ import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
 // ---------------------------------------------------------------------------
 
-const removeNonLatin1Chars = (str: string): string =>
-	str.replace(/[^\x00-\x7F]|["']/g, "");
+const removeNonLatin1Chars = (str: string): string => str.replace(/[^\x00-\x7F]|["']/g, "");
 
 const removeScriptChars = (str: string): string => {
 	return str
@@ -104,8 +103,7 @@ export function setVtexFetch(fetchFn: typeof fetch) {
 }
 
 export function getVtexConfig(): VtexConfig {
-	if (!_config)
-		throw new Error("VTEX not configured. Call configureVtex() first.");
+	if (!_config) throw new Error("VTEX not configured. Call configureVtex() first.");
 	return _config;
 }
 
@@ -113,10 +111,7 @@ export function getVtexConfig(): VtexConfig {
  * Build the VTEX hostname for a given environment.
  * Centralizes `{account}.{env}.{domain}` so nothing is hardcoded.
  */
-export function vtexHost(
-	environment: string = "vtexcommercestable",
-	config?: VtexConfig,
-): string {
+export function vtexHost(environment: string = "vtexcommercestable", config?: VtexConfig): string {
 	const c = config ?? getVtexConfig();
 	const domain = c.domain ?? "com.br";
 	return `${c.account}.${environment}.${domain}`;
@@ -143,10 +138,7 @@ function authHeaders(): Record<string, string> {
 	return headers;
 }
 
-export async function vtexFetchResponse(
-	path: string,
-	init?: RequestInit,
-): Promise<Response> {
+export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
 	const raw = path.startsWith("http") ? path : `${baseUrl()}${path}`;
 	const url = sanitizeUrl(raw);
 	const response = await _fetch(url, {
@@ -154,17 +146,12 @@ export async function vtexFetchResponse(
 		headers: { ...authHeaders(), ...init?.headers },
 	});
 	if (!response.ok) {
-		throw new Error(
-			`VTEX API error: ${response.status} ${response.statusText} - ${url}`,
-		);
+		throw new Error(`VTEX API error: ${response.status} ${response.statusText} - ${url}`);
 	}
 	return response;
 }
 
-export async function vtexFetch<T>(
-	path: string,
-	init?: RequestInit,
-): Promise<T> {
+export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T> {
 	const response = await vtexFetchResponse(path, init);
 	return response.json();
 }
@@ -297,9 +284,7 @@ export async function vtexIOGraphQL<T>(
 		},
 	);
 	if (res.errors?.length) {
-		throw new Error(
-			`VTEX IO GraphQL error: ${res.errors.map((e) => e.message).join(", ")}`,
-		);
+		throw new Error(`VTEX IO GraphQL error: ${res.errors.map((e) => e.message).join(", ")}`);
 	}
 	return res.data;
 }
@@ -335,10 +320,7 @@ const PAGE_TYPE_TO_MAP_PARAM: Record<string, string | null> = {
 	FullText: null,
 };
 
-function pageTypeToMapParam(
-	type: PageType["pageType"],
-	index: number,
-): string | null {
+function pageTypeToMapParam(type: PageType["pageType"], index: number): string | null {
 	if (type === "Category" || type === "Department" || type === "SubCategory") {
 		return `category-${index + 1}`;
 	}
@@ -346,9 +328,7 @@ function pageTypeToMapParam(
 }
 
 function cachedPageType(term: string): Promise<PageType | null> {
-	return vtexCachedFetch<PageType>(
-		`/api/catalog_system/pub/portal/pagetype/${term}`,
-	);
+	return vtexCachedFetch<PageType>(`/api/catalog_system/pub/portal/pagetype/${term}`);
 }
 
 /**
@@ -380,9 +360,7 @@ const slugify = (str: string) =>
  * Convert page types to selectedFacets with correct IS facet keys.
  * Mirrors deco-cx/apps `filtersFromPathname`.
  */
-export function filtersFromPageTypes(
-	pageTypes: PageType[],
-): Array<{ key: string; value: string }> {
+export function filtersFromPageTypes(pageTypes: PageType[]): Array<{ key: string; value: string }> {
 	return pageTypes
 		.map((page, index) => {
 			const key = pageTypeToMapParam(page.pageType, index);
@@ -396,12 +374,8 @@ export function filtersFromPageTypes(
  * Build the IS facet path string from selectedFacets.
  * Mirrors deco-cx/apps `toPath`.
  */
-export function toFacetPath(
-	facets: Array<{ key: string; value: string }>,
-): string {
-	return facets
-		.map(({ key, value }) => (key ? `${key}/${value}` : value))
-		.join("/");
+export function toFacetPath(facets: Array<{ key: string; value: string }>): string {
+	return facets.map(({ key, value }) => (key ? `${key}/${value}` : value)).join("/");
 }
 
 export function initVtexFromBlocks(blocks: Record<string, any>) {
