@@ -143,8 +143,7 @@ export const invoke = {
 			}),
 
 			editSession: createInvokeFn(
-				(input: { public: Record<string, { value: string }> }) =>
-					editSession(input.public),
+				(input: { public: Record<string, { value: string }> }) => editSession(input.public),
 				{ unwrap: true },
 			) as unknown as (ctx: {
 				data: { public: Record<string, { value: string }> };

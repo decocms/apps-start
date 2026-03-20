@@ -24,11 +24,11 @@ let imageCdnDomain = "decoims.com";
  * - `deco-assets.decoazn.com` (Azion IMS, legacy)
  */
 export function registerImageCdnDomain(domain: string) {
-  imageCdnDomain = domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+	imageCdnDomain = domain.replace(/^https?:\/\//, "").replace(/\/+$/, "");
 }
 
 export function getImageCdnDomain(): string {
-  return imageCdnDomain;
+	return imageCdnDomain;
 }
 
 // -------------------------------------------------------------------------
@@ -40,10 +40,10 @@ export type FitOptions = "contain" | "cover" | "fill";
 export const FACTORS = [1, 2];
 
 interface OptimizationOptions {
-  originalSrc: string;
-  width: number;
-  height?: number;
-  fit: FitOptions;
+	originalSrc: string;
+	width: number;
+	height?: number;
+	fit: FitOptions;
 }
 
 // -------------------------------------------------------------------------
@@ -52,27 +52,21 @@ interface OptimizationOptions {
 // -------------------------------------------------------------------------
 
 function optimizeVTEX(originalSrc: string, width: number, height?: number): string {
-  const src = new URL(originalSrc);
-  const [slash, arquivos, ids, rawId, ...rest] = src.pathname.split("/");
-  const [trueId] = rawId.split("-");
+	const src = new URL(originalSrc);
+	const [slash, arquivos, ids, rawId, ...rest] = src.pathname.split("/");
+	const [trueId] = rawId.split("-");
 
-  src.pathname = [
-    slash,
-    arquivos,
-    ids,
-    `${trueId}-${width}-${height ?? width}`,
-    ...rest,
-  ].join("/");
+	src.pathname = [slash, arquivos, ids, `${trueId}-${width}-${height ?? width}`, ...rest].join("/");
 
-  return src.href;
+	return src.href;
 }
 
 function optimizeShopify(originalSrc: string, width: number, height?: number): string {
-  const url = new URL(originalSrc);
-  url.searchParams.set("width", `${width}`);
-  if (height) url.searchParams.set("height", `${height}`);
-  url.searchParams.set("crop", "center");
-  return url.href;
+	const url = new URL(originalSrc);
+	url.searchParams.set("width", `${width}`);
+	if (height) url.searchParams.set("height", `${height}`);
+	url.searchParams.set("crop", "center");
+	return url.href;
 }
 
 // -------------------------------------------------------------------------
@@ -92,64 +86,59 @@ function optimizeShopify(originalSrc: string, width: number, height?: number): s
  * Data URIs are returned as-is.
  */
 export function getOptimizedMediaUrl(opts: OptimizationOptions): string {
-  const { originalSrc, width, height, fit } = opts;
+	const { originalSrc, width, height, fit } = opts;
 
-  if (originalSrc.startsWith("data:")) {
-    return originalSrc;
-  }
+	if (originalSrc.startsWith("data:")) {
+		return originalSrc;
+	}
 
-  if (
-    /(vteximg\.com\.br|vtexassets\.com|myvtex\.com)\/arquivos\/ids\/\d+/.test(originalSrc)
-  ) {
-    return optimizeVTEX(originalSrc, width, height);
-  }
+	if (/(vteximg\.com\.br|vtexassets\.com|myvtex\.com)\/arquivos\/ids\/\d+/.test(originalSrc)) {
+		return optimizeVTEX(originalSrc, width, height);
+	}
 
-  if (originalSrc.startsWith("https://cdn.shopify.com")) {
-    return optimizeShopify(originalSrc, width, height);
-  }
+	if (originalSrc.startsWith("https://cdn.shopify.com")) {
+		return optimizeShopify(originalSrc, width, height);
+	}
 
-  const imageSource = originalSrc
-    .replace(DECO_CACHE_URL, "")
-    .replace(S3_URL, "")
-    .split("?")[0];
+	const imageSource = originalSrc.replace(DECO_CACHE_URL, "").replace(S3_URL, "").split("?")[0];
 
-  const params = new URLSearchParams();
-  params.set("fit", fit);
-  params.set("width", `${width}`);
-  if (height) params.set("height", `${height}`);
+	const params = new URLSearchParams();
+	params.set("fit", fit);
+	params.set("width", `${width}`);
+	if (height) params.set("height", `${height}`);
 
-  return `https://${imageCdnDomain}/image?${params}&src=${imageSource}`;
+	return `https://${imageCdnDomain}/image?${params}&src=${imageSource}`;
 }
 
 /**
  * Generates a srcset string with responsive multipliers.
  */
 export function getSrcSet(
-  originalSrc: string,
-  width: number,
-  height?: number,
-  fit?: FitOptions,
-  factors: number[] = FACTORS,
+	originalSrc: string,
+	width: number,
+	height?: number,
+	fit?: FitOptions,
+	factors: number[] = FACTORS,
 ): string | undefined {
-  const entries: string[] = [];
+	const entries: string[] = [];
 
-  for (const factor of factors) {
-    const w = Math.trunc(factor * width);
-    const h = height ? Math.trunc(factor * height) : undefined;
+	for (const factor of factors) {
+		const w = Math.trunc(factor * width);
+		const h = height ? Math.trunc(factor * height) : undefined;
 
-    const src = getOptimizedMediaUrl({
-      originalSrc,
-      width: w,
-      height: h,
-      fit: fit ?? "cover",
-    });
+		const src = getOptimizedMediaUrl({
+			originalSrc,
+			width: w,
+			height: h,
+			fit: fit ?? "cover",
+		});
 
-    if (src) {
-      entries.push(`${src} ${w}w`);
-    }
-  }
+		if (src) {
+			entries.push(`${src} ${w}w`);
+		}
+	}
 
-  return entries.length > 0 ? entries.join(", ") : undefined;
+	return entries.length > 0 ? entries.join(", ") : undefined;
 }
 
 // -------------------------------------------------------------------------
@@ -175,27 +164,26 @@ export interface ImageProps
 	media?: string;
 }
 
-export const Image = forwardRef<HTMLImageElement, ImageProps>(
-  function Image(
-    {
-      src,
-      width,
-      height,
-      fit = "cover",
-      preload,
-      media,
-      loading,
-      decoding,
-      srcSet: srcSetProp,
-      sizes,
-      fetchPriority,
-      ...rest
-    },
-    ref,
-  ) {
-    if (!height && typeof process !== "undefined") {
-      console.warn(`Missing height. This image will NOT be optimized: ${src}`);
-    }
+export const Image = forwardRef<HTMLImageElement, ImageProps>(function Image(
+	{
+		src,
+		width,
+		height,
+		fit = "cover",
+		preload,
+		media,
+		loading,
+		decoding,
+		srcSet: srcSetProp,
+		sizes,
+		fetchPriority,
+		...rest
+	},
+	ref,
+) {
+	if (!height && typeof process !== "undefined") {
+		console.warn(`Missing height. This image will NOT be optimized: ${src}`);
+	}
 
 	const optimizedSrc = getOptimizedMediaUrl({
 		originalSrc: src,
@@ -204,9 +192,7 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(
 		fit,
 	});
 	const srcSet = srcSetProp ?? getSrcSet(src, width, height, fit);
-	const resolvedSizes = srcSet
-		? (sizes ?? "(max-width: 768px) 100vw, 50vw")
-		: undefined;
+	const resolvedSizes = srcSet ? (sizes ?? "(max-width: 768px) 100vw, 50vw") : undefined;
 
 	return (
 		<>
@@ -235,7 +221,6 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(
 			/>
 		</>
 	);
-},
-);
+});
 
 export default Image;

@@ -4,7 +4,7 @@
  */
 
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
-import { SEGMENT_COOKIE_NAME, parseSegment } from "./utils/segment";
+import { parseSegment, SEGMENT_COOKIE_NAME } from "./utils/segment";
 
 // ---------------------------------------------------------------------------
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
@@ -180,9 +180,7 @@ function extractRegionIdFromCookies(): string | null {
 	if (!_getCookieHeader) return null;
 	const cookies = _getCookieHeader();
 	if (!cookies) return null;
-	const match = cookies.match(
-		new RegExp(`(?:^|;\\s*)${SEGMENT_COOKIE_NAME}=([^;]+)`),
-	);
+	const match = cookies.match(new RegExp(`(?:^|;\\s*)${SEGMENT_COOKIE_NAME}=([^;]+)`));
 	if (!match?.[1]) return null;
 	const segment = parseSegment(match[1]);
 	return segment?.regionId ?? null;

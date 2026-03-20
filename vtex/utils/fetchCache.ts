@@ -90,7 +90,6 @@ async function executeFetch(
 					`[vtex-fetch] attempt ${attempt + 1}/${attempts} failed — ${url}: ${lastError.message}`,
 				);
 				await sleep(RETRY_DELAYS[attempt] ?? 400);
-				continue;
 			}
 		}
 	}

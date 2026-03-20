@@ -11,24 +11,24 @@ interface Cookie {
 }
 
 function parseSingleSetCookie(raw: string): Cookie | null {
-  const parts = raw.split(";").map((p) => p.trim());
-  const [nameValue, ...attrs] = parts;
-  const eqIdx = nameValue.indexOf("=");
-  if (eqIdx < 0) return null;
-  const cookie: Cookie = {
-    name: nameValue.slice(0, eqIdx),
-    value: nameValue.slice(eqIdx + 1),
-  };
-  for (const attr of attrs) {
-    const [k, v] = attr.split("=").map((s) => s.trim());
-    const lower = k.toLowerCase();
-    if (lower === "domain") cookie.domain = v;
-    else if (lower === "path") cookie.path = v;
-    else if (lower === "secure") cookie.secure = true;
-    else if (lower === "httponly") cookie.httpOnly = true;
-    else if (lower === "samesite") cookie.sameSite = v as Cookie["sameSite"];
-  }
-  return cookie;
+	const parts = raw.split(";").map((p) => p.trim());
+	const [nameValue, ...attrs] = parts;
+	const eqIdx = nameValue.indexOf("=");
+	if (eqIdx < 0) return null;
+	const cookie: Cookie = {
+		name: nameValue.slice(0, eqIdx),
+		value: nameValue.slice(eqIdx + 1),
+	};
+	for (const attr of attrs) {
+		const [k, v] = attr.split("=").map((s) => s.trim());
+		const lower = k.toLowerCase();
+		if (lower === "domain") cookie.domain = v;
+		else if (lower === "path") cookie.path = v;
+		else if (lower === "secure") cookie.secure = true;
+		else if (lower === "httponly") cookie.httpOnly = true;
+		else if (lower === "samesite") cookie.sameSite = v as Cookie["sameSite"];
+	}
+	return cookie;
 }
 
 /**
@@ -59,22 +59,22 @@ function getSetCookies(headers: Headers): Cookie[] {
  * with Expires containing commas, but better than the old approach.
  */
 function getRawSetCookiesFallback(headers: Headers): string[] {
-  const joined = headers.get("set-cookie");
-  if (!joined) return [];
-  const results: string[] = [];
-  let current = "";
-  for (const segment of joined.split(",")) {
-    const trimmed = segment.trimStart();
-    const looksLikeNewCookie = /^[^=;]+=[^;]/.test(trimmed) && current.length > 0;
-    if (looksLikeNewCookie) {
-      results.push(current.trim());
-      current = trimmed;
-    } else {
-      current += (current ? "," : "") + segment;
-    }
-  }
-  if (current.trim()) results.push(current.trim());
-  return results;
+	const joined = headers.get("set-cookie");
+	if (!joined) return [];
+	const results: string[] = [];
+	let current = "";
+	for (const segment of joined.split(",")) {
+		const trimmed = segment.trimStart();
+		const looksLikeNewCookie = /^[^=;]+=[^;]/.test(trimmed) && current.length > 0;
+		if (looksLikeNewCookie) {
+			results.push(current.trim());
+			current = trimmed;
+		} else {
+			current += (current ? "," : "") + segment;
+		}
+	}
+	if (current.trim()) results.push(current.trim());
+	return results;
 }
 
 function setCookie(headers: Headers, cookie: Cookie): void {
