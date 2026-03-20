@@ -48,7 +48,11 @@ export function createGraphqlClient(
 				throw new Error(`Shopify GraphQL errors: ${json.errors.map((e) => e.message).join(", ")}`);
 			}
 
-			return json.data as T;
+			if (json.data === undefined) {
+				throw new Error("Shopify GraphQL response missing data");
+			}
+
+			return json.data;
 		},
 	};
 }

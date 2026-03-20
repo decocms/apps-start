@@ -58,9 +58,9 @@ export default async function productListLoader(
 	expandedProps.filters?.productVendors?.forEach((productVendor) =>
 		filters.push({ productVendor }),
 	);
-	if (expandedProps.filters?.priceMin)
+	if (expandedProps.filters?.priceMin != null)
 		filters.push({ price: { min: expandedProps.filters.priceMin } });
-	if (expandedProps.filters?.priceMax)
+	if (expandedProps.filters?.priceMax != null)
 		filters.push({ price: { max: expandedProps.filters.priceMax } });
 	expandedProps.filters?.variantOptions?.forEach((variantOption) =>
 		filters.push({ variantOption }),

@@ -12,7 +12,11 @@ export const getCartCookie = (headers: Headers): string | null => {
 		return null;
 	}
 
-	return decodeURIComponent(`${SHOPIFY_PREFIX}${cookies[CART_COOKIE]}`);
+	try {
+		return decodeURIComponent(`${SHOPIFY_PREFIX}${cookies[CART_COOKIE]}`);
+	} catch {
+		return null;
+	}
 };
 
 export const setCartCookie = (headers: Headers, cartId: string) => {

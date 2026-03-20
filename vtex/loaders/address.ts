@@ -72,8 +72,8 @@ export async function getAddressByPostalCode(
 		areaServed: data.neighborhood || undefined,
 		description: data.complement || undefined,
 		disambiguatingDescription: data.reference || undefined,
-		latitude: data.geoCoordinates?.[0] || undefined,
-		longitude: data.geoCoordinates?.[1] || undefined,
+		latitude: data.geoCoordinates?.[0] ?? undefined,
+		longitude: data.geoCoordinates?.[1] ?? undefined,
 	};
 }
 
