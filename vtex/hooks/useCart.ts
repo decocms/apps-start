@@ -134,7 +134,7 @@ async function updateItemQuantity(
 export interface UseCartOptions {
 	/** Enable automatic refetching. @default true */
 	enabled?: boolean;
-	/** Stale time in ms. @default 0 (always refetch) */
+	/** Stale time in ms. @default 30000 */
 	staleTime?: number;
 }
 
@@ -144,7 +144,7 @@ export function useCart(options?: UseCartOptions) {
 	const query = useQuery({
 		queryKey: CART_QUERY_KEY,
 		queryFn: fetchCart,
-		staleTime: options?.staleTime ?? 0,
+		staleTime: options?.staleTime ?? 30_000,
 		enabled: options?.enabled !== false,
 	});
 
