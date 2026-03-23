@@ -577,7 +577,7 @@ const SHELF_PROPERTY_NAMES = new Set([
  *
  * Differences from toProduct():
  * - Images: capped at 2 per SKU (front + back)
- * - Offers: first seller only, stripped installments (keeps ListPrice, SalePrice, SRP, PIX, best no-interest)
+ * - Offers: best seller only (in-stock first, then cheapest), stripped installments (keeps ListPrice, SalePrice, SRP, PIX, best no-interest)
  * - isVariantOf: single in-stock variant at level 0
  * - additionalProperty: filtered to known-used property names
  * - Drops: description, video, isAccessoryOrSparePartFor, alternateName, gtin, releaseDate, model
@@ -603,12 +603,13 @@ export const toProductShelf = <P extends LegacyProductVTEX | ProductVTEX>(
 	}));
 	const finalImages = mappedImages.length > 0 ? mappedImages : [DEFAULT_IMAGE];
 
-	// Offers: first seller only, lean
-	const firstSeller = (sku.sellers ?? [])[0];
-	const fullOffer = firstSeller
-		? (isLegacyProduct(product) ? toOfferLegacy : toOffer)(firstSeller)
-		: undefined;
-	const leanOffers = fullOffer ? [buildOfferShelf(fullOffer)] : [];
+	// Offers: best seller (in-stock first, then cheapest), lean.
+	// Must consider ALL sellers so marketplace products where sellers[0]
+	// is OOS but another seller has stock still show as available.
+	const offerConverter = isLegacyProduct(product) ? toOfferLegacy : toOffer;
+	const allOffers = (sku.sellers ?? []).map(offerConverter).sort(bestOfferFirst);
+	const bestOffer = allOffers[0];
+	const leanOffers = bestOffer ? [buildOfferShelf(bestOffer)] : [];
 
 	// isVariantOf: single in-stock variant at level 0
 	const isVariantOf =

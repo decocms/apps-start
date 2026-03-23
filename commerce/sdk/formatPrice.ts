@@ -16,5 +16,11 @@ const formatter = (currency: string, locale: string) => {
 	return formatters.get(key)!;
 };
 
-export const formatPrice = (price: number | undefined, currency = "BRL", locale = "pt-BR") =>
-	price !== undefined ? formatter(currency, locale).format(price) : null;
+export const formatPrice = (
+	price: number | undefined | null,
+	currency = "BRL",
+	locale = "pt-BR",
+) =>
+	price != null && Number.isFinite(price)
+		? formatter(currency, locale).format(price)
+		: null;
