@@ -294,6 +294,24 @@ export default async function vtexProductListingPage(props: PLPProps): Promise<a
 			}
 		}
 
+		// Handle VTEX `map` query param (e.g. /1368?map=productClusterIds).
+		// The `map` param tells IS how to interpret each path segment as a facet type.
+		// Segments and map values are positionally matched (comma-separated).
+		if (facets.length === 0 && pageUrl && __pagePath) {
+			const mapParam = pageUrl.searchParams.get("map");
+			if (mapParam) {
+				const segments = __pagePath.split("/").filter(Boolean);
+				const mapValues = mapParam.split(",");
+				for (let i = 0; i < Math.min(segments.length, mapValues.length); i++) {
+					const key = mapValues[i].trim();
+					const value = decodeURIComponent(segments[i]);
+					if (key && value) {
+						facets.push({ key, value });
+					}
+				}
+			}
+		}
+
 		let pageTypes: PageType[] = [];
 
 		if (
