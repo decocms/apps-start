@@ -20,13 +20,22 @@ function parseSingleSetCookie(raw: string): Cookie | null {
 		value: nameValue.slice(eqIdx + 1),
 	};
 	for (const attr of attrs) {
-		const [k, v] = attr.split("=").map((s) => s.trim());
+		const eqi = attr.indexOf("=");
+		const k = (eqi >= 0 ? attr.slice(0, eqi) : attr).trim();
+		const v = eqi >= 0 ? attr.slice(eqi + 1).trim() : "";
 		const lower = k.toLowerCase();
 		if (lower === "domain") cookie.domain = v;
 		else if (lower === "path") cookie.path = v;
 		else if (lower === "secure") cookie.secure = true;
 		else if (lower === "httponly") cookie.httpOnly = true;
 		else if (lower === "samesite") cookie.sameSite = v as Cookie["sameSite"];
+		else if (lower === "max-age") {
+			const n = Number(v);
+			if (!Number.isNaN(n)) cookie.maxAge = n;
+		} else if (lower === "expires") {
+			const d = new Date(v);
+			if (!Number.isNaN(d.getTime())) cookie.expires = d;
+		}
 	}
 	return cookie;
 }
