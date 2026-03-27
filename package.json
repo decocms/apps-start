@@ -35,7 +35,11 @@
     "./vtex/hooks/*": "./vtex/hooks/*.ts",
     "./vtex/inline-loaders/workflowProducts": "./vtex/inline-loaders/workflowProducts.ts",
     "./vtex/middleware": "./vtex/middleware.ts",
-    "./vtex/invoke": "./vtex/invoke.ts"
+    "./vtex/invoke": "./vtex/invoke.ts",
+    "./resend": "./resend/index.ts",
+    "./resend/client": "./resend/client.ts",
+    "./resend/types": "./resend/types.ts",
+    "./resend/actions/send": "./resend/actions/send.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
