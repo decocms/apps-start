@@ -1,5 +1,5 @@
-export { configureResend, getResendConfig } from "./client";
 export { sendEmail } from "./actions/send";
+export { configureResend, getResendConfig } from "./client";
 export type {
 	CreateEmailOptions,
 	CreateEmailResponse,
