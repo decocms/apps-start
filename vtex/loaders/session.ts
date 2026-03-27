@@ -23,14 +23,11 @@ import { vtexFetch, vtexIOGraphQL } from "../client";
  *
  * @see https://developers.vtex.com/docs/api-reference/session-manager-api#get-/api/sessions
  */
-export async function getSession<T = any>(
-  items: string[] = ["*"],
-  authCookie: string,
-): Promise<T> {
-  const qs = new URLSearchParams({ items: items.join(",") });
-  return vtexFetch<T>(`/api/sessions?${qs}`, {
-    headers: { cookie: authCookie },
-  });
+export async function getSession<T = any>(items: string[] = ["*"], authCookie: string): Promise<T> {
+	const qs = new URLSearchParams({ items: items.join(",") });
+	return vtexFetch<T>(`/api/sessions?${qs}`, {
+		headers: { cookie: authCookie },
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -38,21 +35,21 @@ export async function getSession<T = any>(
 // ---------------------------------------------------------------------------
 
 export interface LoginSession {
-  id: string;
-  cacheId: string;
-  deviceType: string;
-  city: string;
-  lastAccess: string;
-  browser: string;
-  os: string;
-  ip: string;
-  fullAddress: string;
-  firstAccess: string;
+	id: string;
+	cacheId: string;
+	deviceType: string;
+	city: string;
+	lastAccess: string;
+	browser: string;
+	os: string;
+	ip: string;
+	fullAddress: string;
+	firstAccess: string;
 }
 
 export interface LoginSessionsInfo {
-  currentLoginSessionId: string;
-  loginSessions: LoginSession[];
+	currentLoginSessionId: string;
+	loginSessions: LoginSession[];
 }
 
 const USER_SESSIONS_QUERY = `query getUserSessions {
@@ -77,15 +74,10 @@ const USER_SESSIONS_QUERY = `query getUserSessions {
  * Fetch all active login sessions for the currently authenticated user.
  * Requires a valid VTEX auth cookie.
  */
-export async function getUserSessions(
-  authCookie: string,
-): Promise<LoginSessionsInfo> {
-  const { loginSessionsInfo } = await vtexIOGraphQL<{
-    loginSessionsInfo: LoginSessionsInfo;
-  }>(
-    { query: USER_SESSIONS_QUERY },
-    { cookie: authCookie },
-  );
+export async function getUserSessions(authCookie: string): Promise<LoginSessionsInfo> {
+	const { loginSessionsInfo } = await vtexIOGraphQL<{
+		loginSessionsInfo: LoginSessionsInfo;
+	}>({ query: USER_SESSIONS_QUERY }, { cookie: authCookie });
 
-  return loginSessionsInfo;
+	return loginSessionsInfo;
 }

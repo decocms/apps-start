@@ -4,10 +4,7 @@
  *
  * Ported from deco-cx/apps vtex/loaders/product/wishlist.ts
  */
-import type {
-	Product,
-	ProductListingPage,
-} from "../../commerce/types/commerce";
+import type { Product, ProductListingPage } from "../../commerce/types/commerce";
 import { getWishlist } from "./wishlist";
 
 export interface WishlistProductsProps {
@@ -32,19 +29,10 @@ function withPage(baseUrl: string, page: number): string {
 export async function wishlistProducts(
 	props: WishlistProductsProps,
 ): Promise<ProductListingPage | null> {
-	const {
-		count: recordPerPage = 12,
-		offset = 0,
-		authCookie,
-		shopperId,
-		url: rawUrl,
-	} = props;
+	const { count: recordPerPage = 12, offset = 0, authCookie, shopperId, url: rawUrl } = props;
 
 	const url = new URL(rawUrl);
-	const page = Math.max(
-		0,
-		Number(url.searchParams.get("page") ?? offset) - offset,
-	);
+	const page = Math.max(0, Number(url.searchParams.get("page") ?? offset) - offset);
 	const items = await getWishlist(authCookie, { shopperId, allRecords: true });
 	const records = items.length;
 	const start = page * recordPerPage;

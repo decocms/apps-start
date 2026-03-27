@@ -7,10 +7,11 @@
  *
  * @see https://developers.vtex.com/docs/api-reference/checkout-api#get-/api/checkout/pub/orderForm
  */
-import { vtexFetch, getVtexConfig } from "../client";
-import type { OrderForm } from "../utils/types";
-import { forceHttpsOnAssets } from "../utils/transform";
+
 import { DEFAULT_EXPECTED_SECTIONS } from "../actions/checkout";
+import { getVtexConfig, vtexFetch } from "../client";
+import { forceHttpsOnAssets } from "../utils/transform";
+import type { OrderForm } from "../utils/types";
 
 /**
  * Fetch the current cart (OrderForm).
@@ -23,27 +24,29 @@ import { DEFAULT_EXPECTED_SECTIONS } from "../actions/checkout";
  * @param authCookie - Optional cookie string for authenticated requests
  */
 export async function getCart(
-  orderFormId?: string,
-  opts?: { salesChannel?: string; authCookie?: string },
+	orderFormId?: string,
+	opts?: { salesChannel?: string; authCookie?: string },
 ): Promise<OrderForm> {
-  const { salesChannel } = getVtexConfig();
-  const sc = opts?.salesChannel ?? salesChannel;
-  const headers: Record<string, string> = {};
-  if (opts?.authCookie) headers.cookie = opts.authCookie;
+	const { salesChannel } = getVtexConfig();
+	const sc = opts?.salesChannel ?? salesChannel;
+	const headers: Record<string, string> = {};
+	if (opts?.authCookie) headers.cookie = opts.authCookie;
 
-  const scParam = sc ? `?sc=${sc}` : "";
+	const scParam = sc ? `?sc=${sc}` : "";
 
-  const body = JSON.stringify({ expectedOrderFormSections: DEFAULT_EXPECTED_SECTIONS });
+	const body = JSON.stringify({ expectedOrderFormSections: DEFAULT_EXPECTED_SECTIONS });
 
-  const cart = orderFormId
-    ? await vtexFetch<OrderForm>(
-        `/api/checkout/pub/orderForm/${orderFormId}${scParam}`,
-        { method: "POST", headers, body },
-      )
-    : await vtexFetch<OrderForm>(
-        `/api/checkout/pub/orderForm${scParam}`,
-        { method: "POST", headers, body },
-      );
+	const cart = orderFormId
+		? await vtexFetch<OrderForm>(`/api/checkout/pub/orderForm/${orderFormId}${scParam}`, {
+				method: "POST",
+				headers,
+				body,
+			})
+		: await vtexFetch<OrderForm>(`/api/checkout/pub/orderForm${scParam}`, {
+				method: "POST",
+				headers,
+				body,
+			});
 
-  return forceHttpsOnAssets(cart);
+	return forceHttpsOnAssets(cart);
 }

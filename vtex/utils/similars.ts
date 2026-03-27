@@ -4,8 +4,7 @@ import { pickSku, toProduct } from "./transform";
 import type { LegacyProduct } from "./types";
 
 export const withIsSimilarTo = async (product: Product): Promise<Product> => {
-	const id =
-		product.isVariantOf?.productGroupID ?? product.inProductGroupWithID;
+	const id = product.isVariantOf?.productGroupID ?? product.inProductGroupWithID;
 
 	if (!id) {
 		return product;

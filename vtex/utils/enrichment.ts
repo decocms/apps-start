@@ -33,6 +33,28 @@ import type { LegacyProduct } from "./types";
 import { buildAuthCookieHeader, VTEX_AUTH_COOKIE } from "./vtexId";
 
 // -------------------------------------------------------------------------
+// Constants
+// -------------------------------------------------------------------------
+
+/** VTEX prices come in cents — divide by this to get the currency value. */
+const CENTS_DIVISOR = 100;
+
+/** Default number of products per simulation API call. */
+const DEFAULT_SIMULATION_BATCH_SIZE = 50;
+
+/** Maximum wishlist items to fetch in a single query. */
+const WISHLIST_MAX_ITEMS = 500;
+
+/** Batch size for kit-item product lookups. */
+const KIT_ITEMS_BATCH_SIZE = 10;
+
+/** Batch size for variant product lookups. */
+const VARIANTS_BATCH_SIZE = 15;
+
+/** Number of reviews to fetch per product. */
+const REVIEWS_PAGE_SIZE = 10;
+
+// -------------------------------------------------------------------------
 // Types
 // -------------------------------------------------------------------------
 
@@ -47,10 +69,7 @@ export interface EnrichmentContext {
  * A product enricher takes a list of products and returns an enriched list.
  * Enrichers are composed via `createProductPipeline`.
  */
-export type ProductEnricher = (
-	products: Product[],
-	ctx: EnrichmentContext,
-) => Promise<Product[]>;
+export type ProductEnricher = (products: Product[], ctx: EnrichmentContext) => Promise<Product[]>;
 
 // -------------------------------------------------------------------------
 // Pipeline
@@ -63,9 +82,7 @@ export type ProductEnricher = (
  * This is intentional: some enrichers depend on previous enrichments
  * (e.g., wishlist may need SKU IDs added by simulation).
  */
-export function createProductPipeline(
-	...enrichers: ProductEnricher[]
-): ProductEnricher {
+export function createProductPipeline(...enrichers: ProductEnricher[]): ProductEnricher {
 	return async (products, ctx) => {
 		if (!products.length) return products;
 
@@ -115,20 +132,15 @@ interface SimulationResult {
  *
  * @param options.batchSize - Max products per simulation call. @default 50
  */
-export function withSimulation(options?: {
-	batchSize?: number;
-}): ProductEnricher {
-	const batchSize = options?.batchSize ?? 50;
+export function withSimulation(options?: { batchSize?: number }): ProductEnricher {
+	const batchSize = options?.batchSize ?? DEFAULT_SIMULATION_BATCH_SIZE;
 
 	return async (products, ctx) => {
 		const config = getVtexConfig();
 		const sc = ctx.salesChannel ?? config.salesChannel ?? "1";
 
 		const skuItems: SimulationItem[] = [];
-		const skuToProductIndex = new Map<
-			string,
-			{ productIdx: number; offerIdx: number }
-		>();
+		const skuToProductIndex = new Map<string, { productIdx: number; offerIdx: number }>();
 
 		for (let pi = 0; pi < products.length; pi++) {
 			const product = products[pi];
@@ -191,7 +203,7 @@ export function withSimulation(options?: {
 					const offers = [...aggOffer.offers];
 					const offer = { ...offers[mapping.offerIdx] };
 
-					offer.price = simItem.sellingPrice / 100;
+					offer.price = simItem.sellingPrice / CENTS_DIVISOR;
 					if (simItem.listPrice) {
 						(offer as any).priceSpecification = [
 							...(Array.isArray((offer as any).priceSpecification)
@@ -199,10 +211,10 @@ export function withSimulation(options?: {
 								: []),
 						].map((spec: any) => {
 							if (spec?.priceType === "https://schema.org/ListPrice") {
-								return { ...spec, price: simItem.listPrice / 100 };
+								return { ...spec, price: simItem.listPrice / CENTS_DIVISOR };
 							}
 							if (spec?.priceType === "https://schema.org/SalePrice") {
-								return { ...spec, price: simItem.sellingPrice / 100 };
+								return { ...spec, price: simItem.sellingPrice / CENTS_DIVISOR };
 							}
 							return spec;
 						});
@@ -217,10 +229,7 @@ export function withSimulation(options?: {
 					result[mapping.productIdx] = product;
 				}
 			} catch (error) {
-				console.error(
-					"[Simulation] Batch failed:",
-					error instanceof Error ? error.message : error,
-				);
+				console.error("[Simulation] Batch failed:", error instanceof Error ? error.message : error);
 			}
 		}
 
@@ -275,9 +284,7 @@ export function withWishlist(): ProductEnricher {
 		try {
 			const parts = authCookie.split(".");
 			if (parts.length === 3) {
-				const payload = JSON.parse(
-					atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
-				);
+				const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
 				email = payload.sub ?? payload.userId;
 			}
 		} catch {
@@ -290,7 +297,7 @@ export function withWishlist(): ProductEnricher {
 			const data = await vtexIOGraphQL<WishlistData>(
 				{
 					query: WISHLIST_QUERY,
-					variables: { shopperId: email, name: "Wishlist", from: 0, to: 500 },
+					variables: { shopperId: email, name: "Wishlist", from: 0, to: WISHLIST_MAX_ITEMS },
 				},
 				{ Cookie: buildAuthCookieHeader(authCookie, getVtexConfig().account) },
 			);
@@ -369,7 +376,7 @@ export function withKitItems(): ProductEnricher {
 			? `https://${config.publicUrl}`
 			: `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}`;
 
-		const batches = batch([...productIDs], 10);
+		const batches = batch([...productIDs], KIT_ITEMS_BATCH_SIZE);
 		const productsById = new Map<string, ProductLeaf>();
 
 		for (const ids of batches) {
@@ -389,10 +396,7 @@ export function withKitItems(): ProductEnricher {
 					}
 				}
 			} catch (e) {
-				console.error(
-					"[KitItems] Batch failed:",
-					e instanceof Error ? e.message : e,
-				);
+				console.error("[KitItems] Batch failed:", e instanceof Error ? e.message : e);
 			}
 		}
 
@@ -428,7 +432,7 @@ export function withVariants(): ProductEnricher {
 			? `https://${config.publicUrl}`
 			: `https://${config.account}.vtexcommercestable.${config.domain ?? "com.br"}`;
 
-		const batches = batch([...productIDs], 15);
+		const batches = batch([...productIDs], VARIANTS_BATCH_SIZE);
 		const productsById = new Map<string, Product>();
 
 		for (const ids of batches) {
@@ -446,10 +450,7 @@ export function withVariants(): ProductEnricher {
 					productsById.set(product.productID, product);
 				}
 			} catch (e) {
-				console.error(
-					"[Variants] Batch failed:",
-					e instanceof Error ? e.message : e,
-				);
+				console.error("[Variants] Batch failed:", e instanceof Error ? e.message : e);
 			}
 		}
 
@@ -476,14 +477,28 @@ export function withReviews(): ProductEnricher {
 
 		const reviewPromises = products.map((product) =>
 			vtexFetch<any>(
-				`https://${myHost}/reviews-and-ratings/api/reviews?product_id=${product.inProductGroupWithID ?? ""}&from=0&to=10&status=true`,
-			).catch(() => ({})),
+				`https://${myHost}/reviews-and-ratings/api/reviews?product_id=${product.inProductGroupWithID ?? ""}&from=0&to=${REVIEWS_PAGE_SIZE}&status=true`,
+			).catch((error) => {
+				console.error(
+					"[Reviews] Failed for product",
+					product.inProductGroupWithID,
+					error instanceof Error ? error.message : error,
+				);
+				return {};
+			}),
 		);
 
 		const ratingPromises = products.map((product) =>
 			vtexFetch<any>(
 				`https://${myHost}/reviews-and-ratings/api/rating/${product.inProductGroupWithID ?? ""}`,
-			).catch(() => ({})),
+			).catch((error) => {
+				console.error(
+					"[Ratings] Failed for product",
+					product.inProductGroupWithID,
+					error instanceof Error ? error.message : error,
+				);
+				return {};
+			}),
 		);
 
 		const [reviews, ratings] = await Promise.all([
@@ -508,9 +523,14 @@ export function withInventory(): ProductEnricher {
 		const inventories = await Promise.all(
 			products.map((product) => {
 				if (!product.sku) return Promise.resolve({});
-				return vtexFetch<any>(
-					`/api/logistics/pvt/inventory/skus/${product.sku}`,
-				).catch(() => ({}));
+				return vtexFetch<any>(`/api/logistics/pvt/inventory/skus/${product.sku}`).catch((error) => {
+					console.error(
+						"[Inventory] Failed for SKU",
+						product.sku,
+						error instanceof Error ? error.message : error,
+					);
+					return {};
+				});
 			}),
 		);
 

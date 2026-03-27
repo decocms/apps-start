@@ -31,26 +31,26 @@ const ADDRESS_FIELDS = `
 `;
 
 export interface Profile {
-  id: string;
-  cacheId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  document: string;
-  userId: string;
-  birthDate: string;
-  gender: string;
-  homePhone: string;
-  businessPhone: string;
-  addresses: Record<string, unknown>[];
-  isCorporate: boolean;
-  tradeName: string;
-  corporateName: string;
-  corporateDocument: string;
-  stateRegistration: string;
-  payments: Record<string, unknown>[];
-  customFields: Array<{ key: string; value: string }>;
-  passwordLastUpdate: string;
+	id: string;
+	cacheId: string;
+	email: string;
+	firstName: string;
+	lastName: string;
+	document: string;
+	userId: string;
+	birthDate: string;
+	gender: string;
+	homePhone: string;
+	businessPhone: string;
+	addresses: Record<string, unknown>[];
+	isCorporate: boolean;
+	tradeName: string;
+	corporateName: string;
+	corporateDocument: string;
+	stateRegistration: string;
+	payments: Record<string, unknown>[];
+	customFields: Array<{ key: string; value: string }>;
+	passwordLastUpdate: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,18 +100,18 @@ const PROFILE_QUERY = `query getUserProfile($customFields: String) {
  * Requires a valid VTEX auth cookie.
  */
 export async function getCurrentProfile(
-  authCookie: string,
-  customFields?: string[],
+	authCookie: string,
+	customFields?: string[],
 ): Promise<Profile> {
-  const { profile } = await vtexIOGraphQL<{ profile: Profile }>(
-    {
-      query: PROFILE_QUERY,
-      variables: { customFields: customFields?.join(",") },
-    },
-    { cookie: authCookie },
-  );
+	const { profile } = await vtexIOGraphQL<{ profile: Profile }>(
+		{
+			query: PROFILE_QUERY,
+			variables: { customFields: customFields?.join(",") },
+		},
+		{ cookie: authCookie },
+	);
 
-  return profile;
+	return profile;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,14 +125,14 @@ export async function getCurrentProfile(
  * @see https://developers.vtex.com/docs/api-reference/checkout-api#get-/api/checkout/pub/profiles
  */
 export async function getProfileByEmail<T = any>(
-  email: string,
-  authCookie: string,
-  ensureComplete?: boolean,
+	email: string,
+	authCookie: string,
+	ensureComplete?: boolean,
 ): Promise<T> {
-  const params = new URLSearchParams({ email });
-  if (ensureComplete) params.set("ensureComplete", "true");
+	const params = new URLSearchParams({ email });
+	if (ensureComplete) params.set("ensureComplete", "true");
 
-  return vtexFetch<T>(`/api/checkout/pub/profiles?${params}`, {
-    headers: { cookie: authCookie },
-  });
+	return vtexFetch<T>(`/api/checkout/pub/profiles?${params}`, {
+		headers: { cookie: authCookie },
+	});
 }

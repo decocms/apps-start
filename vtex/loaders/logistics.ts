@@ -18,22 +18,22 @@ import { vtexFetch } from "../client";
 // ---------------------------------------------------------------------------
 
 export interface ProductBalance {
-  warehouseId: string;
-  warehouseName: string;
-  totalQuantity: number;
-  reservedQuantity: number;
-  hasUnlimitedQuantity: boolean;
+	warehouseId: string;
+	warehouseName: string;
+	totalQuantity: number;
+	reservedQuantity: number;
+	hasUnlimitedQuantity: boolean;
 }
 
 export interface PickupPointsByLocationOpts {
-  geoCoordinates?: number[];
-  postalCode?: string;
-  countryCode?: string;
+	geoCoordinates?: number[];
+	postalCode?: string;
+	countryCode?: string;
 }
 
 export interface PickupPointsResponse<T = any> {
-  paging: { page: number; pageSize: number; total: number; pages: number };
-  items: Array<{ distance: number; pickupPoint: T }>;
+	paging: { page: number; pageSize: number; total: number; pages: number };
+	items: Array<{ distance: number; pickupPoint: T }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ export interface PickupPointsResponse<T = any> {
  * @see https://developers.vtex.com/docs/api-reference/catalog-api#get-/api/catalog_system/pub/saleschannel/-salesChannelId-
  */
 export async function getSalesChannelById<T = any>(id: string): Promise<T> {
-  return vtexFetch<T>(`/api/catalog_system/pub/saleschannel/${id}`);
+	return vtexFetch<T>(`/api/catalog_system/pub/saleschannel/${id}`);
 }
 
 /**
@@ -53,7 +53,7 @@ export async function getSalesChannelById<T = any>(id: string): Promise<T> {
  * @see https://developers.vtex.com/docs/api-reference/catalog-api#get-/api/catalog_system/pvt/saleschannel/list
  */
 export async function listSalesChannels<T = any>(): Promise<T[]> {
-  return vtexFetch<T[]>("/api/catalog_system/pvt/saleschannel/list");
+	return vtexFetch<T[]>("/api/catalog_system/pvt/saleschannel/list");
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ export async function listSalesChannels<T = any>(): Promise<T[]> {
  * @see https://developers.vtex.com/docs/api-reference/logistics-api#get-/api/logistics/pvt/configuration/pickuppoints
  */
 export async function listPickupPoints<T = any>(): Promise<T[]> {
-  return vtexFetch<T[]>("/api/logistics/pvt/configuration/pickuppoints");
+	return vtexFetch<T[]>("/api/logistics/pvt/configuration/pickuppoints");
 }
 
 /**
@@ -75,19 +75,17 @@ export async function listPickupPoints<T = any>(): Promise<T[]> {
  * @see https://developers.vtex.com/docs/api-reference/checkout-api#get-/api/checkout/pub/pickup-points
  */
 export async function listPickupPointsByLocation<T = any>(
-  opts: PickupPointsByLocationOpts,
+	opts: PickupPointsByLocationOpts,
 ): Promise<PickupPointsResponse<T>> {
-  const params = new URLSearchParams();
-  if (opts.geoCoordinates) {
-    params.set("geoCoordinates", opts.geoCoordinates.join(","));
-  } else {
-    if (opts.postalCode) params.set("postalCode", opts.postalCode);
-    if (opts.countryCode) params.set("countryCode", opts.countryCode);
-  }
+	const params = new URLSearchParams();
+	if (opts.geoCoordinates) {
+		params.set("geoCoordinates", opts.geoCoordinates.join(","));
+	} else {
+		if (opts.postalCode) params.set("postalCode", opts.postalCode);
+		if (opts.countryCode) params.set("countryCode", opts.countryCode);
+	}
 
-  return vtexFetch<PickupPointsResponse<T>>(
-    `/api/checkout/pub/pickup-points?${params}`,
-  );
+	return vtexFetch<PickupPointsResponse<T>>(`/api/checkout/pub/pickup-points?${params}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -98,18 +96,16 @@ export async function listPickupPointsByLocation<T = any>(
  * List inventory balances for a SKU across all warehouses.
  * @see https://developers.vtex.com/docs/api-reference/logistics-api#get-/api/logistics/pvt/inventory/skus/-skuId-
  */
-export async function listStockByStore(
-  skuId: number,
-): Promise<ProductBalance[]> {
-  try {
-    const result = await vtexFetch<{
-      skuId?: string;
-      balance?: ProductBalance[];
-    }>(`/api/logistics/pvt/inventory/skus/${skuId}`);
+export async function listStockByStore(skuId: number): Promise<ProductBalance[]> {
+	try {
+		const result = await vtexFetch<{
+			skuId?: string;
+			balance?: ProductBalance[];
+		}>(`/api/logistics/pvt/inventory/skus/${skuId}`);
 
-    return result.balance ?? [];
-  } catch (error) {
-    console.error("[listStockByStore]", error);
-    return [];
-  }
+		return result.balance ?? [];
+	} catch (error) {
+		console.error("[listStockByStore]", error);
+		return [];
+	}
 }

@@ -14,17 +14,17 @@ import { vtexIOGraphQL } from "../client";
 // ---------------------------------------------------------------------------
 
 export interface WishlistItem {
-  id: string;
-  productId: string;
-  sku: string;
-  title: string;
+	id: string;
+	productId: string;
+	sku: string;
+	title: string;
 }
 
 export interface GetWishlistOpts {
-  shopperId: string;
-  count?: number;
-  page?: number;
-  allRecords?: boolean;
+	shopperId: string;
+	count?: number;
+	page?: number;
+	allRecords?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,35 +55,35 @@ const WISHLIST_QUERY = `query GetWishlist($shopperId: String!, $name: String!, $
  * @param opts.allRecords - When true, ignores pagination and returns every item.
  */
 export async function getWishlist(
-  authCookie: string,
-  opts: GetWishlistOpts,
+	authCookie: string,
+	opts: GetWishlistOpts,
 ): Promise<WishlistItem[]> {
-  try {
-    const { viewList } = await vtexIOGraphQL<{
-      viewList: { name?: string; data: WishlistItem[] };
-    }>(
-      {
-        operationName: "GetWishlist",
-        query: WISHLIST_QUERY,
-        variables: {
-          name: "Wishlist",
-          shopperId: opts.shopperId,
-        },
-      },
-      { cookie: authCookie },
-    );
+	try {
+		const { viewList } = await vtexIOGraphQL<{
+			viewList: { name?: string; data: WishlistItem[] };
+		}>(
+			{
+				operationName: "GetWishlist",
+				query: WISHLIST_QUERY,
+				variables: {
+					name: "Wishlist",
+					shopperId: opts.shopperId,
+				},
+			},
+			{ cookie: authCookie },
+		);
 
-    const data = viewList.data ?? [];
+		const data = viewList.data ?? [];
 
-    if (opts.allRecords) return data;
+		if (opts.allRecords) return data;
 
-    const count = opts.count ?? Infinity;
-    const page = opts.page ?? 0;
-    return data.slice(count * page, count * (page + 1));
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw error;
-    }
-    return [];
-  }
+		const count = opts.count ?? Infinity;
+		const page = opts.page ?? 0;
+		return data.slice(count * page, count * (page + 1));
+	} catch (error) {
+		if (error instanceof DOMException && error.name === "AbortError") {
+			throw error;
+		}
+		return [];
+	}
 }

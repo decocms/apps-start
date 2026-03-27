@@ -266,7 +266,7 @@ const Customer = gql`
 `;
 
 export const CreateCart = {
-  query: gql`mutation CreateCart {
+	query: gql`mutation CreateCart {
     payload: cartCreate { 
       cart { id } 
     }
@@ -274,22 +274,20 @@ export const CreateCart = {
 };
 
 export const GetCart = {
-  fragments: [Cart],
-  query: gql`query GetCart($id: ID!) { cart(id: $id) { ...Cart } }`,
+	fragments: [Cart],
+	query: gql`query GetCart($id: ID!) { cart(id: $id) { ...Cart } }`,
 };
 
 export const GetProduct = {
-  fragments: [Product, ProductVariant, Collection],
-  query:
-    gql`query GetProduct($handle: String, $identifiers: [HasMetafieldsIdentifier!]!) {
+	fragments: [Product, ProductVariant, Collection],
+	query: gql`query GetProduct($handle: String, $identifiers: [HasMetafieldsIdentifier!]!) {
       product(handle: $handle) { ...Product }
     }`,
 };
 
 export const ListProducts = {
-  fragments: [Product, ProductVariant, Collection],
-  query:
-    gql`query ListProducts($first: Int, $after: String, $query: String, $identifiers: [HasMetafieldsIdentifier!]!) {
+	fragments: [Product, ProductVariant, Collection],
+	query: gql`query ListProducts($first: Int, $after: String, $query: String, $identifiers: [HasMetafieldsIdentifier!]!) {
     products(first: $first, after: $after, query: $query) {
       nodes {
         ...Product 
@@ -299,8 +297,8 @@ export const ListProducts = {
 };
 
 export const SearchProducts = {
-  fragments: [Product, ProductVariant, Filter, Collection],
-  query: gql`query searchWithFilters(
+	fragments: [Product, ProductVariant, Filter, Collection],
+	query: gql`query searchWithFilters(
       $first: Int, 
       $last: Int, 
       $after: String, 
@@ -340,8 +338,8 @@ export const SearchProducts = {
 };
 
 export const ProductsByCollection = {
-  fragments: [Product, ProductVariant, Collection, Filter],
-  query: gql`query AllProducts(
+	fragments: [Product, ProductVariant, Collection, Filter],
+	query: gql`query AllProducts(
       $first: Int, 
       $last: Int, 
       $after: String, 
@@ -383,9 +381,8 @@ export const ProductsByCollection = {
 };
 
 export const ProductRecommendations = {
-  fragments: [Product, ProductVariant, Collection],
-  query:
-    gql`query productRecommendations($productId: ID!, $identifiers: [HasMetafieldsIdentifier!]!) {
+	fragments: [Product, ProductVariant, Collection],
+	query: gql`query productRecommendations($productId: ID!, $identifiers: [HasMetafieldsIdentifier!]!) {
     productRecommendations(productId: $productId) {
       ...Product
     }
@@ -393,7 +390,7 @@ export const ProductRecommendations = {
 };
 
 export const GetShopInfo = {
-  query: gql`query GetShopInfo($identifiers: [HasMetafieldsIdentifier!]!) {
+	query: gql`query GetShopInfo($identifiers: [HasMetafieldsIdentifier!]!) {
     shop {
       name
       description
@@ -447,8 +444,8 @@ export const GetShopInfo = {
 };
 
 export const FetchCustomerInfo = {
-  fragments: [Customer],
-  query: gql`query FetchCustomerInfo($customerAccessToken: String!) {
+	fragments: [Customer],
+	query: gql`query FetchCustomerInfo($customerAccessToken: String!) {
     customer(customerAccessToken: $customerAccessToken) {
       ...Customer
     }
@@ -456,8 +453,8 @@ export const FetchCustomerInfo = {
 };
 
 export const AddItemToCart = {
-  fragments: [Cart],
-  query: gql`mutation AddItemToCart($cartId: ID!, $lines: [CartLineInput!]!) {
+	fragments: [Cart],
+	query: gql`mutation AddItemToCart($cartId: ID!, $lines: [CartLineInput!]!) {
     payload: cartLinesAdd(cartId: $cartId, lines: $lines) {
       cart { ...Cart }
     }
@@ -465,7 +462,7 @@ export const AddItemToCart = {
 };
 
 export const RegisterAccount = {
-  query: gql`mutation RegisterAccount(
+	query: gql`mutation RegisterAccount(
       $email: String!,
       $password: String!,
       $firstName: String,
@@ -491,8 +488,8 @@ export const RegisterAccount = {
 };
 
 export const AddCoupon = {
-  fragments: [Cart],
-  query: gql`mutation AddCoupon($cartId: ID!, $discountCodes: [String!]!) {
+	fragments: [Cart],
+	query: gql`mutation AddCoupon($cartId: ID!, $discountCodes: [String!]!) {
     payload: cartDiscountCodesUpdate(cartId: $cartId, discountCodes: $discountCodes) {
       cart { ...Cart }
       userErrors {
@@ -504,9 +501,8 @@ export const AddCoupon = {
 };
 
 export const UpdateItems = {
-  fragments: [Cart],
-  query:
-    gql`mutation UpdateItems($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
+	fragments: [Cart],
+	query: gql`mutation UpdateItems($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
       payload: cartLinesUpdate(cartId: $cartId, lines: $lines) {
         cart { ...Cart }
       }
@@ -514,8 +510,7 @@ export const UpdateItems = {
 };
 
 export const SignInWithEmailAndPassword = {
-  query:
-    gql`mutation SignInWithEmailAndPassword($email: String!, $password: String!) {
+	query: gql`mutation SignInWithEmailAndPassword($email: String!, $password: String!) {
     customerAccessTokenCreate(input: { email: $email, password: $password }) {
       customerAccessToken {
         accessToken

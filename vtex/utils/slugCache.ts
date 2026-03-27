@@ -9,9 +9,7 @@
 import { getVtexConfig, vtexCachedFetch } from "../client";
 import type { LegacyProduct } from "./types";
 
-export function searchBySlug(
-	linkText: string,
-): Promise<LegacyProduct[] | null> {
+export function searchBySlug(linkText: string): Promise<LegacyProduct[] | null> {
 	const config = getVtexConfig();
 	const sc = config.salesChannel;
 	const scParam = sc ? `?sc=${sc}` : "";
@@ -24,9 +22,7 @@ export function searchBySlug(
 	});
 }
 
-export async function resolveProductIdBySlug(
-	linkText: string,
-): Promise<string | null> {
+export async function resolveProductIdBySlug(linkText: string): Promise<string | null> {
 	const products = await searchBySlug(linkText);
 	return products?.length ? products[0].productId : null;
 }

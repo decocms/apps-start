@@ -9,7 +9,7 @@
  *
  * @see https://developers.vtex.com/docs/api-reference/intelligent-search-api
  */
-import { intelligentSearch, getVtexConfig } from "../client";
+import { getVtexConfig, intelligentSearch } from "../client";
 import type { Suggestion } from "../utils/types";
 
 // ---------------------------------------------------------------------------
@@ -22,12 +22,12 @@ import type { Suggestion } from "../utils/types";
  * @param locale - BCP-47 locale (defaults to the configured locale or "pt-BR")
  */
 export async function getTopSearches(locale?: string): Promise<Suggestion> {
-  const cfg = getVtexConfig();
-  const effectiveLocale = locale ?? cfg.locale ?? "pt-BR";
+	const cfg = getVtexConfig();
+	const effectiveLocale = locale ?? cfg.locale ?? "pt-BR";
 
-  return intelligentSearch<Suggestion>("/top_searches", {
-    locale: effectiveLocale,
-  });
+	return intelligentSearch<Suggestion>("/top_searches", {
+		locale: effectiveLocale,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -35,12 +35,12 @@ export async function getTopSearches(locale?: string): Promise<Suggestion> {
 // ---------------------------------------------------------------------------
 
 export interface FacetsSearchProps {
-  query?: string;
-  facets?: string;
-  sort?: string;
-  count?: number;
-  page?: number;
-  locale?: string;
+	query?: string;
+	facets?: string;
+	sort?: string;
+	count?: number;
+	page?: number;
+	locale?: string;
 }
 
 /**
@@ -53,17 +53,17 @@ export interface FacetsSearchProps {
  * Returns the raw IS response or `null` when nothing is found.
  */
 export async function validateProductSearch<T = unknown>(
-  props: FacetsSearchProps,
-  fetcher: (props: FacetsSearchProps) => Promise<T[] | null>,
+	props: FacetsSearchProps,
+	fetcher: (props: FacetsSearchProps) => Promise<T[] | null>,
 ): Promise<T[] | null> {
-  const results = await fetcher(props);
-  if (results !== null && results.length > 0) return results;
+	const results = await fetcher(props);
+	if (results !== null && results.length > 0) return results;
 
-  if (props.facets) {
-    return fetcher({ ...props, facets: "" });
-  }
+	if (props.facets) {
+		return fetcher({ ...props, facets: "" });
+	}
 
-  return null;
+	return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,29 +71,29 @@ export async function validateProductSearch<T = unknown>(
 // ---------------------------------------------------------------------------
 
 interface ProductIdOption {
-  value: string;
-  label: string;
-  image?: string;
+	value: string;
+	label: string;
+	image?: string;
 }
 
 interface ISSuggestionProduct {
-  productId: string;
-  productName: string;
-  brand: string;
-  linkText: string;
-  items: Array<{
-    itemId: string;
-    name: string;
-    images: Array<{ imageUrl: string; imageText: string }>;
-    sellers: Array<{
-      commertialOffer: { Price: number; ListPrice: number };
-    }>;
-  }>;
+	productId: string;
+	productName: string;
+	brand: string;
+	linkText: string;
+	items: Array<{
+		itemId: string;
+		name: string;
+		images: Array<{ imageUrl: string; imageText: string }>;
+		sellers: Array<{
+			commertialOffer: { Price: number; ListPrice: number };
+		}>;
+	}>;
 }
 
 interface ISSuggestionResponse {
-  searches: Array<{ term: string; count: number }>;
-  products: ISSuggestionProduct[];
+	searches: Array<{ term: string; count: number }>;
+	products: ISSuggestionProduct[];
 }
 
 /**
@@ -102,26 +102,23 @@ interface ISSuggestionResponse {
  *
  * Hits the IS autocomplete_suggestions endpoint.
  */
-export async function getProductIdByTerm(
-  term?: string,
-): Promise<ProductIdOption[]> {
-  const query = (term ?? "").trim();
-  if (!query) return [];
+export async function getProductIdByTerm(term?: string): Promise<ProductIdOption[]> {
+	const query = (term ?? "").trim();
+	if (!query) return [];
 
-  const data = await intelligentSearch<ISSuggestionResponse>(
-    "/autocomplete_suggestions/",
-    { query },
-  );
+	const data = await intelligentSearch<ISSuggestionResponse>("/autocomplete_suggestions/", {
+		query,
+	});
 
-  if (!data.products?.length) {
-    return [{ value: "No products found", label: "No products found" }];
-  }
+	if (!data.products?.length) {
+		return [{ value: "No products found", label: "No products found" }];
+	}
 
-  return data.products.flatMap((product) =>
-    (product.items ?? []).map((item) => ({
-      value: item.itemId,
-      label: `${item.itemId} - ${product.productName} ${item.name} - ${product.productId}`,
-      image: item.images?.[0]?.imageUrl,
-    })),
-  );
+	return data.products.flatMap((product) =>
+		(product.items ?? []).map((item) => ({
+			value: item.itemId,
+			label: `${item.itemId} - ${product.productName} ${item.name} - ${product.productId}`,
+			image: item.images?.[0]?.imageUrl,
+		})),
+	);
 }

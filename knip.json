@@ -2,9 +2,20 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
     "vtex/*.ts",
+    "vtex/actions/*.ts",
+    "vtex/hooks/*.ts",
+    "vtex/loaders/*.ts",
+    "vtex/utils/*.ts",
     "vtex/inline-loaders/*.ts",
+    "shopify/*.ts",
+    "shopify/actions/**/*.ts",
+    "shopify/loaders/*.ts",
+    "shopify/utils/*.ts",
+    "shopify/utils/**/*.ts",
     "commerce/components/*.tsx",
-    "commerce/sdk/*.ts"
+    "commerce/sdk/*.ts",
+    "commerce/types/*.ts",
+    "commerce/utils/*.ts"
   ],
   "project": [
     "**/*.ts",

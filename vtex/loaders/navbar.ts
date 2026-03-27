@@ -7,10 +7,11 @@
  *
  * @see https://developers.vtex.com/docs/api-reference/catalog-api#get-/api/catalog_system/pub/category/tree/-categoryLevels-
  */
+
+import type { SiteNavigationElement } from "../../commerce/types/commerce";
 import { vtexFetch } from "../client";
 import { categoryTreeToNavbar } from "../utils/transform";
 import type { Category } from "../utils/types";
-import type { SiteNavigationElement } from "../../commerce/types/commerce";
 
 /**
  * Fetch the category tree and transform it into an array of
@@ -18,12 +19,8 @@ import type { SiteNavigationElement } from "../../commerce/types/commerce";
  *
  * @param levels - Depth of the category tree (default: 2)
  */
-export async function getNavbar(
-  levels: number = 2,
-): Promise<SiteNavigationElement[]> {
-  const tree = await vtexFetch<Category[]>(
-    `/api/catalog_system/pub/category/tree/${levels}`,
-  );
+export async function getNavbar(levels: number = 2): Promise<SiteNavigationElement[]> {
+	const tree = await vtexFetch<Category[]>(`/api/catalog_system/pub/category/tree/${levels}`);
 
-  return categoryTreeToNavbar(tree);
+	return categoryTreeToNavbar(tree);
 }

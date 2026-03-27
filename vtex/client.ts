@@ -4,13 +4,13 @@
  */
 
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
+import { parseSegment, SEGMENT_COOKIE_NAME } from "./utils/segment";
 
 // ---------------------------------------------------------------------------
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
 // ---------------------------------------------------------------------------
 
-const removeNonLatin1Chars = (str: string): string =>
-	str.replace(/[^\x00-\x7F]|["']/g, "");
+const removeNonLatin1Chars = (str: string): string => str.replace(/[^\x00-\x7F]|["']/g, "");
 
 const removeScriptChars = (str: string): string => {
 	return str
@@ -82,6 +82,8 @@ export interface VtexConfig {
 
 let _config: VtexConfig | null = null;
 let _fetch: typeof fetch = globalThis.fetch;
+let _getCookieHeader: (() => string | undefined) | null = null;
+let _forwardSetCookies: ((cookies: string[]) => void) | null = null;
 
 export function configureVtex(config: VtexConfig) {
 	_config = config;
@@ -103,9 +105,39 @@ export function setVtexFetch(fetchFn: typeof fetch) {
 	_fetch = fetchFn;
 }
 
+/**
+ * Register a provider that returns the Cookie header from the current request.
+ * Called automatically by vtexFetchWithCookies when no explicit cookieHeader
+ * is present in the request init — so checkout/session/auth actions
+ * transparently forward browser cookies to the VTEX API.
+ *
+ * @example
+ * ```ts
+ * import { getRequestHeader } from "@tanstack/react-start/server";
+ * setRequestCookieProvider(() => getRequestHeader("cookie") ?? undefined);
+ * ```
+ */
+export function setRequestCookieProvider(fn: () => string | undefined) {
+	_getCookieHeader = fn;
+}
+
+/**
+ * Register a callback that forwards VTEX Set-Cookie headers back to the browser.
+ * Called automatically by vtexFetchWithCookies after every response that
+ * carries Set-Cookie headers.
+ *
+ * @example
+ * ```ts
+ * import { setResponseHeader } from "@tanstack/react-start/server";
+ * setResponseCookieForwarder((cookies) => setResponseHeader("set-cookie", cookies));
+ * ```
+ */
+export function setResponseCookieForwarder(fn: (cookies: string[]) => void) {
+	_forwardSetCookies = fn;
+}
+
 export function getVtexConfig(): VtexConfig {
-	if (!_config)
-		throw new Error("VTEX not configured. Call configureVtex() first.");
+	if (!_config) throw new Error("VTEX not configured. Call configureVtex() first.");
 	return _config;
 }
 
@@ -113,10 +145,7 @@ export function getVtexConfig(): VtexConfig {
  * Build the VTEX hostname for a given environment.
  * Centralizes `{account}.{env}.{domain}` so nothing is hardcoded.
  */
-export function vtexHost(
-	environment: string = "vtexcommercestable",
-	config?: VtexConfig,
-): string {
+export function vtexHost(environment: string = "vtexcommercestable", config?: VtexConfig): string {
 	const c = config ?? getVtexConfig();
 	const domain = c.domain ?? "com.br";
 	return `${c.account}.${environment}.${domain}`;
@@ -143,10 +172,21 @@ function authHeaders(): Record<string, string> {
 	return headers;
 }
 
-export async function vtexFetchResponse(
-	path: string,
-	init?: RequestInit,
-): Promise<Response> {
+/**
+ * Read regionId from the current request's vtex_segment cookie.
+ * Returns null when no cookie provider is registered or no regionId is set.
+ */
+function extractRegionIdFromCookies(): string | null {
+	if (!_getCookieHeader) return null;
+	const cookies = _getCookieHeader();
+	if (!cookies) return null;
+	const match = cookies.match(new RegExp(`(?:^|;\\s*)${SEGMENT_COOKIE_NAME}=([^;]+)`));
+	if (!match?.[1]) return null;
+	const segment = parseSegment(match[1]);
+	return segment?.regionId ?? null;
+}
+
+export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
 	const raw = path.startsWith("http") ? path : `${baseUrl()}${path}`;
 	const url = sanitizeUrl(raw);
 	const response = await _fetch(url, {
@@ -154,17 +194,12 @@ export async function vtexFetchResponse(
 		headers: { ...authHeaders(), ...init?.headers },
 	});
 	if (!response.ok) {
-		throw new Error(
-			`VTEX API error: ${response.status} ${response.statusText} - ${url}`,
-		);
+		throw new Error(`VTEX API error: ${response.status} ${response.statusText} - ${url}`);
 	}
 	return response;
 }
 
-export async function vtexFetch<T>(
-	path: string,
-	init?: RequestInit,
-): Promise<T> {
+export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T> {
 	const response = await vtexFetchResponse(path, init);
 	return response.json();
 }
@@ -222,6 +257,20 @@ export async function vtexFetchWithCookies<T>(
 	path: string,
 	init?: RequestInit,
 ): Promise<VtexFetchResult<T>> {
+	// Auto-inject request cookies when no explicit cookie header is set
+	if (_getCookieHeader) {
+		const existingHeaders = init?.headers as Record<string, string> | undefined;
+		if (!existingHeaders?.["cookie"]) {
+			const cookies = _getCookieHeader();
+			if (cookies) {
+				init = {
+					...init,
+					headers: { ...existingHeaders, cookie: cookies },
+				};
+			}
+		}
+	}
+
 	const response = await vtexFetchResponse(path, init);
 	const data = (await response.json()) as T;
 	const setCookies: string[] = [];
@@ -234,13 +283,19 @@ export async function vtexFetchWithCookies<T>(
 			}
 		});
 	}
+
+	// Auto-forward Set-Cookie headers to the browser response
+	if (_forwardSetCookies && setCookies.length) {
+		_forwardSetCookies(setCookies);
+	}
+
 	return { data, setCookies };
 }
 
 export async function intelligentSearch<T>(
 	path: string,
 	params?: Record<string, string>,
-	opts?: { cookieHeader?: string; locale?: string },
+	opts?: { cookieHeader?: string; locale?: string; regionId?: string },
 ): Promise<T> {
 	const url = new URL(`${isUrl()}${path}`);
 	if (params) {
@@ -256,6 +311,11 @@ export async function intelligentSearch<T>(
 		url.searchParams.set("locale", locale);
 	}
 
+	const regionId = opts?.regionId ?? extractRegionIdFromCookies();
+	if (regionId) {
+		url.searchParams.set("regionId", regionId);
+	}
+
 	const headers: Record<string, string> = { ...authHeaders() };
 	if (opts?.cookieHeader) {
 		headers.cookie = opts.cookieHeader;
@@ -263,8 +323,6 @@ export async function intelligentSearch<T>(
 
 	const fullUrl = url.toString();
 
-	// IS GET requests go through SWR cache (3 min TTL via status-based defaults).
-	// The doFetch callback throws on non-ok responses, so null is never returned.
 	return fetchWithCache<T>(fullUrl, async () => {
 		const response = await _fetch(fullUrl, { headers });
 		if (!response.ok) {
@@ -297,9 +355,7 @@ export async function vtexIOGraphQL<T>(
 		},
 	);
 	if (res.errors?.length) {
-		throw new Error(
-			`VTEX IO GraphQL error: ${res.errors.map((e) => e.message).join(", ")}`,
-		);
+		throw new Error(`VTEX IO GraphQL error: ${res.errors.map((e) => e.message).join(", ")}`);
 	}
 	return res.data;
 }
@@ -335,10 +391,7 @@ const PAGE_TYPE_TO_MAP_PARAM: Record<string, string | null> = {
 	FullText: null,
 };
 
-function pageTypeToMapParam(
-	type: PageType["pageType"],
-	index: number,
-): string | null {
+function pageTypeToMapParam(type: PageType["pageType"], index: number): string | null {
 	if (type === "Category" || type === "Department" || type === "SubCategory") {
 		return `category-${index + 1}`;
 	}
@@ -346,9 +399,7 @@ function pageTypeToMapParam(
 }
 
 function cachedPageType(term: string): Promise<PageType | null> {
-	return vtexCachedFetch<PageType>(
-		`/api/catalog_system/pub/portal/pagetype/${term}`,
-	);
+	return vtexCachedFetch<PageType>(`/api/catalog_system/pub/portal/pagetype/${term}`);
 }
 
 /**
@@ -380,9 +431,7 @@ const slugify = (str: string) =>
  * Convert page types to selectedFacets with correct IS facet keys.
  * Mirrors deco-cx/apps `filtersFromPathname`.
  */
-export function filtersFromPageTypes(
-	pageTypes: PageType[],
-): Array<{ key: string; value: string }> {
+export function filtersFromPageTypes(pageTypes: PageType[]): Array<{ key: string; value: string }> {
 	return pageTypes
 		.map((page, index) => {
 			const key = pageTypeToMapParam(page.pageType, index);
@@ -396,12 +445,8 @@ export function filtersFromPageTypes(
  * Build the IS facet path string from selectedFacets.
  * Mirrors deco-cx/apps `toPath`.
  */
-export function toFacetPath(
-	facets: Array<{ key: string; value: string }>,
-): string {
-	return facets
-		.map(({ key, value }) => (key ? `${key}/${value}` : value))
-		.join("/");
+export function toFacetPath(facets: Array<{ key: string; value: string }>): string {
+	return facets.map(({ key, value }) => (key ? `${key}/${value}` : value)).join("/");
 }
 
 export function initVtexFromBlocks(blocks: Record<string, any>) {
@@ -410,13 +455,15 @@ export function initVtexFromBlocks(blocks: Record<string, any>) {
 		console.warn("[VTEX] No vtex.json block found.");
 		return;
 	}
+	const appKey = typeof vtexBlock.appKey === "string" ? vtexBlock.appKey : undefined;
+	const appToken = typeof vtexBlock.appToken === "string" ? vtexBlock.appToken : undefined;
 	configureVtex({
 		account: vtexBlock.account,
 		publicUrl: vtexBlock.publicUrl,
 		salesChannel: vtexBlock.salesChannel || "1",
 		locale: vtexBlock.locale || vtexBlock.defaultLocale,
-		appKey: vtexBlock.appKey,
-		appToken: vtexBlock.appToken,
+		appKey,
+		appToken,
 		country: vtexBlock.country,
 		domain: vtexBlock.domain,
 	});
