@@ -39,6 +39,7 @@
     "./vtex/middleware": "./vtex/middleware.ts",
     "./vtex/invoke": "./vtex/invoke.ts",
     "./resend": "./resend/index.ts",
+    "./resend/mod": "./resend/mod.ts",
     "./resend/client": "./resend/client.ts",
     "./resend/types": "./resend/types.ts",
     "./resend/actions/send": "./resend/actions/send.ts"
