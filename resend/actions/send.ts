@@ -55,5 +55,3 @@ export async function sendEmail(
 		error: null,
 	};
 }
-
-export default sendEmail;

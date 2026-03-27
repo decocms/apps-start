@@ -45,7 +45,9 @@
     "typecheck": "tsc --noEmit",
     "lint:unused": "knip",
     "lint:unused:fix": "knip --fix",
-    "check": "tsc --noEmit && knip"
+    "check": "tsc --noEmit && knip",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "deco",
@@ -74,6 +76,7 @@
     "@types/react": "^19.0.0",
     "knip": "^5.86.0",
     "react": "^19.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
   }
 }
