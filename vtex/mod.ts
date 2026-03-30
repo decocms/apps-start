@@ -86,3 +86,6 @@ export async function configure(
 		middleware: vtexMiddleware,
 	};
 }
+
+/** Placeholder preview for CMS editor — evolves when admin supports it. */
+export const preview = undefined;

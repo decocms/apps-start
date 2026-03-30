@@ -8,6 +8,7 @@ const manifest = {
 	actions: {
 		"resend/actions/send": actions_send,
 	},
+	sections: {},
 } as const;
 
 export type Manifest = typeof manifest;

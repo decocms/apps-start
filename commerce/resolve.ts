@@ -30,6 +30,7 @@ import type {
 export interface ResolvedApps {
 	manifest: AppManifest;
 	middleware: AppMiddleware | undefined;
+	resolvables: Record<string, { __resolveType: string; [key: string]: unknown }>;
 }
 
 /**
@@ -43,13 +44,23 @@ export function resolveApps(apps: AppDefinition[]): ResolvedApps {
 		name: "resolved",
 		loaders: {},
 		actions: {},
+		sections: {},
 	};
 
 	const middlewares: AppMiddleware[] = [];
+	const resolvables: Record<string, { __resolveType: string; [key: string]: unknown }> = {};
 
 	for (const app of flattenDependencies(apps)) {
 		Object.assign(mergedManifest.loaders, app.manifest.loaders);
 		Object.assign(mergedManifest.actions, app.manifest.actions);
+
+		if (app.manifest.sections) {
+			Object.assign(mergedManifest.sections!, app.manifest.sections);
+		}
+
+		if (app.resolvables) {
+			Object.assign(resolvables, app.resolvables);
+		}
 
 		if (app.middleware) {
 			middlewares.push(app.middleware);
@@ -59,6 +70,7 @@ export function resolveApps(apps: AppDefinition[]): ResolvedApps {
 	return {
 		manifest: mergedManifest,
 		middleware: middlewares.length > 0 ? chainMiddleware(middlewares) : undefined,
+		resolvables,
 	};
 }
 

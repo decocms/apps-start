@@ -67,6 +67,7 @@ const manifest = {
 		"vtex/actions/trigger": actions_trigger,
 		"vtex/actions/wishlist": actions_wishlist,
 	},
+	sections: {},
 } as const;
 
 export type Manifest = typeof manifest;

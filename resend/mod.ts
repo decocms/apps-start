@@ -66,3 +66,6 @@ export const handlers: Record<string, AppHandler> = {
 	"resend/actions/emails/send": (props) => sendEmail(props),
 	"resend/actions/emails/send.ts": (props) => sendEmail(props),
 };
+
+/** Placeholder preview for CMS editor — evolves when admin supports it. */
+export const preview = undefined;

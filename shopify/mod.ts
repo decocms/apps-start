@@ -62,3 +62,6 @@ export async function configure(
 		state: { config },
 	};
 }
+
+/** Placeholder preview for CMS editor — evolves when admin supports it. */
+export const preview = undefined;

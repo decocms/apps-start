@@ -7,6 +7,7 @@
     "./commerce/types": "./commerce/types/commerce.ts",
     "./commerce/app-types": "./commerce/app-types.ts",
     "./commerce/resolve": "./commerce/resolve.ts",
+    "./commerce/manifest-utils": "./commerce/manifest-utils.ts",
     "./commerce/components/JsonLd": "./commerce/components/JsonLd.tsx",
     "./commerce/components/Image": "./commerce/components/Image.tsx",
     "./commerce/components/Picture": "./commerce/components/Picture.tsx",

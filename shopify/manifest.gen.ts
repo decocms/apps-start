@@ -31,6 +31,7 @@ const manifest = {
 		"shopify/actions/user/signIn": actions_user_signIn,
 		"shopify/actions/user/signUp": actions_user_signUp,
 	},
+	sections: {},
 } as const;
 
 export type Manifest = typeof manifest;
