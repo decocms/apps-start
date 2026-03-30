@@ -259,7 +259,8 @@ export async function vtexFetchWithCookies<T>(path: string, init?: RequestInit):
 		const setCookies =
 			typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
 		for (const cookie of setCookies) {
-			responseHeaders.append("set-cookie", cookie);
+			const stripped = cookie.replace(/;\s*domain=[^;]*/gi, "");
+			responseHeaders.append("set-cookie", stripped);
 		}
 	}
 
