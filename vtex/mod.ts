@@ -15,18 +15,10 @@
  * ```
  */
 
-import type {
-	AppDefinition,
-	AppMiddleware,
-	ResolveSecretFn,
-} from "../commerce/app-types";
+import type { AppDefinition, AppMiddleware, ResolveSecretFn } from "../commerce/app-types";
 import { configureVtex, type VtexConfig } from "./client";
 import manifest from "./manifest.gen";
-import {
-	extractVtexContext,
-	propagateISCookies,
-	vtexCacheControl,
-} from "./middleware";
+import { extractVtexContext, propagateISCookies, vtexCacheControl } from "./middleware";
 
 // -------------------------------------------------------------------------
 // State

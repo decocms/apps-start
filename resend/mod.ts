@@ -6,15 +6,11 @@
  * app knowledge needed in the framework.
  */
 
-import type {
-	AppDefinition,
-	AppHandler,
-	ResolveSecretFn,
-} from "../commerce/app-types";
-import { configureResend } from "./client";
-import type { ResendConfig } from "./types";
+import type { AppDefinition, AppHandler, ResolveSecretFn } from "../commerce/app-types";
 import { sendEmail } from "./actions/send";
+import { configureResend } from "./client";
 import manifest from "./manifest.gen";
+import type { ResendConfig } from "./types";
 
 // -------------------------------------------------------------------------
 // State
