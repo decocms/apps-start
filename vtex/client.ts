@@ -7,11 +7,23 @@ import { RequestContext } from "@decocms/start/sdk/requestContext";
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
 import { parseSegment, SEGMENT_COOKIE_NAME } from "./utils/segment";
 
-// TODO: Remove once @decocms/start PR#57 is merged and published
-declare module "@decocms/start/sdk/requestContext" {
-	interface RequestContextData {
-		responseHeaders: Headers;
+/**
+ * Get the response headers from RequestContext.
+ * Uses `responseHeaders` when available (@decocms/start PR#57),
+ * falls back to the bag with a lazily-created Headers instance.
+ * TODO: Remove fallback once @decocms/start PR#57 is published.
+ */
+function getResponseHeaders(): Headers | null {
+	const ctx = RequestContext.current;
+	if (!ctx) return null;
+	// biome-ignore lint/suspicious/noExplicitAny: forward-compat with upcoming responseHeaders property
+	if ((ctx as any).responseHeaders instanceof Headers) return (ctx as any).responseHeaders;
+	let headers = ctx.bag.get("responseHeaders") as Headers | undefined;
+	if (!headers) {
+		headers = new Headers();
+		ctx.bag.set("responseHeaders", headers);
 	}
+	return headers;
 }
 
 // ---------------------------------------------------------------------------
@@ -242,12 +254,12 @@ export async function vtexFetchWithCookies<T>(path: string, init?: RequestInit):
 
 	// Forward Set-Cookie headers to RequestContext.responseHeaders
 	// (mirrors proxySetCookie from deco-cx/deco)
-	const ctx = RequestContext.current;
-	if (ctx) {
+	const responseHeaders = getResponseHeaders();
+	if (responseHeaders) {
 		const setCookies =
 			typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
 		for (const cookie of setCookies) {
-			ctx.responseHeaders.append("set-cookie", cookie);
+			responseHeaders.append("set-cookie", cookie);
 		}
 	}
 
