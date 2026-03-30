@@ -1,3 +1,6 @@
+// App contract
+export { configure, type ShopifyState } from "./mod";
+
 // Client & Config
 
 export { default as addItems } from "./actions/cart/addItems";
