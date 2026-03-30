@@ -1,9 +1,8 @@
 /**
  * VTEX Sessions API actions.
- * All session-mutating actions return Set-Cookie headers for propagation.
+ * Cookie forwarding happens automatically via RequestContext.responseHeaders.
  */
 
-import type { VtexFetchResult } from "../client";
 import { getVtexConfig, vtexFetchWithCookies, vtexIOGraphQL } from "../client";
 import { buildAuthCookieHeader } from "../utils/vtexId";
 
@@ -19,7 +18,7 @@ export interface SessionData {
 export async function createSession(
 	data: Record<string, any>,
 	cookieHeader?: string,
-): Promise<VtexFetchResult<SessionData>> {
+): Promise<SessionData> {
 	const headers: Record<string, string> = {};
 	if (cookieHeader) headers.cookie = cookieHeader;
 	return vtexFetchWithCookies<SessionData>("/api/sessions", {
@@ -40,12 +39,11 @@ export interface EditSessionResponse {
 
 /**
  * Edit the current VTEX session (public properties).
- * Returns data + Set-Cookie headers.
  */
 export async function editSession(
 	publicProperties: Record<string, { value: string }>,
 	cookieHeader?: string,
-): Promise<VtexFetchResult<EditSessionResponse>> {
+): Promise<EditSessionResponse> {
 	const headers: Record<string, string> = {};
 	if (cookieHeader) headers.cookie = cookieHeader;
 

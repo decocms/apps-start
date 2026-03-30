@@ -42,7 +42,6 @@
     "./vtex/hooks/*": "./vtex/hooks/*.ts",
     "./vtex/inline-loaders/workflowProducts": "./vtex/inline-loaders/workflowProducts.ts",
     "./vtex/middleware": "./vtex/middleware.ts",
-    "./vtex/invoke": "./vtex/invoke.ts",
     "./resend": "./resend/index.ts",
     "./resend/mod": "./resend/mod.ts",
     "./resend/client": "./resend/client.ts",
@@ -98,7 +97,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.7",
-    "@decocms/start": "^0.29.3",
+    "@decocms/start": "^0.38.0",
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@tanstack/react-query": "^5.90.21",
