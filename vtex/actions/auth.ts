@@ -91,19 +91,23 @@ export function extractLoginCookies(response: AuthResponse): LoginCookies | null
 // Actions
 // ---------------------------------------------------------------------------
 
-export async function startAuthentication(options?: {
+export interface StartAuthenticationProps {
 	callbackUrl?: string;
 	returnUrl?: string;
 	locale?: string;
 	appStart?: boolean;
-}): Promise<StartAuthentication> {
+}
+
+export async function startAuthentication(
+	props?: StartAuthenticationProps,
+): Promise<StartAuthentication> {
 	const config = getVtexConfig();
 	const {
 		callbackUrl = "/",
 		returnUrl = "/",
 		locale = config.locale ?? "pt-BR",
 		appStart = true,
-	} = options ?? {};
+	} = props ?? {};
 
 	const params = new URLSearchParams({
 		locale,
@@ -118,17 +122,20 @@ export async function startAuthentication(options?: {
 	);
 }
 
+export interface ClassicSignInProps {
+	email: string;
+	password: string;
+	authenticationToken?: string;
+}
+
 /**
  * Classic email + password sign-in.
  * Calls startAuthentication internally if no authenticationToken provided.
  * Set-Cookie headers from both calls are forwarded via RequestContext.responseHeaders.
  */
-export async function classicSignIn(
-	email: string,
-	password: string,
-	authenticationToken?: string,
-): Promise<AuthResponse> {
-	let token = authenticationToken;
+export async function classicSignIn(props: ClassicSignInProps): Promise<AuthResponse> {
+	const { email, password } = props;
+	let token = props.authenticationToken;
 	if (!token) {
 		const startResult = await startAuthentication();
 		token = startResult.authenticationToken ?? undefined;
@@ -147,14 +154,17 @@ export async function classicSignIn(
 	});
 }
 
+export interface AccessKeySignInProps {
+	email: string;
+	accessKey: string;
+	authenticationToken: string;
+}
+
 /**
  * Passwordless sign-in via email access key.
  */
-export async function accessKeySignIn(
-	email: string,
-	accessKey: string,
-	authenticationToken: string,
-): Promise<AuthResponse> {
+export async function accessKeySignIn(props: AccessKeySignInProps): Promise<AuthResponse> {
+	const { email, accessKey, authenticationToken } = props;
 	const body = new URLSearchParams({
 		login: email,
 		accessKey,
@@ -183,30 +193,34 @@ export function logout(): { cookiesToClear: string[] } {
 	};
 }
 
+export interface RefreshTokenProps {
+	fingerprint?: string;
+}
+
 /**
  * Refreshes the VTEX auth token using existing session cookies.
+ * Cookies are read automatically from RequestContext.
  */
-export async function refreshToken(
-	cookieHeader: string,
-	fingerprint?: string,
-): Promise<RefreshTokenResponse> {
+export async function refreshToken(props?: RefreshTokenProps): Promise<RefreshTokenResponse> {
 	return vtexFetchWithCookies<RefreshTokenResponse>("/api/vtexid/refreshtoken/webstore", {
 		method: "POST",
-		body: JSON.stringify({ fingerprint }),
-		headers: { cookie: cookieHeader },
+		body: JSON.stringify({ fingerprint: props?.fingerprint }),
 	});
+}
+
+export interface RecoveryPasswordProps {
+	email: string;
+	newPassword: string;
+	accessKey: string;
+	authenticationToken: string;
+	locale?: string;
 }
 
 /**
  * Sets a new password using an email access key (password-recovery flow).
  */
-export async function recoveryPassword(
-	email: string,
-	newPassword: string,
-	accessKey: string,
-	authenticationToken: string,
-	locale?: string,
-): Promise<AuthResponse> {
+export async function recoveryPassword(props: RecoveryPasswordProps): Promise<AuthResponse> {
+	const { email, newPassword, accessKey, authenticationToken, locale } = props;
 	const config = getVtexConfig();
 
 	const params = new URLSearchParams({
@@ -227,21 +241,24 @@ export async function recoveryPassword(
 	);
 }
 
+export interface ResetPasswordProps {
+	email: string;
+	currentPassword: string;
+	newPassword: string;
+	authenticationToken?: string;
+	locale?: string;
+}
+
 /**
  * Resets password for an already-authenticated user.
  * Calls startAuthentication internally if no authenticationToken provided.
  * Set-Cookie headers from both calls are forwarded via RequestContext.responseHeaders.
  */
-export async function resetPassword(
-	email: string,
-	currentPassword: string,
-	newPassword: string,
-	authenticationToken?: string,
-	locale?: string,
-): Promise<AuthResponse> {
+export async function resetPassword(props: ResetPasswordProps): Promise<AuthResponse> {
+	const { email, currentPassword, newPassword, locale } = props;
 	const config = getVtexConfig();
 
-	let token = authenticationToken;
+	let token = props.authenticationToken;
 	if (!token) {
 		const startResult = await startAuthentication({ locale });
 		token = startResult.authenticationToken ?? undefined;
@@ -266,22 +283,25 @@ export async function resetPassword(
 	);
 }
 
+export interface SendEmailVerificationProps {
+	email: string;
+	authenticationToken?: string;
+	locale?: string;
+	parentAppId?: string;
+}
+
 /**
  * Sends an access-key verification email.
  * Calls startAuthentication internally if no authenticationToken provided.
  * Returns { success, authenticationToken }.
  */
-export async function sendEmailVerification(
-	email: string,
-	authenticationToken?: string,
-	locale?: string,
-	parentAppId?: string,
-): Promise<{
+export async function sendEmailVerification(props: SendEmailVerificationProps): Promise<{
 	success: boolean;
 	authenticationToken: string | null;
 }> {
+	const { email, locale, parentAppId } = props;
 	try {
-		let token = authenticationToken;
+		let token = props.authenticationToken;
 
 		if (!token) {
 			const startResult = await startAuthentication({ locale });
