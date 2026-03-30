@@ -12,8 +12,8 @@ import type { ComponentType } from "react";
 export type AppHandler = (props: any, request: Request) => Promise<any>;
 
 export interface SectionModule {
-	default: ComponentType<any>;
-	loader?: (...args: any[]) => Promise<any> | any;
+	default: ComponentType<Record<string, unknown>>;
+	loader?: (...args: unknown[]) => Promise<unknown> | unknown;
 	LoadingFallback?: ComponentType;
 	ErrorFallback?: ComponentType<{ error: Error }>;
 }
@@ -28,9 +28,7 @@ export interface AppManifest {
 	sections?: Record<string, () => Promise<SectionModule>>;
 }
 
-export interface AppMiddleware {
-	(request: Request, next: () => Promise<Response>): Promise<Response>;
-}
+export type AppMiddleware = (request: Request, next: () => Promise<Response>) => Promise<Response>;
 
 export interface AppDefinition<TState = unknown> {
 	name: string;
@@ -41,13 +39,10 @@ export interface AppDefinition<TState = unknown> {
 	resolvables?: Record<string, { __resolveType: string; [key: string]: unknown }>;
 }
 
-export type ResolveSecretFn = (
-	value: unknown,
-	envKey: string,
-) => Promise<string | null>;
+export type ResolveSecretFn = (value: unknown, envKey: string) => Promise<string | null>;
 
 export interface AppPreview {
-	Component: ComponentType<any>;
+	Component: ComponentType<Record<string, unknown>>;
 	props: Record<string, unknown>;
 }
 

@@ -21,11 +21,7 @@
  * ```
  */
 
-import type {
-	AppDefinition,
-	AppManifest,
-	AppMiddleware,
-} from "./app-types";
+import type { AppDefinition, AppManifest, AppMiddleware } from "./app-types";
 
 export interface ResolvedApps {
 	manifest: AppManifest;

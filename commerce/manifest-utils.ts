@@ -16,8 +16,10 @@ import type { AppManifest } from "./app-types";
  * Returns:
  *   { "vtex/loaders/catalog/searchProducts": searchProducts, ... }
  */
-export function extractHandlers(manifest: AppManifest): Record<string, Function> {
-	const result: Record<string, Function> = {};
+type AnyFn = (...args: never[]) => unknown;
+
+export function extractHandlers(manifest: AppManifest): Record<string, AnyFn> {
+	const result: Record<string, AnyFn> = {};
 
 	for (const category of ["loaders", "actions"] as const) {
 		const modules = manifest[category];
@@ -26,7 +28,7 @@ export function extractHandlers(manifest: AppManifest): Record<string, Function>
 				moduleNamespace as Record<string, unknown>,
 			)) {
 				if (typeof handler === "function") {
-					result[`${moduleKey}/${exportName}`] = handler;
+					result[`${moduleKey}/${exportName}`] = handler as AnyFn;
 				}
 			}
 		}

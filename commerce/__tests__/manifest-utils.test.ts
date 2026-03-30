@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { extractHandlers } from "../manifest-utils";
 import type { AppManifest } from "../app-types";
+import { extractHandlers } from "../manifest-utils";
 
 describe("extractHandlers", () => {
 	it("flattens module namespaces into individual handler entries", () => {
