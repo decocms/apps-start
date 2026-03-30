@@ -3,8 +3,28 @@
  * Uses VTEX's public REST APIs (Intelligent Search + Catalog + Checkout).
  */
 
+import { RequestContext } from "@decocms/start/sdk/requestContext";
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
 import { parseSegment, SEGMENT_COOKIE_NAME } from "./utils/segment";
+
+/**
+ * Get the response headers from RequestContext.
+ * Uses `responseHeaders` when available (@decocms/start PR#57),
+ * falls back to the bag with a lazily-created Headers instance.
+ * TODO: Remove fallback once @decocms/start PR#57 is published.
+ */
+function getResponseHeaders(): Headers | null {
+	const ctx = RequestContext.current;
+	if (!ctx) return null;
+	// biome-ignore lint/suspicious/noExplicitAny: forward-compat with upcoming responseHeaders property
+	if ((ctx as any).responseHeaders instanceof Headers) return (ctx as any).responseHeaders;
+	let headers = ctx.bag.get("responseHeaders") as Headers | undefined;
+	if (!headers) {
+		headers = new Headers();
+		ctx.bag.set("responseHeaders", headers);
+	}
+	return headers;
+}
 
 // ---------------------------------------------------------------------------
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
@@ -82,8 +102,6 @@ export interface VtexConfig {
 
 let _config: VtexConfig | null = null;
 let _fetch: typeof fetch = globalThis.fetch;
-let _getCookieHeader: (() => string | undefined) | null = null;
-let _forwardSetCookies: ((cookies: string[]) => void) | null = null;
 
 export function configureVtex(config: VtexConfig) {
 	_config = config;
@@ -103,37 +121,6 @@ export function configureVtex(config: VtexConfig) {
  */
 export function setVtexFetch(fetchFn: typeof fetch) {
 	_fetch = fetchFn;
-}
-
-/**
- * Register a provider that returns the Cookie header from the current request.
- * Called automatically by vtexFetchWithCookies when no explicit cookieHeader
- * is present in the request init — so checkout/session/auth actions
- * transparently forward browser cookies to the VTEX API.
- *
- * @example
- * ```ts
- * import { getRequestHeader } from "@tanstack/react-start/server";
- * setRequestCookieProvider(() => getRequestHeader("cookie") ?? undefined);
- * ```
- */
-export function setRequestCookieProvider(fn: () => string | undefined) {
-	_getCookieHeader = fn;
-}
-
-/**
- * Register a callback that forwards VTEX Set-Cookie headers back to the browser.
- * Called automatically by vtexFetchWithCookies after every response that
- * carries Set-Cookie headers.
- *
- * @example
- * ```ts
- * import { setResponseHeader } from "@tanstack/react-start/server";
- * setResponseCookieForwarder((cookies) => setResponseHeader("set-cookie", cookies));
- * ```
- */
-export function setResponseCookieForwarder(fn: (cookies: string[]) => void) {
-	_forwardSetCookies = fn;
 }
 
 export function getVtexConfig(): VtexConfig {
@@ -174,11 +161,12 @@ function authHeaders(): Record<string, string> {
 
 /**
  * Read regionId from the current request's vtex_segment cookie.
- * Returns null when no cookie provider is registered or no regionId is set.
+ * Returns null when outside a request context or no regionId is set.
  */
 function extractRegionIdFromCookies(): string | null {
-	if (!_getCookieHeader) return null;
-	const cookies = _getCookieHeader();
+	const ctx = RequestContext.current;
+	if (!ctx) return null;
+	const cookies = ctx.request.headers.get("cookie");
 	if (!cookies) return null;
 	const match = cookies.match(new RegExp(`(?:^|;\\s*)${SEGMENT_COOKIE_NAME}=([^;]+)`));
 	if (!match?.[1]) return null;
@@ -240,56 +228,42 @@ export async function vtexCachedFetch<T>(
 }
 
 /**
- * Result type for actions that need to propagate VTEX Set-Cookie headers.
- * In TanStack Start, the caller (server function) is responsible for
- * forwarding these cookies to the client via `setCookie` from vinxi/http.
- */
-export interface VtexFetchResult<T> {
-	data: T;
-	setCookies: string[];
-}
-
-/**
- * Like vtexFetch, but also returns Set-Cookie headers from the response.
+ * Like vtexFetch, but also forwards Set-Cookie headers via RequestContext.
  * Use for checkout, session, and auth actions that set cookies.
+ *
+ * Cookie propagation happens automatically:
+ * - Reads the browser's Cookie header from RequestContext.request
+ * - Writes upstream Set-Cookie headers to RequestContext.responseHeaders
+ * - The invoke handler copies responseHeaders into the HTTP Response
+ *
+ * This mirrors deco-cx/deco's `proxySetCookie(response.headers, ctx.response.headers)`.
  */
-export async function vtexFetchWithCookies<T>(
-	path: string,
-	init?: RequestInit,
-): Promise<VtexFetchResult<T>> {
-	// Auto-inject request cookies when no explicit cookie header is set
-	if (_getCookieHeader) {
-		const existingHeaders = init?.headers as Record<string, string> | undefined;
-		if (!existingHeaders?.["cookie"]) {
-			const cookies = _getCookieHeader();
-			if (cookies) {
-				init = {
-					...init,
-					headers: { ...existingHeaders, cookie: cookies },
-				};
-			}
+export async function vtexFetchWithCookies<T>(path: string, init?: RequestInit): Promise<T> {
+	// Auto-inject request cookies from RequestContext
+	const existingHeaders = init?.headers as Record<string, string> | undefined;
+	if (!existingHeaders?.["cookie"]) {
+		const ctx = RequestContext.current;
+		const cookies = ctx?.request.headers.get("cookie");
+		if (cookies) {
+			init = { ...init, headers: { ...existingHeaders, cookie: cookies } };
 		}
 	}
 
 	const response = await vtexFetchResponse(path, init);
 	const data = (await response.json()) as T;
-	const setCookies: string[] = [];
-	if (typeof response.headers.getSetCookie === "function") {
-		setCookies.push(...response.headers.getSetCookie());
-	} else {
-		response.headers.forEach((value, key) => {
-			if (key.toLowerCase() === "set-cookie") {
-				setCookies.push(value);
-			}
-		});
+
+	// Forward Set-Cookie headers to RequestContext.responseHeaders
+	// (mirrors proxySetCookie from deco-cx/deco)
+	const responseHeaders = getResponseHeaders();
+	if (responseHeaders) {
+		const setCookies =
+			typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
+		for (const cookie of setCookies) {
+			responseHeaders.append("set-cookie", cookie);
+		}
 	}
 
-	// Auto-forward Set-Cookie headers to the browser response
-	if (_forwardSetCookies && setCookies.length) {
-		_forwardSetCookies(setCookies);
-	}
-
-	return { data, setCookies };
+	return data;
 }
 
 export async function intelligentSearch<T>(
