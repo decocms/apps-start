@@ -124,7 +124,9 @@ export function parseCookie(
 	const suffixed = suffixedMatch?.[1] ?? null;
 
 	const token = base ?? suffixed;
-	const payload = token ? (decodeJwtPayload(token) as CookiePayload | null) ?? undefined : undefined;
+	const payload = token
+		? ((decodeJwtPayload(token) as CookiePayload | null) ?? undefined)
+		: undefined;
 
 	const parts: string[] = [];
 	if (base) parts.push(`${VTEX_AUTH_COOKIE}=${base}`);
