@@ -1,3 +1,5 @@
+export { vtexAccountLoaders } from "./accountLoaders";
+export type { PersonalDataOptions } from "./accountLoaders";
 export * from "./batch";
 export * from "./cookies";
 export * from "./enrichment";
