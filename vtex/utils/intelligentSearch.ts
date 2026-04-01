@@ -44,6 +44,27 @@ export const withDefaultParams = ({
 
 export const isFilterParam = (keyFilter: string): boolean => keyFilter.startsWith("filter.");
 
+/**
+ * Valid VTEX Intelligent Search sort values.
+ * Anything else (e.g. "orders:desc)" with a trailing paren from legacy URLs)
+ * causes IS API to return 400.
+ */
+export const VALID_IS_SORTS = new Set([
+	"",
+	"orders:desc",
+	"price:asc",
+	"price:desc",
+	"name:asc",
+	"name:desc",
+	"release:desc",
+	"discount:desc",
+]);
+
+/** Sanitize an IS sort parameter — returns empty string for invalid values. */
+export function sanitizeISSort(sort: string): string {
+	return VALID_IS_SORTS.has(sort) ? sort : "";
+}
+
 const segmentsFromTerm = (term: string) => term.split("/").filter(Boolean);
 
 const segmentsFromSearchParams = (url: string) => {

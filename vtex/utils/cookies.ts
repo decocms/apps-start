@@ -120,3 +120,55 @@ export const proxySetCookie = (from: Headers, to: Headers, toDomain?: URL | stri
 
 export const CHECKOUT_DATA_ACCESS_COOKIE = "CheckoutDataAccess";
 export const VTEX_CHKO_AUTH = "Vtex_CHKO_Auth";
+
+/**
+ * Cookie name prefixes that are VTEX-relevant.
+ * Used by getVtexCookies() to filter request cookies before forwarding
+ * to VTEX APIs — avoids undici non-ASCII warnings from other cookies.
+ */
+export const VTEX_COOKIE_PREFIXES = [
+	"VtexIdclientAutCookie",
+	"checkout.vtex",
+	"CheckoutOrderFormOwnership",
+	"vtex_is_",
+];
+
+/**
+ * Filter a request's cookies to only VTEX-relevant ones.
+ * Prevents undici non-ASCII header warnings when forwarding cookies to VTEX APIs.
+ */
+export function getVtexCookies(request: Request): string {
+	const raw = request.headers.get("cookie") ?? "";
+	return raw
+		.split(";")
+		.map((c) => c.trim())
+		.filter((c) => VTEX_COOKIE_PREFIXES.some((p) => c.startsWith(p)))
+		.join("; ");
+}
+
+/**
+ * Ensure the unsuffixed VtexIdclientAutCookie is present alongside the
+ * account-suffixed variant (e.g. VtexIdclientAutCookie_myaccount).
+ *
+ * VTEX GraphQL requires both the suffixed AND unsuffixed cookie for
+ * authenticated mutations. The browser only stores the suffixed variant,
+ * so server-side code must synthesize the unsuffixed one.
+ */
+export function ensureUnsuffixedAuthCookie(cookieStr: string): string {
+	if (!cookieStr) return cookieStr;
+	const cookies = cookieStr.split(";").map((c) => c.trim());
+	let hasUnsuffixed = false;
+	let suffixedToken: string | null = null;
+	for (const c of cookies) {
+		const [name, ...rest] = c.split("=");
+		if (name === "VtexIdclientAutCookie") {
+			hasUnsuffixed = true;
+		} else if (name?.startsWith("VtexIdclientAutCookie_") && !suffixedToken) {
+			suffixedToken = rest.join("=");
+		}
+	}
+	if (!hasUnsuffixed && suffixedToken) {
+		return `VtexIdclientAutCookie=${suffixedToken}; ${cookieStr}`;
+	}
+	return cookieStr;
+}
