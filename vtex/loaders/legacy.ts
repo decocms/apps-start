@@ -622,3 +622,14 @@ export async function legacySuggestions(
 
 	return { searches, products };
 }
+
+// ---------------------------------------------------------------------------
+// Short aliases — sites use invoke.vtex.loaders.legacy.productDetailsPage()
+// ---------------------------------------------------------------------------
+
+export {
+	legacyProductDetailsPage as productDetailsPage,
+	legacyProductList as productList,
+	legacyProductListingPage as productListingPage,
+	legacySuggestions as suggestions,
+};

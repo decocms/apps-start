@@ -97,4 +97,42 @@ export function buildAuthCookieHeader(authCookie: string, account: string): stri
 	return `${VTEX_AUTH_COOKIE}=${authCookie}; ${VTEX_AUTH_COOKIE}_${account}=${authCookie}`;
 }
 
+export interface CookiePayload {
+	sub?: string;
+	account?: string;
+	audience?: string;
+	sess?: string;
+	exp?: number;
+	userId?: string;
+}
+
+/**
+ * Parse VTEX auth cookies from request headers.
+ *
+ * Returns the serialized cookie string (for forwarding) and the decoded
+ * JWT payload. Compatible with the legacy deco-cx/apps parseCookie API.
+ */
+export function parseCookie(
+	headers: Headers,
+	account: string,
+): { cookie: string; payload: CookiePayload | undefined } {
+	const cookieHeader = headers.get("cookie") ?? "";
+
+	const base = extractVtexAuthCookie(cookieHeader);
+	const suffixedRe = new RegExp(`(?:^|;\\s*)${VTEX_AUTH_COOKIE}_${account}=([^;]+)`);
+	const suffixedMatch = cookieHeader.match(suffixedRe);
+	const suffixed = suffixedMatch?.[1] ?? null;
+
+	const token = base ?? suffixed;
+	const payload = token
+		? ((decodeJwtPayload(token) as CookiePayload | null) ?? undefined)
+		: undefined;
+
+	const parts: string[] = [];
+	if (base) parts.push(`${VTEX_AUTH_COOKIE}=${base}`);
+	if (suffixed) parts.push(`${VTEX_AUTH_COOKIE}_${account}=${suffixed}`);
+
+	return { cookie: parts.join("; "), payload };
+}
+
 export { VTEX_AUTH_COOKIE };
