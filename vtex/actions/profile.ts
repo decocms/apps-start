@@ -117,3 +117,72 @@ export async function updateProfile(
 	);
 	return profile;
 }
+
+// ---------------------------------------------------------------------------
+// Request-aware wrappers (for COMMERCE_LOADERS / invoke proxy)
+// ---------------------------------------------------------------------------
+
+import { getVtexCookies } from "../utils/cookies";
+import { updateNewsletterOptIn } from "./newsletter";
+import { deletePaymentToken } from "./misc";
+import { getCurrentProfile } from "../loaders/profile";
+
+/**
+ * Normalize birthDate strings to ISO 8601.
+ * Handles dd/mm/yyyy (Brazilian format), yyyy-mm-dd, and full ISO.
+ */
+function normalizeBirthDate(profile: Record<string, any>): void {
+	if (!profile.birthDate || typeof profile.birthDate !== "string") return;
+	const ddmmyyyy = profile.birthDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+	if (ddmmyyyy) {
+		profile.birthDate = `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}T00:00:00.000Z`;
+	} else if (!profile.birthDate.includes("T")) {
+		const isoMatch = profile.birthDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+		if (isoMatch) {
+			profile.birthDate = `${isoMatch[0]}T00:00:00.000Z`;
+		}
+	}
+}
+
+/**
+ * Update user profile via VTEX IO GraphQL. Handles cookie extraction,
+ * birthDate normalization, and undefined-key cleanup.
+ */
+export async function updateProfileFromRequest(props: Record<string, any>, request: Request): Promise<any> {
+	const { account } = getVtexConfig();
+	const cookie = getVtexCookies(request);
+	const profile = { ...props };
+	normalizeBirthDate(profile);
+	for (const key of Object.keys(profile)) {
+		if (profile[key] === undefined) delete profile[key];
+	}
+	const QUERY = `mutation UpdateProfile($profile: ProfileInput!) {
+		updateProfile(fields: $profile) @context(provider: "vtex.store-graphql@2.x") {
+			cacheId firstName lastName email document gender homePhone
+			businessPhone birthDate isCorporate corporateName
+			corporateDocument tradeName stateRegistration
+		}
+	}`;
+	const res = await fetch(`https://${account}.myvtex.com/_v/private/graphql/v1`, {
+		method: "POST",
+		body: JSON.stringify({ query: QUERY, variables: { profile } }),
+		headers: { "Content-Type": "application/json", cookie },
+	});
+	return res.json();
+}
+
+export async function newsletterProfileFromRequest(props: Record<string, any>, request: Request): Promise<any> {
+	const cookie = request.headers.get("cookie") ?? "";
+	return updateNewsletterOptIn(props.isNewsletterOptIn, props.email, cookie);
+}
+
+export async function deletePaymentFromRequest(props: Record<string, any>, request: Request): Promise<any> {
+	const cookie = getVtexCookies(request);
+	return deletePaymentToken(props.id, cookie);
+}
+
+export async function getPasswordLastUpdate(_props: Record<string, any>, request: Request): Promise<string | null> {
+	const cookie = getVtexCookies(request);
+	const profile = await getCurrentProfile(cookie);
+	return profile?.passwordLastUpdate ?? null;
+}
