@@ -22,6 +22,7 @@
     "./shopify/actions/user/*": "./shopify/actions/user/*.ts",
     "./shopify/utils/*": "./shopify/utils/*.ts",
     "./vtex": "./vtex/index.ts",
+    "./vtex/commerceLoaders": "./vtex/commerceLoaders.ts",
     "./vtex/mod": "./vtex/mod.ts",
     "./vtex/client": "./vtex/client.ts",
     "./vtex/types": "./vtex/types.ts",
