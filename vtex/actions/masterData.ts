@@ -16,25 +16,37 @@ export interface CreateDocumentResult {
 	DocumentId: string;
 }
 
-export async function createDocument(
-	entity: string,
-	data: Record<string, any>,
-): Promise<CreateDocumentResult> {
+export interface CreateDocumentProps {
+	entity: string;
+	data: Record<string, any>;
+}
+
+export async function createDocument(props: CreateDocumentProps): Promise<CreateDocumentResult> {
+	const { entity, data } = props;
 	return vtexFetch<CreateDocumentResult>(`/api/dataentities/${entity}/documents`, {
 		method: "POST",
 		body: JSON.stringify(removeEmptyFields(data)),
 	});
 }
 
-export async function getDocument<T = unknown>(entity: string, documentId: string): Promise<T> {
+export interface GetDocumentProps {
+	entity: string;
+	documentId: string;
+}
+
+export async function getDocument<T = unknown>(props: GetDocumentProps): Promise<T> {
+	const { entity, documentId } = props;
 	return vtexFetch<T>(`/api/dataentities/${entity}/documents/${documentId}`);
 }
 
-export async function patchDocument(
-	entity: string,
-	documentId: string,
-	data: Record<string, any>,
-): Promise<void> {
+export interface PatchDocumentProps {
+	entity: string;
+	documentId: string;
+	data: Record<string, any>;
+}
+
+export async function patchDocument(props: PatchDocumentProps): Promise<void> {
+	const { entity, documentId, data } = props;
 	await vtexFetch<any>(`/api/dataentities/${entity}/documents/${documentId}`, {
 		method: "PATCH",
 		body: JSON.stringify(removeEmptyFields(data)),
@@ -49,13 +61,18 @@ export interface MasterDataSearchResult {
 	[key: string]: any;
 }
 
+export interface SearchDocumentsProps {
+	entity: string;
+	filter: string;
+}
+
 /**
  * Simple search — kept for backward compat.
  */
 export async function searchDocuments<T = MasterDataSearchResult>(
-	entity: string,
-	filter: string,
+	props: SearchDocumentsProps,
 ): Promise<T[]> {
+	const { entity, filter } = props;
 	return vtexFetch<T[]>(`/api/dataentities/${entity}/search?_where=${encodeURIComponent(filter)}`);
 }
 
@@ -65,7 +82,7 @@ export async function searchDocuments<T = MasterDataSearchResult>(
  *
  * @see https://developers.vtex.com/docs/api-reference/masterdata-api#get-/api/dataentities/-acronym-/search
  */
-export interface SearchDocumentsOpts {
+export interface SearchDocumentsFullProps {
 	acronym: string;
 	fields?: string;
 	where?: string;
@@ -74,14 +91,12 @@ export interface SearchDocumentsOpts {
 	take?: number;
 	/** @default 0 */
 	skip?: number;
-	/** Auth cookie header for authenticated queries */
-	cookieHeader?: string;
 }
 
 export async function searchDocumentsFull<T = Record<string, unknown>>(
-	opts: SearchDocumentsOpts,
+	props: SearchDocumentsFullProps,
 ): Promise<T[]> {
-	const { acronym, fields, where, sort, skip = 0, take = 10, cookieHeader } = opts;
+	const { acronym, fields, where, sort, skip = 0, take = 10 } = props;
 	const from = Math.max(skip, 0);
 	const to = from + Math.min(100, take);
 
@@ -95,7 +110,6 @@ export async function searchDocumentsFull<T = Record<string, unknown>>(
 		"content-type": "application/json",
 		"REST-Range": `resources=${from}-${to}`,
 	};
-	if (cookieHeader) headers.cookie = cookieHeader;
 
 	return vtexFetchResponse(`/api/dataentities/${acronym}/search?${params}`, {
 		headers,

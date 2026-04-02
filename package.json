@@ -1,16 +1,20 @@
 {
   "name": "@decocms/apps",
-  "version": "0.25.2",
+  "version": "0.29.0",
   "type": "module",
   "description": "Deco commerce apps for TanStack Start - Shopify, VTEX, commerce types, analytics utils",
   "exports": {
     "./commerce/types": "./commerce/types/commerce.ts",
+    "./commerce/app-types": "./commerce/app-types.ts",
+    "./commerce/resolve": "./commerce/resolve.ts",
+    "./commerce/manifest-utils": "./commerce/manifest-utils.ts",
     "./commerce/components/JsonLd": "./commerce/components/JsonLd.tsx",
     "./commerce/components/Image": "./commerce/components/Image.tsx",
     "./commerce/components/Picture": "./commerce/components/Picture.tsx",
     "./commerce/utils/*": "./commerce/utils/*.ts",
     "./commerce/sdk/*": "./commerce/sdk/*.ts",
     "./shopify": "./shopify/index.ts",
+    "./shopify/mod": "./shopify/mod.ts",
     "./shopify/client": "./shopify/client.ts",
     "./shopify/loaders/*": "./shopify/loaders/*.ts",
     "./shopify/actions/*": "./shopify/actions/*.ts",
@@ -19,6 +23,7 @@
     "./shopify/utils/*": "./shopify/utils/*.ts",
     "./vtex": "./vtex/index.ts",
     "./vtex/commerceLoaders": "./vtex/commerceLoaders.ts",
+    "./vtex/mod": "./vtex/mod.ts",
     "./vtex/client": "./vtex/client.ts",
     "./vtex/types": "./vtex/types.ts",
     "./vtex/actions": "./vtex/actions/index.ts",
@@ -38,9 +43,14 @@
     "./vtex/hooks/*": "./vtex/hooks/*.ts",
     "./vtex/inline-loaders/workflowProducts": "./vtex/inline-loaders/workflowProducts.ts",
     "./vtex/middleware": "./vtex/middleware.ts",
-    "./vtex/invoke": "./vtex/invoke.ts"
+    "./resend": "./resend/index.ts",
+    "./resend/mod": "./resend/mod.ts",
+    "./resend/client": "./resend/client.ts",
+    "./resend/types": "./resend/types.ts",
+    "./resend/actions/send": "./resend/actions/send.ts"
   },
   "scripts": {
+    "generate:manifests": "tsx scripts/generate-manifests.ts",
     "typecheck": "tsc --noEmit",
     "lint:unused": "knip",
     "lint:unused:fix": "knip --fix",
@@ -69,7 +79,9 @@
     "commerce/",
     "shopify/",
     "vtex/",
-    "!**/__tests__/"
+    "resend/",
+    "!**/__tests__/",
+    "!scripts/"
   ],
   "engines": {
     "node": ">=18"
@@ -86,7 +98,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.7",
-    "@decocms/start": "^0.29.3",
+    "@decocms/start": "^0.38.0",
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@tanstack/react-query": "^5.90.21",
@@ -95,6 +107,7 @@
     "knip": "^5.86.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }

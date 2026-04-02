@@ -2,10 +2,10 @@
  * VTEX Authentication Actions
  *
  * Ported from deco-cx/apps vtex/actions/authentication/*.ts
+ * Cookie forwarding happens automatically via RequestContext.responseHeaders.
  * @see https://github.com/deco-cx/apps/tree/main/vtex/actions/authentication
  */
 
-import type { VtexFetchResult } from "../client";
 import { getVtexConfig, vtexFetchWithCookies } from "../client";
 import { VTEX_AUTH_COOKIE } from "../utils/vtexId";
 
@@ -91,19 +91,23 @@ export function extractLoginCookies(response: AuthResponse): LoginCookies | null
 // Actions
 // ---------------------------------------------------------------------------
 
-export async function startAuthentication(options?: {
+export interface StartAuthenticationProps {
 	callbackUrl?: string;
 	returnUrl?: string;
 	locale?: string;
 	appStart?: boolean;
-}): Promise<VtexFetchResult<StartAuthentication>> {
+}
+
+export async function startAuthentication(
+	props?: StartAuthenticationProps,
+): Promise<StartAuthentication> {
 	const config = getVtexConfig();
 	const {
 		callbackUrl = "/",
 		returnUrl = "/",
 		locale = config.locale ?? "pt-BR",
 		appStart = true,
-	} = options ?? {};
+	} = props ?? {};
 
 	const params = new URLSearchParams({
 		locale,
@@ -118,21 +122,23 @@ export async function startAuthentication(options?: {
 	);
 }
 
+export interface ClassicSignInProps {
+	email: string;
+	password: string;
+	authenticationToken?: string;
+}
+
 /**
  * Classic email + password sign-in.
  * Calls startAuthentication internally if no authenticationToken provided.
+ * Set-Cookie headers from both calls are forwarded via RequestContext.responseHeaders.
  */
-export async function classicSignIn(
-	email: string,
-	password: string,
-	authenticationToken?: string,
-): Promise<VtexFetchResult<AuthResponse>> {
-	let token = authenticationToken;
-	let startCookies: string[] = [];
+export async function classicSignIn(props: ClassicSignInProps): Promise<AuthResponse> {
+	const { email, password } = props;
+	let token = props.authenticationToken;
 	if (!token) {
 		const startResult = await startAuthentication();
-		token = startResult.data.authenticationToken ?? undefined;
-		startCookies = startResult.setCookies;
+		token = startResult.authenticationToken ?? undefined;
 		if (!token) throw new Error("Failed to obtain authentication token from startAuthentication");
 	}
 
@@ -141,23 +147,24 @@ export async function classicSignIn(
 		password,
 		authenticationToken: token,
 	});
-	const result = await vtexFetchWithCookies<AuthResponse>(
-		"/api/vtexid/pub/authentication/classic/validate",
-		{ method: "POST", body, headers: FORM_HEADERS },
-	);
-	result.setCookies = [...startCookies, ...result.setCookies];
-	return result;
+	return vtexFetchWithCookies<AuthResponse>("/api/vtexid/pub/authentication/classic/validate", {
+		method: "POST",
+		body,
+		headers: FORM_HEADERS,
+	});
+}
+
+export interface AccessKeySignInProps {
+	email: string;
+	accessKey: string;
+	authenticationToken: string;
 }
 
 /**
  * Passwordless sign-in via email access key.
- * Reads VtexSessionToken from cookie if not provided directly.
  */
-export async function accessKeySignIn(
-	email: string,
-	accessKey: string,
-	authenticationToken: string,
-): Promise<VtexFetchResult<AuthResponse>> {
+export async function accessKeySignIn(props: AccessKeySignInProps): Promise<AuthResponse> {
+	const { email, accessKey, authenticationToken } = props;
 	const body = new URLSearchParams({
 		login: email,
 		accessKey,
@@ -173,7 +180,6 @@ export async function accessKeySignIn(
 
 /**
  * Logout — returns list of cookie names that must be cleared (Max-Age=0).
- * Also calls deleteSession if a sessionId cookie is available.
  */
 export function logout(): { cookiesToClear: string[] } {
 	const { account } = getVtexConfig();
@@ -187,30 +193,34 @@ export function logout(): { cookiesToClear: string[] } {
 	};
 }
 
+export interface RefreshTokenProps {
+	fingerprint?: string;
+}
+
 /**
  * Refreshes the VTEX auth token using existing session cookies.
+ * Cookies are read automatically from RequestContext.
  */
-export async function refreshToken(
-	cookieHeader: string,
-	fingerprint?: string,
-): Promise<VtexFetchResult<RefreshTokenResponse>> {
+export async function refreshToken(props?: RefreshTokenProps): Promise<RefreshTokenResponse> {
 	return vtexFetchWithCookies<RefreshTokenResponse>("/api/vtexid/refreshtoken/webstore", {
 		method: "POST",
-		body: JSON.stringify({ fingerprint }),
-		headers: { cookie: cookieHeader },
+		body: JSON.stringify({ fingerprint: props?.fingerprint }),
 	});
+}
+
+export interface RecoveryPasswordProps {
+	email: string;
+	newPassword: string;
+	accessKey: string;
+	authenticationToken: string;
+	locale?: string;
 }
 
 /**
  * Sets a new password using an email access key (password-recovery flow).
  */
-export async function recoveryPassword(
-	email: string,
-	newPassword: string,
-	accessKey: string,
-	authenticationToken: string,
-	locale?: string,
-): Promise<VtexFetchResult<AuthResponse>> {
+export async function recoveryPassword(props: RecoveryPasswordProps): Promise<AuthResponse> {
+	const { email, newPassword, accessKey, authenticationToken, locale } = props;
 	const config = getVtexConfig();
 
 	const params = new URLSearchParams({
@@ -231,25 +241,27 @@ export async function recoveryPassword(
 	);
 }
 
+export interface ResetPasswordProps {
+	email: string;
+	currentPassword: string;
+	newPassword: string;
+	authenticationToken?: string;
+	locale?: string;
+}
+
 /**
  * Resets password for an already-authenticated user.
  * Calls startAuthentication internally if no authenticationToken provided.
+ * Set-Cookie headers from both calls are forwarded via RequestContext.responseHeaders.
  */
-export async function resetPassword(
-	email: string,
-	currentPassword: string,
-	newPassword: string,
-	authenticationToken?: string,
-	locale?: string,
-): Promise<VtexFetchResult<AuthResponse>> {
+export async function resetPassword(props: ResetPasswordProps): Promise<AuthResponse> {
+	const { email, currentPassword, newPassword, locale } = props;
 	const config = getVtexConfig();
 
-	let token = authenticationToken;
-	let startCookies: string[] = [];
+	let token = props.authenticationToken;
 	if (!token) {
 		const startResult = await startAuthentication({ locale });
-		token = startResult.data.authenticationToken ?? undefined;
-		startCookies = startResult.setCookies;
+		token = startResult.authenticationToken ?? undefined;
 		if (!token) throw new Error("Failed to obtain authentication token from startAuthentication");
 	}
 
@@ -265,37 +277,35 @@ export async function resetPassword(
 		authenticationToken: token,
 	});
 
-	const result = await vtexFetchWithCookies<AuthResponse>(
+	return vtexFetchWithCookies<AuthResponse>(
 		`/api/vtexid/pub/authentication/classic/setpassword?${params}`,
 		{ method: "POST", body, headers: FORM_HEADERS },
 	);
-	result.setCookies = [...startCookies, ...result.setCookies];
-	return result;
+}
+
+export interface SendEmailVerificationProps {
+	email: string;
+	authenticationToken?: string;
+	locale?: string;
+	parentAppId?: string;
 }
 
 /**
  * Sends an access-key verification email.
  * Calls startAuthentication internally if no authenticationToken provided.
- * Returns { success, authenticationToken, setCookies }.
+ * Returns { success, authenticationToken }.
  */
-export async function sendEmailVerification(
-	email: string,
-	authenticationToken?: string,
-	locale?: string,
-	parentAppId?: string,
-): Promise<{
+export async function sendEmailVerification(props: SendEmailVerificationProps): Promise<{
 	success: boolean;
 	authenticationToken: string | null;
-	setCookies: string[];
 }> {
+	const { email, locale, parentAppId } = props;
 	try {
-		let token = authenticationToken;
-		let startCookies: string[] = [];
+		let token = props.authenticationToken;
 
 		if (!token) {
 			const startResult = await startAuthentication({ locale });
-			token = startResult.data.authenticationToken ?? undefined;
-			startCookies = startResult.setCookies;
+			token = startResult.authenticationToken ?? undefined;
 			if (!token) throw new Error("Failed to obtain authentication token");
 		}
 
@@ -308,17 +318,16 @@ export async function sendEmailVerification(
 			{ method: "POST", body, headers: FORM_HEADERS },
 		);
 
-		if (result.data?.authStatus === "InvalidToken") {
+		if (result?.authStatus === "InvalidToken") {
 			throw new Error("Authentication token is invalid");
 		}
 
 		return {
 			success: true,
 			authenticationToken: token,
-			setCookies: [...startCookies, ...result.setCookies],
 		};
 	} catch (error) {
 		console.error("[sendEmailVerification]", error);
-		return { success: false, authenticationToken: null, setCookies: [] };
+		return { success: false, authenticationToken: null };
 	}
 }
