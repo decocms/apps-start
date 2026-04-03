@@ -316,6 +316,7 @@ export default async function vtexProductListingPage(props: PLPProps): Promise<a
 
 		if (
 			facets.length === 0 &&
+			!query &&
 			__pagePath &&
 			__pagePath !== "/" &&
 			__pagePath !== "/*" &&
