@@ -4,7 +4,7 @@
  * These are the generic, platform-independent mappers. Sites can wrap them
  * to add custom fields (sellerP, etc.) via the `extend` option.
  */
-import type { BreadcrumbList, Product } from "../types";
+import type { BreadcrumbList, Product } from "../types/commerce";
 
 export interface AnalyticsItem {
 	item_id?: string;

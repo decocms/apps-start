@@ -48,9 +48,9 @@ export async function configure(
 	if (!storefrontAccessToken) return null;
 
 	const config: ShopifyConfig = {
-		storeName: block.storeName,
+		storeName: block.storeName as string,
 		storefrontAccessToken,
-		publicUrl: block.publicUrl,
+		publicUrl: block.publicUrl as string | undefined,
 	};
 
 	// Bridge: maintain global singleton for backward compat
