@@ -23,6 +23,7 @@ import {
 	toAdditionalPropertySpecification,
 	toBrand,
 	toPostalAddress,
+	toProductVariant,
 } from "../transform";
 
 const makeOffer = (price: number, availability: string): Offer => ({
@@ -493,5 +494,161 @@ describe("toPostalAddress", () => {
 		expect(result.areaServed).toBeUndefined();
 		expect(result.identifier).toBeUndefined();
 		expect(result.name).toBeUndefined();
+	});
+});
+
+describe("toProductVariant", () => {
+	const makeISProduct = (overrides: Record<string, unknown> = {}) =>
+		({
+			origin: "intelligent-search",
+			productId: "PROD1",
+			productName: "Test Product",
+			brand: "TestBrand",
+			brandId: 1,
+			brandImageUrl: null,
+			productReference: "REF1",
+			description: "Full description HTML",
+			releaseDate: "2024-01-01",
+			linkText: "test-product",
+			categories: ["/Electronics/TVs/"],
+			categoriesIds: ["/1/2/"],
+			categoryId: "2",
+			productClusters: { "100": "Sale" },
+			clusterHighlights: {},
+			items: [],
+			...overrides,
+		}) as any;
+
+	const makeISSku = (overrides: Record<string, unknown> = {}) =>
+		({
+			itemId: "SKU1",
+			name: "Test SKU",
+			ean: "1234567890123",
+			referenceId: [{ Key: "RefId", Value: "REF-SKU1" }],
+			images: [
+				{ imageUrl: "https://img.com/1.jpg", imageText: "Front", imageLabel: "front" },
+				{ imageUrl: "https://img.com/2.jpg", imageText: "Back", imageLabel: "back" },
+				{ imageUrl: "https://img.com/3.jpg", imageText: "Side", imageLabel: "side" },
+			],
+			videos: ["https://video.com/1.mp4"],
+			sellers: [
+				{
+					sellerId: "1",
+					sellerName: "Seller One",
+					commertialOffer: {
+						AvailableQuantity: 10,
+						Price: 99.9,
+						ListPrice: 129.9,
+						spotPrice: 89.9,
+						PriceValidUntil: "2025-12-31",
+						Installments: [
+							{
+								Value: 33.3,
+								NumberOfInstallments: 3,
+								Name: "Visa",
+								InterestRate: 0,
+								TotalValuePlusInterestRate: 99.9,
+								PaymentSystemName: "Visa",
+							},
+						],
+						GiftSkuIds: [],
+						teasers: [],
+					},
+				},
+			],
+			variations: [
+				{ name: "Cor", values: ["Preto"] },
+				{ name: "Voltagem", values: ["220V"] },
+				{ name: "Tamanho", values: ["G"] },
+			],
+			kitItems: [],
+			complementName: "Complement",
+			estimatedDateArrival: null,
+			modalType: null,
+			...overrides,
+		}) as any;
+
+	const baseOptions = {
+		baseUrl: "https://example.com",
+		priceCurrency: "BRL",
+	};
+
+	it("returns minimal product shape", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, baseOptions);
+
+		expect(result["@type"]).toBe("Product");
+		expect(result.productID).toBe("SKU1");
+		expect(result.sku).toBe("SKU1");
+		expect(result.name).toBe("Test SKU");
+		expect(result.url).toContain("/test-product/p");
+		expect(result.inProductGroupWithID).toBe("PROD1");
+	});
+
+	it("drops images, description, video, brand, gtin, releaseDate", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, baseOptions);
+
+		expect(result.image).toBeUndefined();
+		expect(result.video).toBeUndefined();
+		expect(result.description).toBeUndefined();
+		expect(result.brand).toBeUndefined();
+		expect(result.gtin).toBeUndefined();
+		expect(result.releaseDate).toBeUndefined();
+		expect(result.alternateName).toBeUndefined();
+		expect(result.isVariantOf).toBeUndefined();
+		expect(result.isAccessoryOrSparePartFor).toBeUndefined();
+		expect(result.category).toBeUndefined();
+	});
+
+	it("filters additionalProperty to variant-differentiating names only", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, baseOptions);
+
+		const propNames = result.additionalProperty?.map((p) => p.name) ?? [];
+		// Should only contain Cor, Voltagem, Tamanho (from VARIANT_PROPERTY_NAMES)
+		for (const name of propNames) {
+			expect(["Cor", "Voltagem", "Tamanho"]).toContain(name);
+		}
+		expect(propNames.length).toBeGreaterThan(0);
+	});
+
+	it("respects custom variantPropertyNames", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, {
+			...baseOptions,
+			variantPropertyNames: new Set(["Cor"]),
+		});
+
+		const propNames = result.additionalProperty?.map((p) => p.name) ?? [];
+		expect(propNames).toEqual(["Cor"]);
+	});
+
+	it("produces lean offers with availability but no priceSpecification details", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, baseOptions);
+
+		expect(result.offers).toBeDefined();
+		expect(result.offers?.offers).toHaveLength(1);
+
+		const offer = result.offers!.offers[0];
+		expect(offer.availability).toBe("https://schema.org/InStock");
+		expect(offer.seller).toBe("1");
+		expect(offer.priceSpecification).toEqual([]);
+	});
+
+	it("handles SKU with no sellers", () => {
+		const product = makeISProduct({ items: [makeISSku({ sellers: [] })] });
+		const sku = makeISSku({ sellers: [] });
+		const result = toProductVariant(product, sku, baseOptions);
+
+		// Should still return a valid product, offers may be undefined (no sellers)
+		expect(result["@type"]).toBe("Product");
+		expect(result.productID).toBe("SKU1");
 	});
 });
