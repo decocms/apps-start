@@ -36,7 +36,7 @@ export interface ShopifyState {
  * Returns an AppDefinition or null if required fields are missing.
  */
 export async function configure(
-	block: any,
+	block: Record<string, unknown>,
 	resolveSecret: ResolveSecretFn,
 ): Promise<AppDefinition<ShopifyState> | null> {
 	if (!block?.storeName) return null;
@@ -48,9 +48,9 @@ export async function configure(
 	if (!storefrontAccessToken) return null;
 
 	const config: ShopifyConfig = {
-		storeName: block.storeName,
+		storeName: block.storeName as string,
 		storefrontAccessToken,
-		publicUrl: block.publicUrl,
+		publicUrl: block.publicUrl as string | undefined,
 	};
 
 	// Bridge: maintain global singleton for backward compat

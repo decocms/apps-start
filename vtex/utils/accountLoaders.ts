@@ -23,12 +23,13 @@
  * });
  * ```
  */
-import { getVtexCookies } from "./cookies";
-import { getUser } from "../loaders/user";
-import { getCurrentProfile, type Profile } from "../loaders/profile";
+
+import { detectDevice } from "@decocms/start/sdk/useDevice";
 import { getUserAddresses, type VtexAddress } from "../loaders/address";
 import { getUserPayments, type Payment } from "../loaders/payment";
-import { detectDevice } from "@decocms/start/sdk/useDevice";
+import { getCurrentProfile, type Profile } from "../loaders/profile";
+import { getUser } from "../loaders/user";
+import { getVtexCookies } from "./cookies";
 
 type Device = "mobile" | "tablet" | "desktop";
 

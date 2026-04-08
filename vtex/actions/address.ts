@@ -215,7 +215,7 @@ export async function updateAddress(
 // Handle cookie extraction, postalCode sanitization, and field defaults.
 // ---------------------------------------------------------------------------
 
-import { getVtexCookies, ensureUnsuffixedAuthCookie } from "../utils/cookies";
+import { ensureUnsuffixedAuthCookie, getVtexCookies } from "../utils/cookies";
 
 function sanitizeAddressInput(props: Record<string, any>): Record<string, any> {
 	if (props.postalCode) props.postalCode = props.postalCode.replace(/\D/g, "");
@@ -224,18 +224,27 @@ function sanitizeAddressInput(props: Record<string, any>): Record<string, any> {
 	return props;
 }
 
-export async function createAddressFromRequest(props: Record<string, any>, request: Request): Promise<SavedAddress> {
+export async function createAddressFromRequest(
+	props: Record<string, any>,
+	request: Request,
+): Promise<SavedAddress> {
 	const cookie = ensureUnsuffixedAuthCookie(getVtexCookies(request));
 	return createAddress(sanitizeAddressInput(props) as AddressInput, cookie);
 }
 
-export async function updateAddressFromRequest(props: Record<string, any>, request: Request): Promise<UpdateAddressResult> {
+export async function updateAddressFromRequest(
+	props: Record<string, any>,
+	request: Request,
+): Promise<UpdateAddressResult> {
 	const cookie = ensureUnsuffixedAuthCookie(getVtexCookies(request));
 	const { addressId, ...fields } = props;
 	return updateAddress(addressId, fields, cookie);
 }
 
-export async function deleteAddressFromRequest(props: Record<string, any>, request: Request): Promise<DeleteAddressResult> {
+export async function deleteAddressFromRequest(
+	props: Record<string, any>,
+	request: Request,
+): Promise<DeleteAddressResult> {
 	const cookie = ensureUnsuffixedAuthCookie(getVtexCookies(request));
 	return deleteAddress(props.addressId, cookie);
 }

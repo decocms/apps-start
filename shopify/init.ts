@@ -23,8 +23,10 @@ export function initShopify(config: { storeName: string; storefrontAccessToken: 
  * Initialize Shopify from a blocks map (convenience wrapper).
  * Looks for the "deco-shopify" block and extracts credentials.
  */
-export function initShopifyFromBlocks(blocks: Record<string, any>) {
-	const shopifyBlock = blocks["deco-shopify"];
+export function initShopifyFromBlocks(blocks: Record<string, unknown>) {
+	const shopifyBlock = blocks["deco-shopify"] as
+		| { storeName: string; storefrontAccessToken: string }
+		| undefined;
 	if (!shopifyBlock) {
 		console.warn("[Shopify] No deco-shopify block found.");
 		return;

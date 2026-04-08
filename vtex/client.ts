@@ -5,6 +5,7 @@
 
 import { RequestContext } from "@decocms/start/sdk/requestContext";
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
+import { ANONYMOUS_COOKIE, SESSION_COOKIE } from "./utils/intelligentSearch";
 import { parseSegment, SEGMENT_COOKIE_NAME } from "./utils/segment";
 
 /**
@@ -252,13 +253,16 @@ export async function vtexFetchWithCookies<T>(path: string, init?: RequestInit):
 	const response = await vtexFetchResponse(path, init);
 	const data = (await response.json()) as T;
 
-	// Forward Set-Cookie headers to RequestContext.responseHeaders
-	// (mirrors proxySetCookie from deco-cx/deco)
+	// Forward Set-Cookie headers to RequestContext.responseHeaders,
+	// but skip VTEX internal IS cookies (managed server-side by the middleware).
 	const responseHeaders = getResponseHeaders();
 	if (responseHeaders) {
 		const setCookies =
 			typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
 		for (const cookie of setCookies) {
+			if (cookie.startsWith(`${SESSION_COOKIE}=`) || cookie.startsWith(`${ANONYMOUS_COOKIE}=`)) {
+				continue;
+			}
 			const stripped = cookie.replace(/;\s*domain=[^;]*/gi, "");
 			responseHeaders.append("set-cookie", stripped);
 		}

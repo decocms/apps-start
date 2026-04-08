@@ -37,8 +37,8 @@ export type Props = {
 	metafields?: Metafield[];
 };
 
-const isQueryList = (p: any): p is QueryProps =>
-	typeof p.query === "string" && typeof p.count === "number";
+const isQueryList = (p: QueryProps | CollectionProps): p is QueryProps =>
+	"query" in p && typeof p.query === "string" && typeof p.count === "number";
 
 export default async function productListLoader(
 	expandedProps: Props,
@@ -52,19 +52,23 @@ export default async function productListLoader(
 	const metafields = expandedProps.metafields || [];
 	const sort = props.sort ?? "";
 
-	const filters: any[] = [];
-	expandedProps.filters?.tags?.forEach((tag) => filters.push({ tag }));
-	expandedProps.filters?.productTypes?.forEach((productType) => filters.push({ productType }));
-	expandedProps.filters?.productVendors?.forEach((productVendor) =>
-		filters.push({ productVendor }),
-	);
+	const filters: Record<string, unknown>[] = [];
+	for (const tag of expandedProps.filters?.tags ?? []) {
+		filters.push({ tag });
+	}
+	for (const productType of expandedProps.filters?.productTypes ?? []) {
+		filters.push({ productType });
+	}
+	for (const productVendor of expandedProps.filters?.productVendors ?? []) {
+		filters.push({ productVendor });
+	}
 	if (expandedProps.filters?.priceMin != null)
 		filters.push({ price: { min: expandedProps.filters.priceMin } });
 	if (expandedProps.filters?.priceMax != null)
 		filters.push({ price: { max: expandedProps.filters.priceMax } });
-	expandedProps.filters?.variantOptions?.forEach((variantOption) =>
-		filters.push({ variantOption }),
-	);
+	for (const variantOption of expandedProps.filters?.variantOptions ?? []) {
+		filters.push({ variantOption });
+	}
 
 	let shopifyProducts: { nodes: ProductShopify[] } | undefined;
 

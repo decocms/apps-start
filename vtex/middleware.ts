@@ -63,6 +63,8 @@ export interface VtexRequestContext {
 	isSessionId: string;
 	/** Intelligent Search anonymous cookie. */
 	isAnonymousId: string;
+	/** Whether IS cookies were freshly generated (browser didn't send them). */
+	needsISCookies: boolean;
 }
 
 // -------------------------------------------------------------------------
@@ -125,8 +127,9 @@ export function extractVtexContext(request: Request): VtexRequestContext {
 	const authToken = extractVtexAuthCookie(cookies);
 	const authInfo = authToken ? parseVtexAuthToken(authToken) : null;
 
-	const isSessionId = getCookieValue(cookies, SESSION_COOKIE) ?? generateUUID();
-	const isAnonymousId = getCookieValue(cookies, ANONYMOUS_COOKIE) ?? generateUUID();
+	const existingSessionId = getCookieValue(cookies, SESSION_COOKIE);
+	const existingAnonymousId = getCookieValue(cookies, ANONYMOUS_COOKIE);
+	const needsISCookies = !existingSessionId || !existingAnonymousId;
 
 	return {
 		segment,
@@ -136,8 +139,9 @@ export function extractVtexContext(request: Request): VtexRequestContext {
 		salesChannel: segment.channel ?? "1",
 		regionId: segment.regionId ?? null,
 		hasCustomPricing: Boolean(segment.priceTables && segment.priceTables.length > 0),
-		isSessionId,
-		isAnonymousId,
+		isSessionId: existingSessionId ?? generateUUID(),
+		isAnonymousId: existingAnonymousId ?? generateUUID(),
+		needsISCookies,
 	};
 }
 
@@ -177,13 +181,14 @@ export function vtexCacheControl(
 // -------------------------------------------------------------------------
 
 /**
- * Ensure Intelligent Search cookies exist on the response.
- *
- * If the browser already has them, they are forwarded as-is.
- * If not, new UUIDs from the context are set. This ensures
- * every user has IS cookies for personalization and analytics.
+ * Set Intelligent Search cookies on the response only when the browser
+ * doesn't already have them. On subsequent requests where the cookies
+ * exist, this is a no-op — keeping the response free of Set-Cookie
+ * headers so it remains cacheable at the CDN edge.
  */
 export function propagateISCookies(ctx: VtexRequestContext, response: Response): void {
+	if (!ctx.needsISCookies) return;
+
 	const maxAge = ONE_YEAR_SECONDS;
 	response.headers.append(
 		"Set-Cookie",
