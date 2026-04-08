@@ -105,6 +105,10 @@ interface ProductOptions {
 	imagesByKey?: Map<string, string>;
 	/** Original attributes to be included in the transformed product */
 	includeOriginalAttributes?: string[];
+	/** Use lean toProductVariant for hasVariant[] instead of full toProduct at level=1 */
+	leanVariants?: boolean;
+	/** Property names to keep on lean variant additionalProperty. Defaults to VARIANT_PROPERTY_NAMES. */
+	variantPropertyNames?: Set<string>;
 }
 
 /** Returns first available sku */
@@ -389,7 +393,9 @@ export const toProduct = <P extends LegacyProductVTEX | ProductVTEX>(
 			? ({
 					"@type": "ProductGroup",
 					productGroupID: productId,
-					hasVariant: items.map((sku) => toProduct(product, sku, 1, variantOptions)),
+					hasVariant: options.leanVariants
+					? items.map((sku) => toProductVariant(product, sku, variantOptions))
+					: items.map((sku) => toProduct(product, sku, 1, variantOptions)),
 					url: getProductGroupURL(baseUrl, product).href,
 					name: product.productName,
 					additionalProperty: [
@@ -656,6 +662,70 @@ export const toProductShelf = <P extends LegacyProductVTEX | ProductVTEX>(
 		offers: aggregateOffers(leanOffers, priceCurrency),
 		isVariantOf,
 		additionalProperty,
+	};
+};
+
+/** Property names that differentiate SKU variants (used by variant selectors) */
+const VARIANT_PROPERTY_NAMES = new Set(["Cor", "Voltagem", "Tamanho"]);
+
+/**
+ * Build a minimal offer for variant display. Keeps only availability and seller.
+ * No priceSpecification, no inventoryLevel, no teasers.
+ */
+const buildOfferVariant = (offer: Offer): Offer => ({
+	"@type": "Offer",
+	identifier: offer.identifier,
+	price: offer.price,
+	seller: offer.seller,
+	availability: offer.availability,
+	priceSpecification: [],
+	inventoryLevel: { value: 0 },
+});
+
+/**
+ * Minimal product transform for variant entries inside isVariantOf.hasVariant[].
+ *
+ * Keeps only what variant selectors need:
+ * - url, productID, sku, name, inProductGroupWithID
+ * - additionalProperty filtered to variant-differentiating props (Cor, Voltagem, Tamanho)
+ * - offers with availability + seller only (no price specs)
+ *
+ * Drops: images, description, video, brand, category, gtin, releaseDate,
+ *        alternateName, isAccessoryOrSparePartFor, isVariantOf
+ */
+export const toProductVariant = <P extends LegacyProductVTEX | ProductVTEX>(
+	product: P,
+	sku: P["items"][number],
+	options: ProductOptions,
+): Product => {
+	const { baseUrl, priceCurrency } = options;
+	const { productId } = product;
+	const { name, itemId: skuId } = sku;
+	const variantProps = options.variantPropertyNames ?? VARIANT_PROPERTY_NAMES;
+
+	// additionalProperty: only variant-differentiating specs
+	const specificationsAdditionalProperty = isLegacySku(sku)
+		? toAdditionalPropertiesLegacy(sku)
+		: toAdditionalProperties(sku);
+	const additionalProperty = specificationsAdditionalProperty.filter(
+		(prop) => variantProps.has(prop.name ?? ""),
+	);
+
+	// Offers: all sellers but lean (availability + seller only)
+	const offerConverter = isLegacyProduct(product) ? toOfferLegacy : toOffer;
+	const allOffers = (sku.sellers ?? []).map(offerConverter).sort(bestOfferFirst);
+	const bestOffer = allOffers[0];
+	const leanOffers = bestOffer ? [buildOfferVariant(bestOffer)] : [];
+
+	return {
+		"@type": "Product",
+		productID: skuId,
+		sku: skuId,
+		name,
+		url: getProductURL(baseUrl, product, sku.itemId).href,
+		inProductGroupWithID: productId,
+		additionalProperty,
+		offers: aggregateOffers(leanOffers, priceCurrency),
 	};
 };
 

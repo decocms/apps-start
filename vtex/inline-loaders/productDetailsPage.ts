@@ -53,6 +53,7 @@ export default async function vtexProductDetailsPage(
 		const page = toProductPage(product, sku, kitItems, {
 			baseUrl,
 			priceCurrency: "BRL",
+			leanVariants: true,
 		});
 
 		return {
