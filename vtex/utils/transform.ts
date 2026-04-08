@@ -394,8 +394,8 @@ export const toProduct = <P extends LegacyProductVTEX | ProductVTEX>(
 					"@type": "ProductGroup",
 					productGroupID: productId,
 					hasVariant: options.leanVariants
-					? items.map((sku) => toProductVariant(product, sku, variantOptions))
-					: items.map((sku) => toProduct(product, sku, 1, variantOptions)),
+						? items.map((sku) => toProductVariant(product, sku, variantOptions))
+						: items.map((sku) => toProduct(product, sku, 1, variantOptions)),
 					url: getProductGroupURL(baseUrl, product).href,
 					name: product.productName,
 					additionalProperty: [
@@ -707,8 +707,8 @@ export const toProductVariant = <P extends LegacyProductVTEX | ProductVTEX>(
 	const specificationsAdditionalProperty = isLegacySku(sku)
 		? toAdditionalPropertiesLegacy(sku)
 		: toAdditionalProperties(sku);
-	const additionalProperty = specificationsAdditionalProperty.filter(
-		(prop) => variantProps.has(prop.name ?? ""),
+	const additionalProperty = specificationsAdditionalProperty.filter((prop) =>
+		variantProps.has(prop.name ?? ""),
 	);
 
 	// Offers: all sellers but lean (availability + seller only)
