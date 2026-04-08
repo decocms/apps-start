@@ -122,10 +122,10 @@ export async function updateProfile(
 // Request-aware wrappers (for COMMERCE_LOADERS / invoke proxy)
 // ---------------------------------------------------------------------------
 
-import { getVtexCookies } from "../utils/cookies";
-import { updateNewsletterOptIn } from "./newsletter";
-import { deletePaymentToken } from "./misc";
 import { getCurrentProfile } from "../loaders/profile";
+import { getVtexCookies } from "../utils/cookies";
+import { deletePaymentToken } from "./misc";
+import { updateNewsletterOptIn } from "./newsletter";
 
 /**
  * Normalize birthDate strings to ISO 8601.
@@ -148,7 +148,10 @@ function normalizeBirthDate(profile: Record<string, any>): void {
  * Update user profile via VTEX IO GraphQL. Handles cookie extraction,
  * birthDate normalization, and undefined-key cleanup.
  */
-export async function updateProfileFromRequest(props: Record<string, any>, request: Request): Promise<any> {
+export async function updateProfileFromRequest(
+	props: Record<string, any>,
+	request: Request,
+): Promise<any> {
 	const { account } = getVtexConfig();
 	const cookie = getVtexCookies(request);
 	const profile = { ...props };
@@ -171,17 +174,26 @@ export async function updateProfileFromRequest(props: Record<string, any>, reque
 	return res.json();
 }
 
-export async function newsletterProfileFromRequest(props: Record<string, any>, request: Request): Promise<any> {
+export async function newsletterProfileFromRequest(
+	props: Record<string, any>,
+	request: Request,
+): Promise<any> {
 	const cookie = request.headers.get("cookie") ?? "";
 	return updateNewsletterOptIn(props.isNewsletterOptIn, props.email, cookie);
 }
 
-export async function deletePaymentFromRequest(props: Record<string, any>, request: Request): Promise<any> {
+export async function deletePaymentFromRequest(
+	props: Record<string, any>,
+	request: Request,
+): Promise<any> {
 	const cookie = getVtexCookies(request);
 	return deletePaymentToken(props.id, cookie);
 }
 
-export async function getPasswordLastUpdate(_props: Record<string, any>, request: Request): Promise<string | null> {
+export async function getPasswordLastUpdate(
+	_props: Record<string, any>,
+	request: Request,
+): Promise<string | null> {
 	const cookie = getVtexCookies(request);
 	const profile = await getCurrentProfile(cookie);
 	return profile?.passwordLastUpdate ?? null;

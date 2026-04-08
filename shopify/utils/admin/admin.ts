@@ -1,5 +1,6 @@
 // deno-fmt-ignore-file
 // deno-lint-ignore-file no-explicit-any ban-types ban-unused-ignore
+// biome-ignore-all lint/suspicious/noExplicitAny: generated GraphQL scalar types
 
 export type Maybe<T> = T | null;
 

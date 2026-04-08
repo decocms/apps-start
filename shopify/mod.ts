@@ -36,7 +36,7 @@ export interface ShopifyState {
  * Returns an AppDefinition or null if required fields are missing.
  */
 export async function configure(
-	block: any,
+	block: Record<string, unknown>,
 	resolveSecret: ResolveSecretFn,
 ): Promise<AppDefinition<ShopifyState> | null> {
 	if (!block?.storeName) return null;

@@ -286,17 +286,11 @@ function filterHeadersStrict(headers: Headers): Headers {
  * Unlike `proxySetCookie`, this preserves ALL attributes (Max-Age,
  * Expires, SameSite, etc.) which is critical for logout.
  */
-function rewriteSetCookieDomain(
-	from: Headers,
-	to: Headers,
-	toHostname: string,
-) {
+function rewriteSetCookieDomain(from: Headers, to: Headers, toHostname: string) {
 	const raw: string[] =
 		typeof from.getSetCookie === "function"
 			? from.getSetCookie()
-			: (from.get("set-cookie") ?? "")
-					.split(/,(?=[^ ]+=)/)
-					.filter(Boolean);
+			: (from.get("set-cookie") ?? "").split(/,(?=[^ ]+=)/).filter(Boolean);
 
 	for (const cookie of raw) {
 		const rewritten = cookie.replace(/Domain=[^;]*/i, `Domain=${toHostname}`);
@@ -342,11 +336,8 @@ export function createVtexCheckoutProxy(
 	const checkoutOrigin = config.checkoutOrigin.startsWith("https://")
 		? config.checkoutOrigin
 		: `https://${config.checkoutOrigin}`;
-	const apiOrigin =
-		config.apiOrigin ??
-		`https://${config.account}.vtexcommercestable.${domain}`;
-	const myvtexOrigin =
-		config.myvtexOrigin ?? `https://${config.account}.myvtex.com`;
+	const apiOrigin = config.apiOrigin ?? `https://${config.account}.vtexcommercestable.${domain}`;
+	const myvtexOrigin = config.myvtexOrigin ?? `https://${config.account}.myvtex.com`;
 
 	function getOrigin(pathname: string, method: string): string {
 		if (
@@ -375,8 +366,7 @@ export function createVtexCheckoutProxy(
 		fwd.set("origin", request.headers.get("origin") ?? url.origin);
 
 		const isCheckoutUI =
-			url.pathname.startsWith("/checkout") ||
-			url.pathname.startsWith("/account");
+			url.pathname.startsWith("/checkout") || url.pathname.startsWith("/account");
 		const isLogout = url.pathname.startsWith("/api/vtexid/pub/logout");
 
 		const init: RequestInit = {
@@ -399,10 +389,7 @@ export function createVtexCheckoutProxy(
 			for (const rule of config.expireCookiesOnPaths) {
 				if (url.pathname.startsWith(rule.pathPrefix)) {
 					for (const name of rule.cookies) {
-						resHeaders.append(
-							"Set-Cookie",
-							`${name}=; Path=/; Max-Age=0; Domain=${url.hostname}`,
-						);
+						resHeaders.append("Set-Cookie", `${name}=; Path=/; Max-Age=0; Domain=${url.hostname}`);
 					}
 				}
 			}

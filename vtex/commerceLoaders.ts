@@ -11,12 +11,12 @@
 
 import { createCachedLoader } from "@decocms/start/sdk/cachedLoader";
 import type { CacheProfileName } from "@decocms/start/sdk/cacheHeaders";
-import vtexProductList from "./inline-loaders/productList";
-import vtexProductListShelf from "./inline-loaders/productListShelf";
 import vtexProductDetailsPage from "./inline-loaders/productDetailsPage";
+import vtexProductList from "./inline-loaders/productList";
 import vtexProductListingPage from "./inline-loaders/productListingPage";
-import vtexSuggestions from "./inline-loaders/suggestions";
+import vtexProductListShelf from "./inline-loaders/productListShelf";
 import vtexRelatedProducts from "./inline-loaders/relatedProducts";
+import vtexSuggestions from "./inline-loaders/suggestions";
 import vtexWorkflowProducts from "./inline-loaders/workflowProducts";
 import { getCategoryTree } from "./loaders/catalog";
 import { VALID_IS_SORTS } from "./utils/intelligentSearch";
@@ -51,16 +51,10 @@ function pdpWithSlugFallback(props: any): Promise<any> {
  * Extract collection name from PLP product data.
  * Products carry cluster info in additionalProperty with name="cluster".
  */
-function extractCollectionName(
-	result: any,
-	collectionId: string,
-): string | null {
+function extractCollectionName(result: any, collectionId: string): string | null {
 	if (!result?.products?.length) return null;
 	for (const product of result.products) {
-		const props =
-			product.additionalProperty ||
-			product.isVariantOf?.additionalProperty ||
-			[];
+		const props = product.additionalProperty || product.isVariantOf?.additionalProperty || [];
 		for (const prop of props) {
 			if (prop.name === "cluster" && prop.propertyID === collectionId) {
 				return prop.value || null;
@@ -147,11 +141,7 @@ export function createVtexCommerceLoaders(
 					const segments = props.__pagePath.split("/").filter(Boolean);
 					const mapValues = mapParam.split(",");
 					const facets: Array<{ key: string; value: string }> = [];
-					for (
-						let i = 0;
-						i < Math.min(segments.length, mapValues.length);
-						i++
-					) {
+					for (let i = 0; i < Math.min(segments.length, mapValues.length); i++) {
 						const key = mapValues[i].trim();
 						const value = decodeURIComponent(segments[i]);
 						if (key && value) facets.push({ key, value });
@@ -175,14 +165,9 @@ export function createVtexCommerceLoaders(
 							__pageUrl: pageUrl.toString(),
 						});
 
-						const clusterFacet = facets.find(
-							(f) => f.key === "productClusterIds",
-						);
+						const clusterFacet = facets.find((f) => f.key === "productClusterIds");
 						if (result && clusterFacet) {
-							const collectionName = extractCollectionName(
-								result,
-								clusterFacet.value,
-							);
+							const collectionName = extractCollectionName(result, clusterFacet.value);
 							if (collectionName) {
 								result.breadcrumb = {
 									"@type": "BreadcrumbList",
@@ -238,13 +223,10 @@ export function createVtexCommerceLoaders(
 		"vtex/loaders/ProductDetailsPage.ts": cachedPDP,
 		"vtex/loaders/ProductListingPage.ts": cachedPLP,
 		// Category tree
-		"vtex/loaders/categories/tree": (props: any) =>
-			getCategoryTree(props?.categoryLevels ?? 3),
+		"vtex/loaders/categories/tree": (props: any) => getCategoryTree(props?.categoryLevels ?? 3),
 		// Commerce passthrough loaders
 		"commerce/loaders/navbar.ts": async (props: any) => props.items ?? [],
-		"commerce/loaders/product/extensions/detailsPage.ts": async (
-			props: any,
-		) => {
+		"commerce/loaders/product/extensions/detailsPage.ts": async (props: any) => {
 			const data = props.data;
 			if (data?.product) return data;
 			return cachedPDP({ __pagePath: props.__pagePath });
@@ -274,12 +256,6 @@ export function createVtexCommerceLoaders(
  *
  * Returns a new instance each call — sites should cache the reference.
  */
-export function createCachedPDPLoader(
-	profile: CacheProfileName = "product",
-): CommerceLoaderFn {
-	return createCachedLoader(
-		"vtex/productDetailsPage",
-		pdpWithSlugFallback,
-		profile,
-	);
+export function createCachedPDPLoader(profile: CacheProfileName = "product"): CommerceLoaderFn {
+	return createCachedLoader("vtex/productDetailsPage", pdpWithSlugFallback, profile);
 }
