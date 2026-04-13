@@ -3,6 +3,7 @@ import SeoComponent, {
 	type SEOSection,
 	type Props as SeoProps,
 } from "../../components/Seo";
+import { getWebsiteConfig } from "../../client";
 import type { WebsiteConfig } from "../../types";
 
 type Props = Pick<
@@ -12,16 +13,26 @@ type Props = Pick<
 
 /**
  * Loader that merges page-level SEO props with app-level defaults.
- * The framework calls this with the WebsiteConfig from the app state.
+ * When called by the framework, `seo` comes from the app state.
+ * When called standalone (e.g. asJson handler), falls back to the
+ * globalThis-backed singleton set by `configureWebsite()`.
  */
 export function loader(props: Props, seo?: WebsiteConfig["seo"]) {
+	const resolvedSeo = seo ?? (() => {
+		try {
+			return getWebsiteConfig().seo;
+		} catch {
+			return undefined;
+		}
+	})();
+
 	const {
 		titleTemplate = "",
 		descriptionTemplate = "",
 		title: appTitle = "",
 		description: appDescription = "",
 		...seoSiteProps
-	} = seo ?? {};
+	} = resolvedSeo ?? {};
 
 	const { title: _title, description: _description, ...seoProps } = props;
 
