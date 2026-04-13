@@ -1,20 +1,21 @@
 /**
  * Website app singleton configuration.
  *
- * Follows the same pattern as vtex/client.ts and resend/client.ts.
+ * Uses globalThis to survive Vite module duplication (optimized deps
+ * vs raw source imports can create separate module instances).
  */
 
 import type { WebsiteConfig } from "./types";
 
-let _config: WebsiteConfig | null = null;
+const G = globalThis as unknown as { __decoWebsiteConfig?: WebsiteConfig };
 
 export function configureWebsite(config: WebsiteConfig): void {
-	_config = config;
+	G.__decoWebsiteConfig = config;
 }
 
 export function getWebsiteConfig(): WebsiteConfig {
-	if (!_config) {
+	if (!G.__decoWebsiteConfig) {
 		throw new Error("Website app not configured. Call configureWebsite() first.");
 	}
-	return _config;
+	return G.__decoWebsiteConfig;
 }

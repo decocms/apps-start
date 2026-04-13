@@ -58,7 +58,9 @@
     "./website/matchers/*": "./website/matchers/*.ts",
     "./website/flags/*": "./website/flags/*.ts",
     "./website/flags/multivariate/*": "./website/flags/multivariate/*.ts",
-    "./website/utils/*": "./website/utils/*.ts"
+    "./website/utils/*": "./website/utils/*.ts",
+    "./website/sections/*": "./website/sections/*.tsx",
+    "./website/sections/Seo/*": "./website/sections/Seo/*.tsx"
   },
   "scripts": {
     "generate:manifests": "tsx scripts/generate-manifests.ts",
