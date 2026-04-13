@@ -39,7 +39,8 @@
 			"vtex/**",
 			"resend/**",
 			"website/**",
-			"vitest.config.ts"
+			"vitest.config.ts",
+			"registry.ts"
 		]
 	}
 }
