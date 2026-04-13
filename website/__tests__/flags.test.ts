@@ -76,7 +76,7 @@ describe("Everyone", () => {
 		expect(result.true).toEqual(routes);
 		expect(result.false).toEqual([]);
 		// The matcher should be MatchAlways which returns true
-		expect(result.matcher()).toBe(true);
+		expect(result.matcher({} as any)).toBe(true);
 	});
 
 	it("works with no routes", () => {
