@@ -1,9 +1,9 @@
+import { getWebsiteConfig } from "../../client";
 import SeoComponent, {
 	renderTemplateString,
 	type SEOSection,
 	type Props as SeoProps,
 } from "../../components/Seo";
-import { getWebsiteConfig } from "../../client";
 import type { WebsiteConfig } from "../../types";
 
 type Props = Pick<
@@ -18,13 +18,15 @@ type Props = Pick<
  * globalThis-backed singleton set by `configureWebsite()`.
  */
 export function loader(props: Props, seo?: WebsiteConfig["seo"]) {
-	const resolvedSeo = seo ?? (() => {
-		try {
-			return getWebsiteConfig().seo;
-		} catch {
-			return undefined;
-		}
-	})();
+	const resolvedSeo =
+		seo ??
+		(() => {
+			try {
+				return getWebsiteConfig().seo;
+			} catch {
+				return undefined;
+			}
+		})();
 
 	const {
 		titleTemplate = "",
