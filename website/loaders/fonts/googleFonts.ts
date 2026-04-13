@@ -35,7 +35,7 @@ const getFontVariations = (variations: FontVariation[]) => {
 				if (!a.italic) return -1;
 			}
 
-			return Number.parseInt(a.weight) - Number.parseInt(b.weight);
+			return Number.parseInt(a.weight, 10) - Number.parseInt(b.weight, 10);
 		})
 		.filter(
 			(item, index, self) =>

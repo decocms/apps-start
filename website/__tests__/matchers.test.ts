@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MatchContext } from "../types";
 import MatchAlways from "../matchers/always";
-import MatchNever from "../matchers/never";
 import MatchCookie from "../matchers/cookie";
 import MatchCron from "../matchers/cron";
 import MatchDate from "../matchers/date";
@@ -11,17 +9,21 @@ import MatchHost from "../matchers/host";
 import MatchLocation from "../matchers/location";
 import MatchMulti from "../matchers/multi";
 import NegateMatcher from "../matchers/negate";
+import MatchNever from "../matchers/never";
 import MatchPathname from "../matchers/pathname";
 import MatchQueryString from "../matchers/queryString";
 import MatchRandom from "../matchers/random";
 import MatchSite from "../matchers/site";
 import MatchUserAgent from "../matchers/userAgent";
+import type { MatchContext } from "../types";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const makeCtx = (overrides: Partial<MatchContext> & { url?: string; headers?: Record<string, string> } = {}): MatchContext => {
+const makeCtx = (
+	overrides: Partial<MatchContext> & { url?: string; headers?: Record<string, string> } = {},
+): MatchContext => {
 	const { url = "https://example.com/", headers = {}, ...rest } = overrides;
 	return {
 		request: new Request(url, { headers }),
@@ -301,17 +303,23 @@ describe("MatchPathname", () => {
 
 	it("matches template pattern (Template)", () => {
 		const ctx = makeCtx({ url: "https://example.com/product/my-shoe/p" });
-		expect(MatchPathname({ case: { type: "Template", pathname: "/product/:slug/p" } }, ctx)).toBe(true);
+		expect(MatchPathname({ case: { type: "Template", pathname: "/product/:slug/p" } }, ctx)).toBe(
+			true,
+		);
 	});
 
 	it("does not match template for wrong structure", () => {
 		const ctx = makeCtx({ url: "https://example.com/product/my-shoe/extra/p" });
-		expect(MatchPathname({ case: { type: "Template", pathname: "/product/:slug/p" } }, ctx)).toBe(false);
+		expect(MatchPathname({ case: { type: "Template", pathname: "/product/:slug/p" } }, ctx)).toBe(
+			false,
+		);
 	});
 
 	it("negates the match when negate is true", () => {
 		const ctx = makeCtx({ url: "https://example.com/about" });
-		expect(MatchPathname({ case: { type: "Equals", pathname: "/about", negate: true } }, ctx)).toBe(false);
+		expect(MatchPathname({ case: { type: "Equals", pathname: "/about", negate: true } }, ctx)).toBe(
+			false,
+		);
 	});
 
 	it("returns false when pathname is empty", () => {
@@ -328,14 +336,20 @@ describe("MatchQueryString", () => {
 	it("matches Equals condition", () => {
 		const ctx = makeCtx({ url: "https://example.com/?color=red" });
 		expect(
-			MatchQueryString({ conditions: [{ param: "color", case: { type: "Equals", value: "red" } }] }, ctx),
+			MatchQueryString(
+				{ conditions: [{ param: "color", case: { type: "Equals", value: "red" } }] },
+				ctx,
+			),
 		).toBe(true);
 	});
 
 	it("does not match Equals with different value", () => {
 		const ctx = makeCtx({ url: "https://example.com/?color=blue" });
 		expect(
-			MatchQueryString({ conditions: [{ param: "color", case: { type: "Equals", value: "red" } }] }, ctx),
+			MatchQueryString(
+				{ conditions: [{ param: "color", case: { type: "Equals", value: "red" } }] },
+				ctx,
+			),
 		).toBe(false);
 	});
 
@@ -356,28 +370,37 @@ describe("MatchQueryString", () => {
 	it("matches Includes condition", () => {
 		const ctx = makeCtx({ url: "https://example.com/?name=typescript" });
 		expect(
-			MatchQueryString({ conditions: [{ param: "name", case: { type: "Includes", value: "script" } }] }, ctx),
+			MatchQueryString(
+				{ conditions: [{ param: "name", case: { type: "Includes", value: "script" } }] },
+				ctx,
+			),
 		).toBe(true);
 	});
 
 	it("all conditions must match (AND)", () => {
 		const ctx = makeCtx({ url: "https://example.com/?a=1&b=2" });
 		expect(
-			MatchQueryString({
-				conditions: [
-					{ param: "a", case: { type: "Equals", value: "1" } },
-					{ param: "b", case: { type: "Equals", value: "2" } },
-				],
-			}, ctx),
+			MatchQueryString(
+				{
+					conditions: [
+						{ param: "a", case: { type: "Equals", value: "1" } },
+						{ param: "b", case: { type: "Equals", value: "2" } },
+					],
+				},
+				ctx,
+			),
 		).toBe(true);
 
 		expect(
-			MatchQueryString({
-				conditions: [
-					{ param: "a", case: { type: "Equals", value: "1" } },
-					{ param: "b", case: { type: "Equals", value: "3" } },
-				],
-			}, ctx),
+			MatchQueryString(
+				{
+					conditions: [
+						{ param: "a", case: { type: "Equals", value: "1" } },
+						{ param: "b", case: { type: "Equals", value: "3" } },
+					],
+				},
+				ctx,
+			),
 		).toBe(false);
 	});
 });

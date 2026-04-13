@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { FlagObj, Matcher } from "../types";
-import Flag from "../flags/flag";
 import Audience from "../flags/audience";
 import Everyone from "../flags/everyone";
+import Flag from "../flags/flag";
+import type { Matcher } from "../types";
 import multivariate from "../utils/multivariate";
 
 // ---------------------------------------------------------------------------
@@ -106,10 +106,7 @@ describe("multivariate", () => {
 
 	it("supports variants with matchers", () => {
 		const matcher: Matcher = () => true;
-		const variants = [
-			{ value: "control", matcher },
-			{ value: "default" },
-		];
+		const variants = [{ value: "control", matcher }, { value: "default" }];
 
 		const result = multivariate({ variants });
 

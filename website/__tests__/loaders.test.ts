@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import localFonts from "../loaders/fonts/local";
-import googleFonts from "../loaders/fonts/googleFonts";
-import SecretLoader from "../loaders/secret";
 import EnvironmentLoader from "../loaders/environment";
+import googleFonts from "../loaders/fonts/googleFonts";
+import localFonts from "../loaders/fonts/local";
+import SecretLoader from "../loaders/secret";
 
 // ---------------------------------------------------------------------------
 // loaders/fonts/local.ts
@@ -38,7 +38,9 @@ describe("localFonts", () => {
 			fonts: [
 				{
 					family: "CustomFont",
-					variations: [{ weight: "700", italic: true, src: "https://cdn.example.com/font-bold-italic.woff2" }],
+					variations: [
+						{ weight: "700", italic: true, src: "https://cdn.example.com/font-bold-italic.woff2" },
+					],
 				},
 			],
 		});

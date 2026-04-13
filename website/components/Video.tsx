@@ -4,7 +4,7 @@
  */
 import { forwardRef } from "react";
 
-import { getOptimizedMediaUrl, getSrcSet } from "../../commerce/components/Image";
+import { getOptimizedMediaUrl } from "../../commerce/components/Image";
 
 export interface Props {
 	src: string;

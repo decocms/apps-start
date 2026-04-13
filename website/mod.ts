@@ -27,6 +27,7 @@ export interface WebsiteState {
  * Always returns an AppDefinition (no required fields).
  */
 export async function configure(
+	// biome-ignore lint/suspicious/noExplicitAny: block data comes from CMS with no fixed schema
 	block: any,
 	_resolveSecret: ResolveSecretFn,
 ): Promise<AppDefinition<WebsiteState>> {

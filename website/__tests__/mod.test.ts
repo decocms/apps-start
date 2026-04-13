@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { configure } from "../mod";
 import { getWebsiteConfig } from "../client";
+import { configure } from "../mod";
 
 describe("configure", () => {
 	const mockResolveSecret = async () => null;

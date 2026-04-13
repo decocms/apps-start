@@ -10,14 +10,6 @@ export interface CronProps {
 	cron: string;
 }
 
-const addMSToDate = (date: Date, ms: number) => {
-	const currentTimeAsMs = date.getTime();
-	const adjustedTimeAsMs = currentTimeAsMs + ms;
-	return new Date(adjustedTimeAsMs);
-};
-
-const ONE_MINUTE_MS = 60_000;
-
 function nowWithMinutePrecision() {
 	const date = new Date();
 	date.setSeconds(0);
