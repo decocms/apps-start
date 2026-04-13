@@ -92,7 +92,7 @@ export function createVtexCommerceLoaders(
 		static: options?.cacheProfiles?.static ?? "static",
 	};
 
-	const cachedProductList = createCachedLoader(
+	const _cachedProductList = createCachedLoader(
 		"vtex/productList",
 		vtexProductList,
 		profiles.listing,

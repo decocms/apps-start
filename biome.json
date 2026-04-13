@@ -33,6 +33,13 @@
 		}
 	},
 	"files": {
-		"includes": ["commerce/**", "shopify/**", "vtex/**", "resend/**", "vitest.config.ts"]
+		"includes": [
+			"commerce/**",
+			"shopify/**",
+			"vtex/**",
+			"resend/**",
+			"website/**",
+			"vitest.config.ts"
+		]
 	}
 }

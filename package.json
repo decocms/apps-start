@@ -47,7 +47,18 @@
     "./resend/mod": "./resend/mod.ts",
     "./resend/client": "./resend/client.ts",
     "./resend/types": "./resend/types.ts",
-    "./resend/actions/send": "./resend/actions/send.ts"
+    "./resend/actions/send": "./resend/actions/send.ts",
+    "./website": "./website/index.ts",
+    "./website/mod": "./website/mod.ts",
+    "./website/client": "./website/client.ts",
+    "./website/types": "./website/types.ts",
+    "./website/components/*": "./website/components/*.tsx",
+    "./website/loaders/*": "./website/loaders/*.ts",
+    "./website/loaders/fonts/*": "./website/loaders/fonts/*.ts",
+    "./website/matchers/*": "./website/matchers/*.ts",
+    "./website/flags/*": "./website/flags/*.ts",
+    "./website/flags/multivariate/*": "./website/flags/multivariate/*.ts",
+    "./website/utils/*": "./website/utils/*.ts"
   },
   "scripts": {
     "generate:manifests": "tsx scripts/generate-manifests.ts",
@@ -80,6 +91,7 @@
     "shopify/",
     "vtex/",
     "resend/",
+    "website/",
     "!**/__tests__/",
     "!scripts/"
   ],

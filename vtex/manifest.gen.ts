@@ -13,6 +13,7 @@ import * as actions_session from "./actions/session";
 import * as actions_trigger from "./actions/trigger";
 import * as actions_wishlist from "./actions/wishlist";
 import * as loaders_address from "./loaders/address";
+import * as loaders_autocomplete from "./loaders/autocomplete";
 import * as loaders_brands from "./loaders/brands";
 import * as loaders_cart from "./loaders/cart";
 import * as loaders_catalog from "./loaders/catalog";
@@ -36,6 +37,7 @@ const manifest = {
 	name: "vtex",
 	loaders: {
 		"vtex/loaders/address": loaders_address,
+		"vtex/loaders/autocomplete": loaders_autocomplete,
 		"vtex/loaders/brands": loaders_brands,
 		"vtex/loaders/cart": loaders_cart,
 		"vtex/loaders/catalog": loaders_catalog,

@@ -21,6 +21,7 @@ const APPS: AppConfig[] = [
 	{ name: "vtex", dir: "vtex" },
 	{ name: "shopify", dir: "shopify" },
 	{ name: "resend", dir: "resend" },
+	{ name: "website", dir: "website" },
 ];
 
 const CATEGORIES = ["loaders", "actions", "sections"] as const;

@@ -242,7 +242,7 @@ export async function vtexCachedFetch<T>(
 export async function vtexFetchWithCookies<T>(path: string, init?: RequestInit): Promise<T> {
 	// Auto-inject request cookies from RequestContext
 	const existingHeaders = init?.headers as Record<string, string> | undefined;
-	if (!existingHeaders?.["cookie"]) {
+	if (!existingHeaders?.cookie) {
 		const ctx = RequestContext.current;
 		const cookies = ctx?.request.headers.get("cookie");
 		if (cookies) {
