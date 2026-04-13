@@ -169,6 +169,13 @@ describe("SecretLoader", () => {
 		expect(result.get()).toBe("encrypted-value");
 		process.env.NODE_ENV = original;
 	});
+
+	it("reads empty-string env var correctly", () => {
+		process.env.EMPTY_SECRET = "";
+		const result = SecretLoader({ encrypted: "fallback", name: "EMPTY_SECRET" });
+		expect(result.get()).toBe("");
+		delete process.env.EMPTY_SECRET;
+	});
 });
 
 // ---------------------------------------------------------------------------

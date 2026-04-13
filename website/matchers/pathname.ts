@@ -40,8 +40,11 @@ const operations: Record<Props["case"]["type"], (pathname: string, condition: st
 		Equals: (pathname, value) => pathname === value,
 		Includes: (pathname, value) => pathname.includes(value),
 		Template: (pathname, template) => {
-			const pattern = template.replace(/:[^/]+/g, "([^/]+)");
-			const regex = new RegExp(`^${pattern}$`);
+			const escaped = template
+				.replace(/:[^/]+/g, "\0")
+				.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+				.replace(/\0/g, "([^/]+)");
+			const regex = new RegExp(`^${escaped}$`);
 			return regex.test(pathname);
 		},
 	});

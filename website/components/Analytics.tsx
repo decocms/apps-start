@@ -6,8 +6,12 @@ declare global {
 }
 
 export const getGTMIdFromSrc = (src: string | undefined) => {
-	const trackingId = src ? new URL(src).searchParams.get("id") : undefined;
-	return trackingId;
+	if (!src) return undefined;
+	try {
+		return new URL(src).searchParams.get("id") ?? undefined;
+	} catch {
+		return undefined;
+	}
 };
 
 interface TagManagerProps {
@@ -48,9 +52,10 @@ j=d.createElement(s);j.async=true;j.src=i;f.parentNode.insertBefore(j,f);
 }
 
 export function GTAG({ trackingId }: Pick<TagManagerProps, "trackingId">) {
+	const safeId = trackingId.replace(/[^a-zA-Z0-9_-]/g, "");
 	return (
 		<>
-			<script async src={`https://www.googletagmanager.com/gtag/js?id=${trackingId}`} />
+			<script async src={`https://www.googletagmanager.com/gtag/js?id=${safeId}`} />
 			<script
 				dangerouslySetInnerHTML={{
 					__html: `window.dataLayer = window.dataLayer || [];
@@ -58,7 +63,7 @@ function gtag() {
   dataLayer.push(arguments);
 }
 gtag("js", new Date());
-gtag("config", '${trackingId}');`,
+gtag("config", '${safeId}');`,
 				}}
 			/>
 		</>

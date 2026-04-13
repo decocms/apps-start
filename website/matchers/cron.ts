@@ -85,6 +85,9 @@ function matchesCron(cronExpr: string, date: Date): boolean {
 		if (isDow) {
 			const upper = s.toUpperCase();
 			if (upper in DAY_NAMES) return DAY_NAMES[upper];
+			// Cron allows 7 as alias for Sunday (0)
+			const n = Number.parseInt(s, 10);
+			return n === 7 ? 0 : n;
 		}
 		return Number.parseInt(s, 10);
 	}

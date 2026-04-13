@@ -92,6 +92,14 @@ describe("MatchCron", () => {
 		// minute 99 doesn't exist
 		expect(MatchCron({ cron: "99 99 30 2 *" })).toBe(false);
 	});
+
+	it("treats weekday 7 as Sunday (alias for 0)", () => {
+		const now = new Date();
+		const isSunday = now.getDay() === 0;
+		// Weekday 7 is a common cron alias for Sunday
+		const result = MatchCron({ cron: `* * * * 7` });
+		expect(result).toBe(isSunday);
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -325,6 +333,18 @@ describe("MatchPathname", () => {
 	it("returns false when pathname is empty", () => {
 		const ctx = makeCtx({ url: "https://example.com/about" });
 		expect(MatchPathname({ case: { type: "Equals" } }, ctx)).toBe(false);
+	});
+
+	it("escapes regex metacharacters in template (dots)", () => {
+		const ctx = makeCtx({ url: "https://example.com/api.v2/users" });
+		expect(MatchPathname({ case: { type: "Template", pathname: "/api.v2/:resource" } }, ctx)).toBe(
+			true,
+		);
+		// Dot should NOT match arbitrary character
+		const ctx2 = makeCtx({ url: "https://example.com/apiXv2/users" });
+		expect(MatchPathname({ case: { type: "Template", pathname: "/api.v2/:resource" } }, ctx2)).toBe(
+			false,
+		);
 	});
 });
 

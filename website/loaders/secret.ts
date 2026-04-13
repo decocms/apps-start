@@ -29,7 +29,7 @@ export interface Props {
  */
 const getSecret = (props: Props): string | null => {
 	const name = props?.name;
-	if (name && process.env[name]) {
+	if (name && process.env[name] !== undefined) {
 		return process.env[name]!;
 	}
 	const encrypted = props?.encrypted;
