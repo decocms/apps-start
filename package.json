@@ -95,6 +95,7 @@
     "vtex/",
     "resend/",
     "website/",
+    "registry.ts",
     "!**/__tests__/",
     "!scripts/"
   ],
