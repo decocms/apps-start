@@ -28,9 +28,7 @@ export type LabelledFuzzy = "automatic" | "disabled" | "enabled";
  * @example
  *   intelligentSearch({ fuzzy: mapLabelledFuzzyToFuzzy(props.fuzzy) })
  */
-export const mapLabelledFuzzyToFuzzy = (
-	label?: LabelledFuzzy,
-): "0" | "1" | "auto" | undefined => {
+export const mapLabelledFuzzyToFuzzy = (label?: LabelledFuzzy): "0" | "1" | "auto" | undefined => {
 	switch (label) {
 		case "automatic":
 			return "auto";

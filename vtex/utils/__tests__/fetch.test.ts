@@ -23,29 +23,21 @@ describe("fetchSafe", () => {
 	});
 
 	it("returns the response on 2xx", async () => {
-		(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-			mockResponse({ ok: true }),
-		);
+		(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({ ok: true }));
 		const res = await fetchSafe("https://example.com/api");
 		expect(res.status).toBe(200);
 	});
 
 	it("throws HttpError on non-2xx", async () => {
-		(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-			mockResponse({}, 500),
-		);
-		await expect(fetchSafe("https://example.com/api")).rejects.toBeInstanceOf(
-			HttpError,
-		);
+		(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse({}, 500));
+		await expect(fetchSafe("https://example.com/api")).rejects.toBeInstanceOf(HttpError);
 	});
 
 	it("sanitizes utm_* and map params (drops <, > and non-Latin1)", async () => {
 		const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
 		fetchMock.mockResolvedValue(mockResponse({}));
 
-		await fetchSafe(
-			"https://example.com/api?utm_source=<script>café</script>&keep=ok",
-		);
+		await fetchSafe("https://example.com/api?utm_source=<script>café</script>&keep=ok");
 
 		const callArg = fetchMock.mock.calls[0]?.[0] as string;
 		expect(callArg).toContain("utm_source=script");

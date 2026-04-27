@@ -63,9 +63,7 @@ const sanitizeUrl = (input: string | URL | Request): string | Request | URL => {
 	for (const key of QS_TO_REMOVE_PLUS) {
 		if (!url.searchParams.has(key)) continue;
 		const values = url.searchParams.getAll(key);
-		const cleaned = values
-			.map((v) => removeScriptChars(removeNonLatin1Chars(v)))
-			.filter(Boolean);
+		const cleaned = values.map((v) => removeScriptChars(removeNonLatin1Chars(v))).filter(Boolean);
 		url.searchParams.delete(key);
 		for (const v of cleaned) url.searchParams.append(key, v);
 	}
