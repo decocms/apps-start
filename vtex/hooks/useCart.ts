@@ -1,36 +1,43 @@
 /**
  * Client-side cart hook for VTEX.
  *
- * Uses TanStack Query for SWR, optimistic updates, and cache
- * invalidation. Wraps the VTEX orderForm API.
+ * Uses TanStack Query for SWR, optimistic updates, and cache invalidation.
+ * Returns BOTH the raw `OrderForm` (back-compat for existing consumers) AND
+ * the canonical `Minicart` shape (preferred for new code).
  *
- * @example
+ * @example Reading the cart
  * ```tsx
  * import { useCart } from "@decocms/apps/vtex/hooks/useCart";
  *
  * function CartButton() {
- *   const { cart, addItems, isLoading } = useCart();
- *   const count = cart?.items?.length ?? 0;
+ *   const { minicart, isLoading } = useCart({ freeShippingTarget: 200 });
+ *   const count = minicart?.storefront.items.length ?? 0;
  *   return <button disabled={isLoading}>{count} items</button>;
  * }
+ * ```
+ *
+ * @example Mutations
+ * ```tsx
+ * const { addItems, removeItem, addCoupons } = useCart();
+ * addItems.mutate([{ id: "123", seller: "1", quantity: 1 }]);
  * ```
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import type { Minicart } from "../../commerce/types/commerce";
+import { vtexOrderFormToMinicart } from "../utils/minicart";
+import type { OrderForm, OrderFormItem } from "../types";
 
-export interface CartItem {
-	id: string;
-	quantity: number;
-	seller: string;
-}
+/** Re-exported from `vtex/types` for back-compat. New code should import directly. */
+export type { OrderForm } from "../types";
 
-export interface OrderForm {
-	orderFormId: string;
-	items: CartItem[];
-	totalizers: Array<{ id: string; name: string; value: number }>;
-	value: number;
-	[key: string]: unknown;
-}
+/**
+ * Slim cart-item shape used by mutations.
+ * @deprecated Use `OrderFormItem` from `@decocms/apps/vtex/types` for full fidelity,
+ *   or `MinicartItem` from `@decocms/apps/commerce/types` for the canonical contract.
+ */
+export type CartItem = Pick<OrderFormItem, "id" | "quantity" | "seller">;
 
 const CART_QUERY_KEY = ["vtex", "cart"] as const;
 
@@ -136,6 +143,14 @@ export interface UseCartOptions {
 	enabled?: boolean;
 	/** Stale time in ms. @default 30000 */
 	staleTime?: number;
+	/** Free-shipping threshold in major units, surfaced on `minicart.storefront`. @default 0 */
+	freeShippingTarget?: number;
+	/** Override the OrderForm's locale (BCP-47, e.g. `"pt-BR"`). */
+	locale?: string;
+	/** Where the checkout button sends the user. @default "/checkout" */
+	checkoutHref?: string;
+	/** Whether to surface the coupon input. @default true */
+	enableCoupon?: boolean;
 }
 
 export function useCart(options?: UseCartOptions) {
@@ -147,6 +162,24 @@ export function useCart(options?: UseCartOptions) {
 		staleTime: options?.staleTime ?? 30_000,
 		enabled: options?.enabled !== false,
 	});
+
+	const cart = query.data ?? null;
+
+	const minicart: Minicart<OrderForm> | null = useMemo(() => {
+		if (!cart) return null;
+		return vtexOrderFormToMinicart(cart, {
+			freeShippingTarget: options?.freeShippingTarget,
+			locale: options?.locale,
+			checkoutHref: options?.checkoutHref,
+			enableCoupon: options?.enableCoupon,
+		});
+	}, [
+		cart,
+		options?.freeShippingTarget,
+		options?.locale,
+		options?.checkoutHref,
+		options?.enableCoupon,
+	]);
 
 	const addItems = useMutation({
 		mutationFn: (items: Array<{ id: string; quantity: number; seller: string }>) => {
@@ -193,7 +226,10 @@ export function useCart(options?: UseCartOptions) {
 	});
 
 	return {
-		cart: query.data ?? null,
+		/** Raw VTEX OrderForm — escape hatch for platform-specific reads. */
+		cart,
+		/** Canonical platform-agnostic minicart. Prefer this in new UI code. */
+		minicart,
 		isLoading: query.isLoading,
 		isError: query.isError,
 		error: query.error,
@@ -202,6 +238,6 @@ export function useCart(options?: UseCartOptions) {
 		addCoupons,
 		updateQuantity,
 		removeItem,
-		itemCount: query.data?.items?.length ?? 0,
+		itemCount: cart?.items?.length ?? 0,
 	};
 }

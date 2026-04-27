@@ -1096,3 +1096,133 @@ export type AnalyticsEvent =
 	| ViewItemListEvent
 	| ViewPromotionEvent
 	| DecoEvent;
+
+// ---------------------------------------------------------------------------
+// Minicart — platform-agnostic storefront cart contract
+// ---------------------------------------------------------------------------
+//
+// Reconciled superset of presentational shapes used across Deco storefronts.
+// Platform-specific extras (VTEX `attachments`, `seller`, etc.) live as
+// **optional** fields so future platform mappers (Shopify, VNDA, Wake, Linx,
+// Nuvemshop, ...) can populate-or-skip without breaking the contract.
+//
+// Pricing is in **major units** (e.g. `19.90` for R$19.90), not cents. This
+// matches `Intl.NumberFormat` (used by `commerce/sdk/formatPrice`) and lets
+// platform transforms convert from native units once at the boundary.
+//
+// Currently shipped with: VTEX (`vtex/utils/minicart.ts`, `vtex/inline-loaders/minicart.ts`).
+
+/** Free-form attachment payload. Platforms attach customizations or services. */
+export interface MinicartItemAttachment {
+	name: string;
+	content: unknown;
+}
+
+/** Description of an attachment slot offered by the platform for an item. */
+export interface MinicartItemAttachmentOffering {
+	name: string;
+	required: boolean;
+	// biome-ignore lint/suspicious/noExplicitAny: schema is platform-specific
+	schema?: any;
+}
+
+/**
+ * A single line in the minicart.
+ *
+ * Mirrors the fields of `AnalyticsItem` (GA4 contract) so a `MinicartItem` can
+ * be forwarded directly to `add_to_cart` / `view_cart` events. We deliberately
+ * make both `item_id` and `item_name` optional — `AnalyticsItem` enforces
+ * "one or the other" via a discriminated union, which forces consumers to
+ * narrow on every read. Storefront platforms typically populate both, and
+ * sites cast at the GA4 boundary.
+ *
+ * Required:
+ * - `image` — product image URL (storefront-hosted, https).
+ * - `listPrice` — original list price per unit (compare-at), in major units.
+ * - `price` — current selling price per unit, in major units.
+ * - `quantity` — line quantity.
+ *
+ * Optional (platform-specific):
+ * - `seller` — vendor / seller identifier (VTEX, Wake).
+ * - `attachments` — applied customizations (VTEX).
+ * - `attachmentOfferings` — offered customization slots (VTEX).
+ */
+export interface MinicartItem {
+	// --- GA4 analytics fields (compatible with `AnalyticsItem`) ---
+	item_id?: string;
+	item_name?: string;
+	item_brand?: string;
+	item_category?: string;
+	item_category2?: string;
+	item_category3?: string;
+	item_category4?: string;
+	item_category5?: string;
+	item_group_id?: string;
+	item_list_id?: string;
+	item_list_name?: string;
+	item_url?: string;
+	item_variant?: string;
+	affiliation?: string;
+	coupon?: string;
+	discount?: number;
+	index?: number;
+	location_id?: string;
+
+	// --- Cart-required fields ---
+	/** Line quantity. */
+	quantity: number;
+	/** Product image URL (https). */
+	image: string;
+	/** Original list price per unit, in major units. */
+	listPrice: number;
+	/** Selling price per unit, in major units. */
+	price: number;
+
+	// --- Platform-specific (optional) ---
+	/** Vendor / seller identifier (VTEX, Wake). Optional for platforms without sellers. */
+	seller?: string;
+	/** Applied customizations on this line (VTEX attachments). */
+	attachments?: MinicartItemAttachment[];
+	/** Customization slots offered for this line (VTEX). */
+	attachmentOfferings?: MinicartItemAttachmentOffering[];
+}
+
+/**
+ * Storefront-facing minicart. Two views:
+ * - `original` — raw platform cart (VTEX OrderForm, Shopify Cart, ...). Sites use
+ *   this as an escape hatch for platform-specific reads (GTM, pixels, custom
+ *   integrations). Generic param `TRaw` lets callers narrow the type.
+ * - `storefront` — normalized contract every UI consumes.
+ *
+ * All monetary values are in **major units** (decimal), not cents.
+ */
+export interface Minicart<TRaw = unknown> {
+	/** Raw platform cart blob — escape hatch for site-specific reads. */
+	original: TRaw;
+	/** Normalized storefront contract. */
+	storefront: {
+		items: MinicartItem[];
+		/** Total payable, in major units. */
+		total: number;
+		/** Sum of line items before discounts/shipping, in major units. */
+		subtotal: number;
+		/** Total discount applied, in major units. Always non-negative. */
+		discounts: number;
+		/** Shipping cost, in major units. Undefined when not yet calculated. */
+		shipping?: number;
+		/** Applied coupon code, if any. */
+		coupon?: string;
+		/** BCP-47 locale (e.g. `"pt-BR"`). Drives `formatPrice`. */
+		locale: string;
+		/** ISO-4217 currency code (e.g. `"BRL"`). */
+		currency: string;
+		/** Whether the UI should expose the coupon input. */
+		enableCoupon?: boolean;
+		/** Free-shipping threshold in major units. Drives the progress bar. `0` disables it. */
+		freeShippingTarget: number;
+		/** Where the checkout button sends the user. */
+		checkoutHref: string;
+		/** Postal code used for shipping simulation. */
+		postalCode?: string;
+	};
+}
