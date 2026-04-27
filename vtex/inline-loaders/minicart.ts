@@ -40,9 +40,7 @@ function readOrderFormIdFromRequest(): string | undefined {
 	const ctx = RequestContext.current;
 	const cookieHeader = ctx?.request.headers.get("cookie");
 	if (!cookieHeader) return undefined;
-	const match = cookieHeader.match(
-		new RegExp(`(?:^|;\\s*)${ORDER_FORM_COOKIE}=([^;]+)`),
-	);
+	const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${ORDER_FORM_COOKIE}=([^;]+)`));
 	return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 

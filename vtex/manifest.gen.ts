@@ -2,6 +2,7 @@
 // This file is checked into source control and updated via: npm run generate:manifests
 
 import * as actions_address from "./actions/address";
+import * as actions_analytics_sendEvent from "./actions/analytics/sendEvent";
 import * as actions_auth from "./actions/auth";
 import * as actions_checkout from "./actions/checkout";
 import * as actions_masterData from "./actions/masterData";
@@ -59,6 +60,7 @@ const manifest = {
 	},
 	actions: {
 		"vtex/actions/address": actions_address,
+		"vtex/actions/analytics/sendEvent": actions_analytics_sendEvent,
 		"vtex/actions/auth": actions_auth,
 		"vtex/actions/checkout": actions_checkout,
 		"vtex/actions/masterData": actions_masterData,

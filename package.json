@@ -29,6 +29,7 @@
     "./vtex/types": "./vtex/types.ts",
     "./vtex/actions": "./vtex/actions/index.ts",
     "./vtex/actions/*": "./vtex/actions/*.ts",
+    "./vtex/actions/analytics/*": "./vtex/actions/analytics/*.ts",
     "./vtex/loaders": "./vtex/loaders/index.ts",
     "./vtex/loaders/*": "./vtex/loaders/*.ts",
     "./vtex/utils": "./vtex/utils/index.ts",

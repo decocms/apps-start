@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { vtexOrderFormToMinicart } from "../minicart";
 import type { OrderForm, OrderFormItem, Totalizer } from "../../types";
+import { vtexOrderFormToMinicart } from "../minicart";
 
 const baseStorePreferences = {
 	countryCode: "BRA",

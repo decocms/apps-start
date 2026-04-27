@@ -305,7 +305,7 @@ const getTerm = (path: string, map: string) => {
 	return mapSegments.includes("priceFrom") ? formatPriceFromPathToFacet(term) : term;
 };
 
-const getFirstItemAvailable = (item: LegacyItem) =>
+export const getFirstItemAvailable = (item: LegacyItem) =>
 	!!item?.sellers?.find((s) => s.commertialOffer?.AvailableQuantity > 0);
 
 const getTermFallback = (url: URL, isPage: boolean, hasFilters: boolean) => {
