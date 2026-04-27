@@ -18,6 +18,13 @@ jobs:
 
       - run: npm test
 
-      - run: npm run lint
+      - name: Lint (verbose)
+        run: |
+          echo "=== file count probe ==="
+          find commerce shopify vtex resend website -type f \( -name "*.ts" -o -name "*.tsx" \) | wc -l
+          echo "=== untracked/modified probe ==="
+          git status -s
+          echo "=== biome ==="
+          npx biome check --max-diagnostics=300 .
 
       - run: npm run typecheck
