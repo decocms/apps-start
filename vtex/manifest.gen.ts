@@ -6,16 +6,11 @@ import * as loaders_brands from "./loaders/brands";
 import * as loaders_cart from "./loaders/cart";
 import * as loaders_catalog from "./loaders/catalog";
 import * as loaders_collections from "./loaders/collections";
-import * as loaders_intelligentSearch_productList from "./loaders/intelligentSearch/productList";
-import * as loaders_intelligentSearch_productListingPage from "./loaders/intelligentSearch/productListingPage";
 import * as loaders_legacy from "./loaders/legacy";
-import * as loaders_legacy_productListingPage from "./loaders/legacy/productListingPage";
 import * as loaders_logistics from "./loaders/logistics";
 import * as loaders_navbar from "./loaders/navbar";
 import * as loaders_orders from "./loaders/orders";
 import * as loaders_pageType from "./loaders/pageType";
-import * as loaders_paths_PDPDefaultPath from "./loaders/paths/PDPDefaultPath";
-import * as loaders_paths_PLPDefaultPath from "./loaders/paths/PLPDefaultPath";
 import * as loaders_payment from "./loaders/payment";
 import * as loaders_profile from "./loaders/profile";
 import * as loaders_promotion from "./loaders/promotion";
@@ -47,16 +42,11 @@ const manifest = {
 		"vtex/loaders/cart": loaders_cart,
 		"vtex/loaders/catalog": loaders_catalog,
 		"vtex/loaders/collections": loaders_collections,
-		"vtex/loaders/intelligentSearch/productList": loaders_intelligentSearch_productList,
-		"vtex/loaders/intelligentSearch/productListingPage": loaders_intelligentSearch_productListingPage,
 		"vtex/loaders/legacy": loaders_legacy,
-		"vtex/loaders/legacy/productListingPage": loaders_legacy_productListingPage,
 		"vtex/loaders/logistics": loaders_logistics,
 		"vtex/loaders/navbar": loaders_navbar,
 		"vtex/loaders/orders": loaders_orders,
 		"vtex/loaders/pageType": loaders_pageType,
-		"vtex/loaders/paths/PDPDefaultPath": loaders_paths_PDPDefaultPath,
-		"vtex/loaders/paths/PLPDefaultPath": loaders_paths_PLPDefaultPath,
 		"vtex/loaders/payment": loaders_payment,
 		"vtex/loaders/profile": loaders_profile,
 		"vtex/loaders/promotion": loaders_promotion,

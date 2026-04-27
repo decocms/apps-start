@@ -1,11 +1,9 @@
 /**
- * VTEX Intelligent Search analytics event — mirrors deco-cx/apps
- * `vtex/actions/analytics/sendEvent.ts` adapted for apps-start.
+ * VTEX Intelligent Search analytics event.
  *
- * The original used `ctx.bag` to retrieve IS cookies and a typed `sp` client.
- * In apps-start, we read the IS cookies directly from the request headers and
- * dispatch via the shared `intelligentSearch()` helper which respects the
- * configured account/environment.
+ * Reads the IS session/anonymous cookies from the incoming request and POSTs
+ * an event to the IS event-api. The configured account is resolved via
+ * {@link getVtexConfig}.
  *
  * @see https://developers.vtex.com/docs/api-reference/intelligent-search-api#post-/event-api/v1/-account-/event
  */
@@ -59,13 +57,7 @@ const readCookie = (cookieHeader: string, name: string): string | undefined => {
  * @title Send Analytics Event
  * @description POST a VTEX Intelligent Search analytics event for the current session.
  */
-const action = async (
-	props: Props,
-	req: Request,
-	// `_ctx` is accepted (and ignored) for signature parity with sites that
-	// pass their own context object as the third argument.
-	_ctx?: unknown,
-): Promise<null> => {
+const action = async (props: Props, req: Request): Promise<null> => {
 	const { account } = getVtexConfig();
 	const cookieHeader = req.headers.get("cookie") ?? "";
 	const session = readCookie(cookieHeader, SESSION_COOKIE);

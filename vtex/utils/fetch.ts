@@ -1,15 +1,18 @@
 /**
- * VTEX fetch utilities — compat layer mirroring deco-cx/apps
- * `vtex/utils/fetchVTEX.ts`.
+ * Generic VTEX fetch helpers.
+ *
+ * These are the canonical primitives for ad-hoc VTEX API calls in apps-start
+ * (custom path-resolution loaders, sitemap loaders, custom analytics, etc.).
+ * For typed catalog/IS/checkout calls prefer the {@link import("../client").vtexFetch}
+ * client which is wired into the configured account.
  *
  * Provides:
- *   - `fetchSafe`  — fetch wrapper that throws on non-2xx via {@link HttpError}
- *   - `fetchAPI`   — same, parsed to JSON
+ *   - {@link fetchSafe} — fetch wrapper that throws {@link HttpError} on non-2xx
+ *   - {@link fetchAPI}  — same, parsed to JSON
  *
  * URLs are sanitized for known XSS-prone query params (utm_*, ft, map) before
- * the request is dispatched. This matches the original behavior so site code
- * that calls `fetchSafe(url)` keeps the same security posture after the
- * Fresh → TanStack Start migration.
+ * dispatch. This mirrors the security posture VTEX storefronts carry across
+ * the platform.
  */
 
 type CachingMode = "stale-while-revalidate";
@@ -60,7 +63,9 @@ const sanitizeUrl = (input: string | URL | Request): string | Request | URL => {
 	for (const key of QS_TO_REMOVE_PLUS) {
 		if (!url.searchParams.has(key)) continue;
 		const values = url.searchParams.getAll(key);
-		const cleaned = values.map((v) => removeScriptChars(removeNonLatin1Chars(v))).filter(Boolean);
+		const cleaned = values
+			.map((v) => removeScriptChars(removeNonLatin1Chars(v)))
+			.filter(Boolean);
 		url.searchParams.delete(key);
 		for (const v of cleaned) url.searchParams.append(key, v);
 	}
@@ -77,8 +82,8 @@ const sanitizeUrl = (input: string | URL | Request): string | Request | URL => {
 };
 
 /**
- * Fetch wrapper that throws {@link HttpError} on non-2xx responses.
- * Drop-in replacement for `fetchSafe` from deco-cx/apps.
+ * Fetch wrapper that throws {@link HttpError} on non-2xx responses and
+ * sanitizes URL query strings.
  */
 export async function fetchSafe(
 	input: string | URL | Request,

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchAPI, fetchSafe, HttpError } from "../fetchVTEX";
+import { fetchAPI, fetchSafe, HttpError } from "../fetch";
 
 const realFetch = globalThis.fetch;
 
@@ -34,7 +34,9 @@ describe("fetchSafe", () => {
 		(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
 			mockResponse({}, 500),
 		);
-		await expect(fetchSafe("https://example.com/api")).rejects.toBeInstanceOf(HttpError);
+		await expect(fetchSafe("https://example.com/api")).rejects.toBeInstanceOf(
+			HttpError,
+		);
 	});
 
 	it("sanitizes utm_* and map params (drops <, > and non-Latin1)", async () => {

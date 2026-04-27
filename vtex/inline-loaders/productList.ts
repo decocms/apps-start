@@ -20,28 +20,35 @@ export interface ProductListProps {
 	hideUnavailableItems?: boolean;
 }
 
-interface CollectionProps {
+/** @title Collection ID */
+export interface CollectionProps {
+	/** VTEX product cluster id (e.g. `"150"`). */
 	collection: string;
 	count?: number;
 	sort?: string;
 	hideUnavailableItems?: boolean;
 }
 
-interface QueryProps {
+/** @title Keyword Search */
+export interface QueryProps {
 	query: string;
 	count?: number;
 	sort?: string;
+	/** Pass either a raw IS fuzzy value (`"0" | "1" | "auto"`) or call `mapLabelledFuzzyToFuzzy()`. */
 	fuzzy?: string;
 	hideUnavailableItems?: boolean;
 }
 
-interface ProductIDProps {
+/** @title Product IDs */
+export interface ProductIDProps {
 	ids: string[];
 	hideUnavailableItems?: boolean;
 }
 
-interface FacetsProps {
+/** @title Advanced Facets */
+export interface FacetsProps {
 	query?: string;
+	/** Facets path (e.g. `category-1/moda-feminina/category-2/calcados`). */
 	facets: string;
 	count?: number;
 	sort?: string;

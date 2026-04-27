@@ -14,6 +14,35 @@ export interface SelectedFacet {
 	value: string;
 }
 
+/**
+ * Friendly fuzzy labels for CMS UIs. Translate to the raw IS API value via
+ * {@link mapLabelledFuzzyToFuzzy} before passing into a loader's `fuzzy` field.
+ */
+export type LabelledFuzzy = "automatic" | "disabled" | "enabled";
+
+/**
+ * Translate a friendly fuzzy label to the value the VTEX Intelligent Search
+ * API expects. Returns `undefined` when the label is omitted so callers can
+ * skip the param entirely.
+ *
+ * @example
+ *   intelligentSearch({ fuzzy: mapLabelledFuzzyToFuzzy(props.fuzzy) })
+ */
+export const mapLabelledFuzzyToFuzzy = (
+	label?: LabelledFuzzy,
+): "0" | "1" | "auto" | undefined => {
+	switch (label) {
+		case "automatic":
+			return "auto";
+		case "enabled":
+			return "1";
+		case "disabled":
+			return "0";
+		default:
+			return undefined;
+	}
+};
+
 export interface PLPProps {
 	query?: string;
 	count?: number;
