@@ -26,8 +26,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { Minicart } from "../../commerce/types/commerce";
-import { vtexOrderFormToMinicart } from "../utils/minicart";
 import type { OrderForm, OrderFormItem } from "../types";
+import { vtexOrderFormToMinicart } from "../utils/minicart";
 
 /** Re-exported from `vtex/types` for back-compat. New code should import directly. */
 export type { OrderForm } from "../types";

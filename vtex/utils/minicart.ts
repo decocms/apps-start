@@ -109,7 +109,9 @@ export function vtexOrderFormToMinicart(
 	const discountsRaw = findTotalizer(totalizers, "Discounts");
 	const discounts = Math.abs(fromCents(discountsRaw));
 	const shippingRaw = findTotalizer(totalizers, "Shipping");
-	const shipping = totalizers?.some((t) => t.id === "Shipping") ? fromCents(shippingRaw) : undefined;
+	const shipping = totalizers?.some((t) => t.id === "Shipping")
+		? fromCents(shippingRaw)
+		: undefined;
 	const total = fromCents(orderForm.value);
 
 	const coupon = orderForm.marketingData?.coupon;
