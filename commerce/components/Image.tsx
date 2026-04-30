@@ -100,7 +100,12 @@ export function getOptimizedMediaUrl(opts: OptimizationOptions): string {
 		return optimizeShopify(originalSrc, width, height);
 	}
 
-	const imageSource = originalSrc.replace(DECO_CACHE_URL, "").replace(S3_URL, "").split("?")[0];
+	let imageSource = originalSrc.replace(DECO_CACHE_URL, "").replace(S3_URL, "").split("?")[0];
+
+	// Already on the image CDN — strip the host so we don't proxy through ourselves.
+	if (imageSource.startsWith(`https://${imageCdnDomain}/`)) {
+		imageSource = imageSource.slice(`https://${imageCdnDomain}`.length);
+	}
 
 	const params = new URLSearchParams();
 	params.set("fit", fit);
