@@ -103,8 +103,9 @@ export function getOptimizedMediaUrl(opts: OptimizationOptions): string {
 	let imageSource = originalSrc.replace(DECO_CACHE_URL, "").replace(S3_URL, "").split("?")[0];
 
 	// Already on the image CDN — strip the host so we don't proxy through ourselves.
-	if (imageSource.startsWith(`https://${imageCdnDomain}/`)) {
-		imageSource = imageSource.slice(`https://${imageCdnDomain}`.length);
+	const cdnPrefix = `https://${imageCdnDomain}/`;
+	if (imageSource.startsWith(cdnPrefix)) {
+		imageSource = imageSource.slice(cdnPrefix.length);
 	}
 
 	const params = new URLSearchParams();
