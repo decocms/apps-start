@@ -177,7 +177,11 @@ function facetToToggle(
 	};
 }
 
-function toFilter(selectedFacets: SelectedFacet[], paramsToPersist?: URLSearchParams, basePath = "") {
+function toFilter(
+	selectedFacets: SelectedFacet[],
+	paramsToPersist?: URLSearchParams,
+	basePath = "",
+) {
 	return (facet: ISFacet) => ({
 		"@type": "FilterToggle" as const,
 		key: facet.key,
