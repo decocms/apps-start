@@ -152,6 +152,7 @@ function facetToToggle(
 	selectedFacets: SelectedFacet[],
 	key: string,
 	paramsToPersist?: URLSearchParams,
+	basePath = "",
 ) {
 	return (item: ISFacetValueBoolean | ISFacetValueRange) => {
 		const { quantity, selected } = item;
@@ -170,19 +171,19 @@ function facetToToggle(
 			value,
 			quantity,
 			selected,
-			url: `?${filtersToSearchParams(filters, paramsToPersist)}`,
+			url: `${basePath}?${filtersToSearchParams(filters, paramsToPersist)}`,
 			label,
 		};
 	};
 }
 
-function toFilter(selectedFacets: SelectedFacet[], paramsToPersist?: URLSearchParams) {
+function toFilter(selectedFacets: SelectedFacet[], paramsToPersist?: URLSearchParams, basePath = "") {
 	return (facet: ISFacet) => ({
 		"@type": "FilterToggle" as const,
 		key: facet.key,
 		label: facet.name,
 		quantity: facet.quantity,
-		values: facet.values.map(facetToToggle(selectedFacets, facet.key, paramsToPersist)),
+		values: facet.values.map(facetToToggle(selectedFacets, facet.key, paramsToPersist, basePath)),
 	});
 }
 
@@ -409,7 +410,8 @@ export default async function vtexProductListingPage(props: PLPProps): Promise<a
 
 		// 4. Transform facets to filters (matching original toFilter)
 		const visibleFacets = facetsResult.facets.filter((f) => !f.hidden);
-		const filters = visibleFacets.map(toFilter(facets, paramsToPersist));
+		const basePath = __pagePath && __pagePath !== "/" ? __pagePath : "";
+		const filters = visibleFacets.map(toFilter(facets, paramsToPersist, basePath));
 
 		// 5. Build pagination (matching original logic)
 		const currentPageoffset = 1;
@@ -444,8 +446,8 @@ export default async function vtexProductListingPage(props: PLPProps): Promise<a
 			filters,
 			products: schemaProducts,
 			pageInfo: {
-				nextPage: hasNextPage ? `?${nextPageParams}` : undefined,
-				previousPage: hasPreviousPage ? `?${prevPageParams}` : undefined,
+				nextPage: hasNextPage ? `${basePath}?${nextPageParams}` : undefined,
+				previousPage: hasPreviousPage ? `${basePath}?${prevPageParams}` : undefined,
 				currentPage: page + currentPageoffset,
 				records: recordsFiltered,
 				recordPerPage: pagination.perPage,

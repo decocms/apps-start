@@ -531,8 +531,8 @@ export async function legacyProductListingPage(
 		filters,
 		products,
 		pageInfo: {
-			nextPage: hasNextPage ? `?${nextPage.toString()}` : undefined,
-			previousPage: hasPreviousPage ? `?${previousPage.toString()}` : undefined,
+			nextPage: hasNextPage ? `${url.pathname}?${nextPage.toString()}` : undefined,
+			previousPage: hasPreviousPage ? `${url.pathname}?${previousPage.toString()}` : undefined,
 			currentPage,
 			records: totalRecords,
 			recordPerPage: count,
