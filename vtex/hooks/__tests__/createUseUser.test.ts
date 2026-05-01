@@ -7,10 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-	type CreateUseUserInvoke,
-	createUseUser,
-} from "../createUseUser";
+import { type CreateUseUserInvoke, createUseUser } from "../createUseUser";
 
 function makeInvoke(): CreateUseUserInvoke {
 	return {

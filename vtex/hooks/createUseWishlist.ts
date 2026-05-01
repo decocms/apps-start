@@ -73,9 +73,7 @@ export interface CreateUseWishlistInvoke {
 			addToWishlist: (args: {
 				data: { productId: string; sku: string; title?: string };
 			}) => Promise<WishlistItem[]>;
-			removeFromWishlist: (args: {
-				data: { id: string };
-			}) => Promise<WishlistItem[]>;
+			removeFromWishlist: (args: { data: { id: string } }) => Promise<WishlistItem[]>;
 		};
 	};
 }
