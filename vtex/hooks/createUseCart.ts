@@ -31,9 +31,7 @@ import type { OrderForm, OrderFormItem } from "../types";
 export interface CreateUseCartInvoke {
 	vtex: {
 		actions: {
-			getOrCreateCart: (args: {
-				data: { orderFormId?: string };
-			}) => Promise<OrderForm>;
+			getOrCreateCart: (args: { data: { orderFormId?: string } }) => Promise<OrderForm>;
 			addItemsToCart: (args: {
 				data: {
 					orderFormId: string;
@@ -130,10 +128,7 @@ export function createUseCart(opts: CreateUseCartOptions) {
 		return of.orderFormId;
 	}
 
-	function itemToAnalyticsItem(
-		item: OrderFormItem & { coupon?: string },
-		index: number,
-	) {
+	function itemToAnalyticsItem(item: OrderFormItem & { coupon?: string }, index: number) {
 		return {
 			item_id: item.productId,
 			item_group_id: item.productId,
@@ -217,11 +212,7 @@ export function createUseCart(opts: CreateUseCartOptions) {
 				},
 			},
 
-			addItem: async (params: {
-				id: string;
-				seller: string;
-				quantity?: number;
-			}) => {
+			addItem: async (params: { id: string; seller: string; quantity?: number }) => {
 				setLoading(true);
 				try {
 					const ofId = await ensureOrderForm();
@@ -266,9 +257,7 @@ export function createUseCart(opts: CreateUseCartOptions) {
 				}
 			},
 
-			updateItems: async (params: {
-				orderItems: Array<{ index: number; quantity: number }>;
-			}) => {
+			updateItems: async (params: { orderItems: Array<{ index: number; quantity: number }> }) => {
 				const ofId = _orderForm?.orderFormId || getOrderFormIdFromCookie();
 				if (!ofId) return;
 				setLoading(true);
@@ -319,10 +308,7 @@ export function createUseCart(opts: CreateUseCartOptions) {
 				}
 			},
 
-			sendAttachment: async (params: {
-				attachment: string;
-				body: Record<string, unknown>;
-			}) => {
+			sendAttachment: async (params: { attachment: string; body: Record<string, unknown> }) => {
 				const ofId = _orderForm?.orderFormId || getOrderFormIdFromCookie();
 				if (!ofId) return;
 				setLoading(true);
@@ -361,9 +347,7 @@ export function createUseCart(opts: CreateUseCartOptions) {
 			},
 
 			mapItemsToAnalyticsItems: (orderForm: OrderForm | null) => {
-				return (orderForm?.items || []).map((item, index) =>
-					itemToAnalyticsItem(item, index),
-				);
+				return (orderForm?.items || []).map((item, index) => itemToAnalyticsItem(item, index));
 			},
 		};
 	}

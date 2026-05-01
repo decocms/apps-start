@@ -10,14 +10,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-	type CreateUseCartInvoke,
-	createUseCart,
-} from "../createUseCart";
+import { type CreateUseCartInvoke, createUseCart } from "../createUseCart";
 
 function makeInvoke(): CreateUseCartInvoke {
-	const noop = async () =>
-		({ orderFormId: "of-1", items: [] }) as never;
+	const noop = async () => ({ orderFormId: "of-1", items: [] }) as never;
 	return {
 		vtex: {
 			actions: {

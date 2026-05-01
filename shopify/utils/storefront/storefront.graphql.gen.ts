@@ -37,25 +37,41 @@ export type CartFragment = {
 
 // Mutation types
 export type AddItemToCartMutation = { cart?: CartFragment | null };
-export type AddItemToCartMutationVariables = { cartId: string; lines: any };
+export type AddItemToCartMutationVariables = { cartId: string; lines: unknown };
 export type UpdateItemsMutation = { cart?: CartFragment | null };
-export type UpdateItemsMutationVariables = { cartId: string; lines: any };
+export type UpdateItemsMutationVariables = { cartId: string; lines: unknown };
 export type AddCouponMutation = { cart?: CartFragment | null };
 export type AddCouponMutationVariables = { cartId: string; discountCodes: string[] };
 
-// Product types
-export type ProductFragment = any;
-export type ProductVariantFragment = any;
-export type GetProductQuery = { product?: any };
-export type GetProductQueryVariables = { handle?: string; identifiers?: any[] };
-export type ProductRecommendationsQuery = { productRecommendations?: any[] };
+// Product types — these are intentionally loose stubs because the
+// real Shopify Storefront API GraphQL types are huge and only a tiny
+// subset is consumed. `unknown` keeps consumers honest (forces a cast
+// at the boundary) without exploding the type surface.
+export type ProductFragment = unknown;
+export type ProductVariantFragment = unknown;
+export type GetProductQuery = { product?: unknown };
+export type GetProductQueryVariables = { handle?: string; identifiers?: unknown[] };
+export type ProductRecommendationsQuery = { productRecommendations?: unknown[] };
 export type ProductRecommendationsQueryVariables = { productId: string };
 
 // Search/Collection types
 export type InputMaybe<T> = T | null | undefined;
 export type ProductCollectionSortKeys = string;
 export type SearchSortKeys = string;
-export type ProductFilter = any;
+// Loose shape derived from the only consumers in
+// `shopify/utils/utils.ts` (filterToObject + getFiltersByUrl). Keeps
+// the types honest without depending on Shopify's full GraphQL schema.
+export type ProductFilter = {
+	tag?: string;
+	productType?: string;
+	productVendor?: string;
+	available?: boolean;
+	price?: { min?: number; max?: number };
+	variantOption?: { name: string; value: string };
+	productMetafield?: { namespace: string; key: string; value: string };
+	taxonomyMetafield?: { namespace: string; key: string; value: string };
+	category?: { id: string };
+};
 
 // Customer types
 export type Customer = {
@@ -65,9 +81,9 @@ export type Customer = {
 	email?: string | null;
 	phone?: string | null;
 	acceptsMarketing?: boolean;
-	defaultAddress?: any;
-	addresses?: { nodes: any[] };
-	orders?: { nodes: any[] };
+	defaultAddress?: unknown;
+	addresses?: { nodes: unknown[] };
+	orders?: { nodes: unknown[] };
 };
 
 export type CustomerAccessTokenCreateInput = {

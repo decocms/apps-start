@@ -5,13 +5,9 @@
  * through regional sellers — see vtex/client.ts:vtexFetchResponse.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RequestContext } from "@decocms/start/sdk/requestContext";
-import {
-	configureVtex,
-	setVtexFetch,
-	vtexFetchResponse,
-} from "../client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configureVtex, setVtexFetch, vtexFetchResponse } from "../client";
 
 function mockResponse(body: unknown = {}, status = 200): Response {
 	return {
