@@ -168,12 +168,55 @@ function extractRegionIdFromCookies(): string | null {
 	return segment?.regionId ?? null;
 }
 
+/**
+ * Read the raw `vtex_segment=<token>` cookie from the active request.
+ * Returns null when outside a request context or no segment cookie is set.
+ *
+ * Used to forward the segment cookie on outgoing VTEX API calls so
+ * Legacy Catalog endpoints (which gate on the cookie, not on
+ * `?regionId=` query params) see the right region for products
+ * available only through regional sellers.
+ */
+function getSegmentCookieHeader(): string | null {
+	const ctx = RequestContext.current;
+	if (!ctx) return null;
+	const cookies = ctx.request.headers.get("cookie");
+	if (!cookies) return null;
+	const match = cookies.match(new RegExp(`(?:^|;\\s*)${SEGMENT_COOKIE_NAME}=([^;]+)`));
+	if (!match?.[1]) return null;
+	return `${SEGMENT_COOKIE_NAME}=${match[1]}`;
+}
+
+/** Case-insensitive lookup for `cookie` / `Cookie` in a headers init. */
+function hasCookieHeader(headers: HeadersInit | undefined): boolean {
+	if (!headers) return false;
+	if (headers instanceof Headers) return headers.has("cookie");
+	if (Array.isArray(headers)) {
+		return headers.some(([k]) => k.toLowerCase() === "cookie");
+	}
+	return Object.keys(headers).some((k) => k.toLowerCase() === "cookie");
+}
+
 export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
 	const raw = path.startsWith("http") ? path : `${baseUrl()}${path}`;
 	const url = sanitizeUrl(raw);
+
+	// Forward the incoming `vtex_segment` cookie on outgoing calls when
+	// the caller hasn't set a cookie header explicitly. This is what the
+	// Legacy Catalog API (and a handful of other VTEX endpoints) needs
+	// to resolve regional sellers correctly. Without it, products only
+	// available via a region's seller appear as OutOfStock on PDPs even
+	// for users with the cookie. Sites used to wrap `_fetch` themselves
+	// to do this — see https://github.com/decocms/apps-start#regional-sellers
+	const segmentCookie = !hasCookieHeader(init?.headers) ? getSegmentCookieHeader() : null;
+
 	const response = await _fetch(url, {
 		...init,
-		headers: { ...authHeaders(), ...init?.headers },
+		headers: {
+			...authHeaders(),
+			...(segmentCookie ? { cookie: segmentCookie } : {}),
+			...init?.headers,
+		},
 	});
 	if (!response.ok) {
 		throw new Error(`VTEX API error: ${response.status} ${response.statusText} - ${url}`);
