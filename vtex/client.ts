@@ -9,22 +9,15 @@ import { ANONYMOUS_COOKIE, SESSION_COOKIE } from "./utils/intelligentSearch";
 import { parseSegment, SEGMENT_COOKIE_NAME } from "./utils/segment";
 
 /**
- * Get the response headers from RequestContext.
- * Uses `responseHeaders` when available (@decocms/start PR#57),
- * falls back to the bag with a lazily-created Headers instance.
- * TODO: Remove fallback once @decocms/start PR#57 is published.
+ * Outgoing response headers for the active request, or `null` when
+ * called outside a request scope (which happens during module init).
+ * `RequestContext.responseHeaders` was added to `@decocms/start` in
+ * v0.39.0; we now require >=2.5.0 as a devDep so the property is
+ * always typed/present.
  */
 function getResponseHeaders(): Headers | null {
 	const ctx = RequestContext.current;
-	if (!ctx) return null;
-	// biome-ignore lint/suspicious/noExplicitAny: forward-compat with upcoming responseHeaders property
-	if ((ctx as any).responseHeaders instanceof Headers) return (ctx as any).responseHeaders;
-	let headers = ctx.bag.get("responseHeaders") as Headers | undefined;
-	if (!headers) {
-		headers = new Headers();
-		ctx.bag.set("responseHeaders", headers);
-	}
-	return headers;
+	return ctx ? ctx.responseHeaders : null;
 }
 
 // ---------------------------------------------------------------------------
