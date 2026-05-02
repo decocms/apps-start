@@ -88,6 +88,20 @@ function optimizeShopify(originalSrc: string, width: number, height?: number): s
 export function getOptimizedMediaUrl(opts: OptimizationOptions): string {
 	const { originalSrc, width, height, fit } = opts;
 
+	// Defensive: an upstream CMS payload occasionally has missing/null image
+	// fields. Crashing the entire React tree on `undefined.startsWith` would
+	// take down the whole page. Return an empty string so the resulting
+	// `<img>` is rendered with no src — the browser shows the broken-image
+	// placeholder and SSR completes cleanly.
+	if (typeof originalSrc !== "string" || originalSrc.length === 0) {
+		if (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") {
+			console.warn(
+				`[Image] getOptimizedMediaUrl called with empty/undefined src — rendering empty src instead of crashing.`,
+			);
+		}
+		return "";
+	}
+
 	if (originalSrc.startsWith("data:")) {
 		return originalSrc;
 	}
@@ -126,6 +140,10 @@ export function getSrcSet(
 	fit?: FitOptions,
 	factors: number[] = FACTORS,
 ): string | undefined {
+	if (typeof originalSrc !== "string" || originalSrc.length === 0) {
+		return undefined;
+	}
+
 	const entries: string[] = [];
 
 	for (const factor of factors) {
