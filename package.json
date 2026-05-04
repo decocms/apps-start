@@ -1,6 +1,6 @@
 {
   "name": "@decocms/apps",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "type": "module",
   "description": "Deco commerce apps for TanStack Start - Shopify, VTEX, commerce types, analytics utils",
   "exports": {
