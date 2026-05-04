@@ -1,10 +1,9 @@
 /**
  * OneDollarStats — deco's lightweight in-house analytics.
  *
- * Pings the lilstts collector with pageviews (initial load + SPA navigations)
- * and forwards custom DECO events as `stonks.event(name, params)`.
- *
- * Mount in the site's `__root.tsx` as a child of `DecoRootLayout`:
+ * Posts pageviews (initial load + SPA navigations) and forwards DECO
+ * events to the lilstts collector. Mount once in `__root.tsx` as a child
+ * of `DecoRootLayout`:
  *
  * ```tsx
  * <DecoRootLayout … >
@@ -12,25 +11,53 @@
  * </DecoRootLayout>
  * ```
  *
- * No CMS wiring is needed — the component is env-gated and self-mounting.
+ * The component is env-gated and self-mounting — no CMS wiring needed.
  *
- * Behavioral notes vs the Fresh deco-cx/apps OneDollarStats:
- *   - The initial pageview fires unconditionally (mirrors the Path B
- *     `analytics/loaders/OneDollarScript.ts` script-loader from Fresh).
- *     The Fresh component variant relied on a synthesised `{ name: "deco" }`
- *     event from `Events.tsx`'s subscribe-replay, which has no equivalent
- *     in TanStack — so we do not depend on it.
- *   - Flag enrichment continues to work via client-side parsing of the
- *     `deco_segment` cookie (same code path as the script-loader version).
- *   - `pageId` enrichment is intentionally dropped — no deco-admin dashboard
- *     consumes it. Add later if a flag-segmented dashboard needs it.
+ * ## Why this design
+ *
+ * 1. **We own pageviews.** The lilstts SDK has its own auto-pageview path
+ *    (driven by `history.pushState` wrapping). We disable it via
+ *    `data-autocollect="false"` and call `window.stonks.view(flags)`
+ *    ourselves. This is the only way to attach `deco_segment` cookie
+ *    flags to pageviews — the SDK's auto-path doesn't know about them.
+ *
+ * 2. **`useEffect` for client logic.** All side-effects (initial pageview,
+ *    pushState wrap, DECO event subscribe) run inside a `useEffect`,
+ *    which fires after hydration. By then `<ScriptOnce>` in
+ *    `DecoRootLayout` has bootstrapped `window.DECO.events`, and the SDK
+ *    `<script>` (rendered as a sibling) has loaded and set
+ *    `window.stonks`. No inline `dangerouslySetInnerHTML` snippet, no
+ *    fragile script-execution-order dependency.
+ *
+ * 3. **Module-level guards.** `window.DECO.events.subscribe()` returns no
+ *    unsubscribe handle, so we cannot clean up on unmount. We use a
+ *    module-level `initialized` flag to ensure init runs exactly once
+ *    per page lifetime, surviving HMR and React StrictMode double-mount.
+ *
+ * 4. **Bounded readiness polling.** `window.stonks` and `window.DECO`
+ *    might not be ready the instant our effect fires (race with script
+ *    load). We poll every 50 ms for up to 10 s. Production: resolves
+ *    within one tick.
+ *
+ * ## Behavioural parity vs Fresh `deco-cx/apps`
+ *
+ * Mirrors the Path B snippet (`analytics/loaders/OneDollarScript.ts`):
+ * unconditional first pageview with flag enrichment, SPA nav tracking,
+ * and DECO event forwarding. Diverges from the Fresh component variant
+ * (which depended on a synthesised `{ name: "deco" }` event from
+ * `Events.tsx`'s subscribe-replay — no equivalent in TanStack).
+ *
+ * `pageId` enrichment is intentionally dropped — no admin dashboard
+ * consumes it. Add later if a flag-segmented dashboard needs it.
  */
+
+import { useEffect } from "react";
 
 declare global {
 	interface Window {
 		stonks?: {
-			view?: (params: Record<string, string | boolean>) => void;
-			event?: (name: string, params: Record<string, string | boolean>) => void;
+			view?: (params?: Record<string, string | boolean | number>) => void;
+			event?: (name: string, params?: Record<string, string | boolean | number>) => void;
 		};
 	}
 }
@@ -46,80 +73,12 @@ export const DEFAULT_COLLECTOR_ADDRESS = "https://d.lilstts.com/events";
 export const DEFAULT_ANALYTICS_SCRIPT_URL = "https://s.lilstts.com/deco.js";
 
 /**
- * `false` when `ONEDOLLAR_ENABLED=false` is set on the Worker. Default: enabled.
+ * Set `ONEDOLLAR_ENABLED=false` on the Worker to disable. Default: enabled.
  * Matches the Fresh-side Deno env contract.
  */
 const ONEDOLLAR_ENABLED = process.env.ONEDOLLAR_ENABLED !== "false";
 const ONEDOLLAR_COLLECTOR = process.env.ONEDOLLAR_COLLECTOR;
 const ONEDOLLAR_STATIC_SCRIPT = process.env.ONEDOLLAR_STATIC_SCRIPT;
-
-/**
- * Inline subscriber snippet — kept as a plain string constant (not a
- * `useScript(fn)` serialisation) because `fn.toString()` produces different
- * output in SSR vs client Vite builds under React Compiler, causing
- * hydration mismatches on `dangerouslySetInnerHTML`. See
- * `@decocms/start/sdk/useScript` for the deprecation note.
- *
- * Mirrors the Path B (`analytics/loaders/OneDollarScript.ts`) snippet from
- * deco-cx/apps: parse `deco_segment` cookie for flags, fire first pageview
- * unconditionally, patch `history.pushState` + `popstate` for SPA navs,
- * subscribe to `window.DECO.events` to forward non-`deco` events.
- */
-const ONEDOLLAR_SNIPPET = `(function(){
-	function parseCookies(str){
-		var out = {};
-		str.split(";").forEach(function(c){
-			var idx = c.indexOf("=");
-			if (idx < 0) return;
-			out[c.slice(0, idx).trim()] = c.slice(idx + 1).trim();
-		});
-		return out;
-	}
-	function tryOrDefault(fn, d){ try { return fn(); } catch(e) { return d; } }
-	function getFlags(cookies){
-		var out = [];
-		var raw = cookies["deco_segment"];
-		var seg = raw ? tryOrDefault(function(){ return JSON.parse(decodeURIComponent(atob(raw))); }, {}) : {};
-		(seg.active || []).forEach(function(name){ out.push({ name: name, value: true }); });
-		(seg.inactiveDrawn || []).forEach(function(name){ out.push({ name: name, value: false }); });
-		return out;
-	}
-	function truncate(v){ return ("" + v).slice(0, 990); }
-	var flagList = getFlags(parseCookies(document.cookie || ""));
-	var flags = {};
-	flagList.forEach(function(f){ flags[f.name] = f.value; });
-	function trackPageview(){
-		if (window.stonks && typeof window.stonks.view === "function") {
-			window.stonks.view(flags);
-		}
-	}
-	trackPageview();
-	var origPush = history.pushState;
-	if (origPush) {
-		history.pushState = function(){
-			origPush.apply(this, arguments);
-			trackPageview();
-		};
-		addEventListener("popstate", trackPageview);
-	}
-	if (window.DECO && window.DECO.events && typeof window.DECO.events.subscribe === "function") {
-		window.DECO.events.subscribe(function(event){
-			if (!event || !event.name || event.name === "deco") return;
-			var values = {};
-			for (var k in flags) values[k] = flags[k];
-			var params = event.params || {};
-			for (var key in params) {
-				var v = params[key];
-				if (v !== null && v !== undefined) {
-					values[key] = truncate(typeof v !== "object" ? v : JSON.stringify(v));
-				}
-			}
-			if (window.stonks && typeof window.stonks.event === "function") {
-				window.stonks.event(event.name, values);
-			}
-		});
-	}
-})();`;
 
 function OneDollarStats({ collectorAddress, staticScriptUrl }: Props) {
 	if (!ONEDOLLAR_ENABLED) return null;
@@ -132,15 +91,193 @@ function OneDollarStats({ collectorAddress, staticScriptUrl }: Props) {
 			<link rel="dns-prefetch" href={collector} />
 			<link rel="preconnect" href={collector} crossOrigin="anonymous" />
 			<script
-				id="tracker"
+				id="onedollarstats-tracker"
 				data-autocollect="false"
 				data-hash-routing="true"
 				data-url={collector}
 				src={staticScript}
+				defer
 			/>
-			<script defer dangerouslySetInnerHTML={{ __html: ONEDOLLAR_SNIPPET }} />
+			<OneDollarStatsClient />
 		</>
 	);
+}
+
+/**
+ * Client-only side-effects. Mounted as a child of {@link OneDollarStats};
+ * does not render any DOM.
+ */
+function OneDollarStatsClient() {
+	useEffect(() => {
+		initOneDollarStats();
+	}, []);
+	return null;
+}
+
+// ---------------------------------------------------------------------------
+// Module-level state — survives StrictMode double-mount and HMR remounts.
+// ---------------------------------------------------------------------------
+
+let initialized = false;
+let cachedFlags: Record<string, boolean> | null = null;
+
+interface DecoSegmentCookie {
+	active?: string[];
+	inactiveDrawn?: string[];
+}
+
+/**
+ * Read A/B test flags from the `deco_segment` cookie. Cached after first
+ * read for the lifetime of the page — flags are baked at request time
+ * server-side and don't change mid-session.
+ *
+ * Exported for testing.
+ */
+export function readFlagsFromCookie(
+	cookieString: string = typeof document !== "undefined" ? document.cookie : "",
+): Record<string, boolean> {
+	if (cachedFlags && cookieString === (typeof document !== "undefined" ? document.cookie : "")) {
+		return cachedFlags;
+	}
+	const flags: Record<string, boolean> = {};
+	try {
+		const cookies = parseCookies(cookieString);
+		const raw = cookies.deco_segment;
+		if (raw) {
+			const seg = JSON.parse(decodeURIComponent(atob(raw))) as DecoSegmentCookie;
+			for (const name of seg.active ?? []) flags[name] = true;
+			for (const name of seg.inactiveDrawn ?? []) flags[name] = false;
+		}
+	} catch {
+		// Malformed cookie — proceed with empty flags rather than crashing analytics.
+	}
+	cachedFlags = flags;
+	return flags;
+}
+
+function parseCookies(cookieString: string): Record<string, string> {
+	return cookieString.split(";").reduce<Record<string, string>>((acc, c) => {
+		const idx = c.indexOf("=");
+		if (idx > 0) acc[c.slice(0, idx).trim()] = c.slice(idx + 1).trim();
+		return acc;
+	}, {});
+}
+
+/**
+ * Truncate any value to the lilstts payload limit (~1 KB per field).
+ * Exported for testing.
+ */
+export function truncate(v: unknown): string {
+	const s = typeof v === "string" ? v : typeof v === "object" ? JSON.stringify(v) : String(v);
+	return s.slice(0, 990);
+}
+
+/**
+ * Poll for a global to become available, then invoke `cb` exactly once.
+ * Bounded by `maxAttempts * intervalMs` (default ~10 s). On timeout, no-op.
+ */
+function whenReady<T>(
+	check: () => T | undefined,
+	cb: (value: T) => void,
+	{ intervalMs = 50, maxAttempts = 200 }: { intervalMs?: number; maxAttempts?: number } = {},
+): void {
+	const initial = check();
+	if (initial !== undefined) {
+		cb(initial);
+		return;
+	}
+	let attempts = 0;
+	const iv = setInterval(() => {
+		attempts++;
+		const v = check();
+		if (v !== undefined) {
+			clearInterval(iv);
+			cb(v);
+		} else if (attempts >= maxAttempts) {
+			clearInterval(iv);
+		}
+	}, intervalMs);
+}
+
+/**
+ * Wire up the analytics integration. Idempotent — only the first call has
+ * any effect.
+ *
+ * @internal exported for tests; do not call from app code.
+ */
+export function initOneDollarStats(): void {
+	if (initialized) return;
+	initialized = true;
+
+	const flags = readFlagsFromCookie();
+
+	// 1) Initial pageview + SPA nav tracking, with flag enrichment.
+	whenReady(
+		() =>
+			typeof window.stonks?.view === "function"
+				? window.stonks.view.bind(window.stonks)
+				: undefined,
+		(view) => {
+			view(flags);
+			wrapHistoryPushState(() => view(flags));
+			addEventListener("popstate", () => view(flags));
+		},
+	);
+
+	// 2) Forward DECO events to stonks.event with flag enrichment.
+	whenReady(
+		() =>
+			typeof window.DECO?.events?.subscribe === "function"
+				? window.DECO.events.subscribe.bind(window.DECO.events)
+				: undefined,
+		(subscribe) => {
+			subscribe((event: { name?: string; params?: Record<string, unknown> } | null | undefined) => {
+				if (!event || !event.name || event.name === "deco") return;
+				if (typeof window.stonks?.event !== "function") return;
+				const values: Record<string, string | boolean | number> = { ...flags };
+				for (const [k, v] of Object.entries(event.params ?? {})) {
+					if (v == null) continue;
+					values[k] = truncate(v);
+				}
+				window.stonks.event(event.name, values);
+			});
+		},
+	);
+}
+
+/**
+ * Wrap `history.pushState` to invoke `onPush` after each call. Idempotent
+ * via a marker property on the wrapper. The lilstts SDK installs its own
+ * wrapper too — with `data-autocollect="false"` its handler is a no-op,
+ * so we don't double-fire.
+ */
+function wrapHistoryPushState(onPush: () => void): void {
+	const ANY_HISTORY = history as History & { __onedollarstats_wrapped?: true };
+	if (ANY_HISTORY.__onedollarstats_wrapped) return;
+	const original = history.pushState;
+	const wrapped = function (this: History, ...args: Parameters<History["pushState"]>): void {
+		original.apply(this, args);
+		try {
+			onPush();
+		} catch (err) {
+			console.error("[OneDollarStats] pushState handler", err);
+		}
+	} as History["pushState"];
+	(wrapped as unknown as { __onedollarstats_wrapped: true }).__onedollarstats_wrapped = true;
+	history.pushState = wrapped;
+	ANY_HISTORY.__onedollarstats_wrapped = true;
+}
+
+/**
+ * @internal — reset module state for tests. NEVER call from app code.
+ */
+export function __resetForTests(): void {
+	initialized = false;
+	cachedFlags = null;
+	if (typeof history !== "undefined") {
+		const h = history as History & { __onedollarstats_wrapped?: true };
+		delete h.__onedollarstats_wrapped;
+	}
 }
 
 export default OneDollarStats;
