@@ -3,9 +3,13 @@
 [![npm version](https://img.shields.io/npm/v/@decocms/apps.svg)](https://www.npmjs.com/package/@decocms/apps)
 [![license](https://img.shields.io/npm/l/@decocms/apps.svg)](https://github.com/decocms/apps-start/blob/main/LICENSE)
 
-Commerce integrations for [Deco](https://deco.cx) storefronts on **TanStack Start + React 19 + Cloudflare Workers**.
+Commerce integrations for [deco.cx](https://deco.cx) storefronts on **TanStack Start + React 19 + Cloudflare Workers**.
 
-Provides VTEX and Shopify loaders, actions, hooks, and shared commerce types based on schema.org. Built on top of [`@decocms/start`](https://www.npmjs.com/package/@decocms/start).
+`@decocms/apps` provides VTEX, Shopify, and Resend integrations (loaders, actions, hooks, middleware) plus shared schema.org commerce types. It depends on [`@decocms/start`](https://www.npmjs.com/package/@decocms/start).
+
+📖 **[Read the full documentation →](https://docs.deco.cx/v2/en/commerce/overview)**
+
+---
 
 ## Install
 
@@ -13,55 +17,192 @@ Provides VTEX and Shopify loaders, actions, hooks, and shared commerce types bas
 npm install @decocms/apps
 ```
 
-## Integrations
+---
+
+## Minimum wiring
 
 ### VTEX
 
-Full VTEX Intelligent Search and Checkout integration.
+A working VTEX storefront needs three things: a `deco-vtex` config block, an `initVtexFromBlocks()` call in setup, and the commerce loader registry.
 
-| Import | Purpose |
-|--------|---------|
-| `@decocms/apps/vtex` | Configuration and setup |
-| `@decocms/apps/vtex/client` | VTEX API client with SWR caching |
-| `@decocms/apps/vtex/loaders/*` | Product, cart, search, catalog, session, wishlist |
-| `@decocms/apps/vtex/actions/*` | Checkout, auth, newsletter, profile, wishlist |
-| `@decocms/apps/vtex/hooks` | useCart, useUser, useWishlist, useAutocomplete |
-| `@decocms/apps/vtex/inline-loaders/*` | PDP, PLP, product list, suggestions |
-| `@decocms/apps/vtex/middleware` | Cookie propagation and session handling |
-| `@decocms/apps/vtex/invoke` | Server function wrappers |
-| `@decocms/apps/vtex/utils/*` | Transform, enrichment, segment, cookies |
+#### 1. Config block (`.deco/blocks/deco-vtex.json`)
+
+```json
+{
+  "__resolveType": "deco-vtex",
+  "account": "my-store",
+  "publicUrl": "https://www.my-store.com.br",
+  "salesChannel": "1",
+  "appKey": { "__resolveType": "secret/key" },
+  "appToken": { "__resolveType": "secret/key" }
+}
+```
+
+#### 2. Setup (`src/setup.ts`)
+
+```ts
+import { createSiteSetup } from "@decocms/start/setup";
+import { createInstrumentedFetch } from "@decocms/start/sdk/instrumentedFetch";
+import { initVtexFromBlocks, setVtexFetch } from "@decocms/apps/vtex/client";
+import { createVtexCommerceLoaders } from "@decocms/apps/vtex/commerceLoaders";
+
+createSiteSetup({
+  sections: import.meta.glob("./sections/**/*.tsx", { eager: true }),
+  blocks,
+  meta: () => meta,
+  initPlatform: () => initVtexFromBlocks(),
+  getCommerceLoaders: () => createVtexCommerceLoaders(),
+});
+
+setVtexFetch(createInstrumentedFetch("vtex"));
+```
+
+#### 3. Hooks in components
+
+```tsx
+import { useCart, useUser, useWishlist } from "@decocms/apps/vtex/hooks";
+
+function AddToCartButton({ sku }: { sku: string }) {
+  const { addItems, isMutating } = useCart();
+  return (
+    <button
+      onClick={() => addItems([{ id: sku, quantity: 1 }])}
+      disabled={isMutating}
+    >
+      Add to cart
+    </button>
+  );
+}
+```
+
+That's it. Loaders are auto-registered, hooks are typed, edge cache + cookie propagation work out of the box.
 
 ### Shopify
 
-Storefront API integration via GraphQL.
+```ts
+import { createSiteSetup } from "@decocms/start/setup";
+import { initShopifyFromBlocks } from "@decocms/apps/shopify/client";
+import { createShopifyCommerceLoaders } from "@decocms/apps/shopify/commerceLoaders";
 
-| Import | Purpose |
-|--------|---------|
-| `@decocms/apps/shopify` | Configuration and setup |
-| `@decocms/apps/shopify/client` | Storefront GraphQL client |
-| `@decocms/apps/shopify/loaders/*` | PDP, PLP, product list, cart, user |
-| `@decocms/apps/shopify/actions/cart/*` | Add, update items, coupons |
-| `@decocms/apps/shopify/actions/user/*` | Sign in, sign up |
+createSiteSetup({
+  sections: import.meta.glob("./sections/**/*.tsx", { eager: true }),
+  blocks,
+  meta: () => meta,
+  initPlatform: () => initShopifyFromBlocks(),
+  getCommerceLoaders: () => createShopifyCommerceLoaders(),
+});
+```
+
+Config block (`deco-shopify`) needs `storeName`, `storefrontAccessToken`, `languageCode`, `countryCode`.
+
+> ⚠️ Shopify cart loaders require **cart-cookie wiring** in your route handler. See [Shopify reference](https://docs.deco.cx/v2/en/commerce/shopify) for the canonical pattern.
+
+### Resend
+
+```ts
+import { initResendFromBlocks } from "@decocms/apps/resend/client";
+import { sendEmail } from "@decocms/apps/resend/sdk";
+
+await sendEmail({
+  to: "customer@example.com",
+  subject: "Order confirmed",
+  html: "<h1>Thanks!</h1>",
+});
+```
+
+---
+
+## What's exported
+
+### VTEX
+
+| Subpath | Purpose |
+|---------|---------|
+| `@decocms/apps/vtex` | Barrel index |
+| `@decocms/apps/vtex/client` | `vtexFetch`, `vtexFetchWithCookies`, `intelligentSearch`, `setVtexFetch`, `initVtexFromBlocks`, `configureVtex` |
+| `@decocms/apps/vtex/commerceLoaders` | `createVtexCommerceLoaders` |
+| `@decocms/apps/vtex/loaders/*` | Cart, user, wishlist, search, catalog, sessions, orders, autocomplete |
+| `@decocms/apps/vtex/actions/*` | Cart mutations, auth, profile, address, wishlist, newsletter |
+| `@decocms/apps/vtex/hooks` | `useCart`, `useUser`, `useWishlist`, `useAutocomplete`, plus `createUseCart` / `createUseUser` / `createUseWishlist` factories |
+| `@decocms/apps/vtex/inline-loaders/*` | PDP, PLP, shelves, suggestions, minicart |
+| `@decocms/apps/vtex/middleware` | `extractVtexContext`, `vtexCacheKeySuffix`, `propagateISCookies`, `createVtexCheckoutProxy` |
+| `@decocms/apps/vtex/utils/*` | Transform, segment, cookies, slugCache, sortwhitelist |
+
+> 💡 **Calling VTEX loaders/actions from the client.** Use the typed `invoke` client generated by `@decocms/start` — `invoke["vtex/loaders/cart.ts"](props)` — or use the React hooks above. There is **no** `@decocms/apps/vtex/invoke` subpath.
+
+### Shopify
+
+| Subpath | Purpose |
+|---------|---------|
+| `@decocms/apps/shopify` | Barrel |
+| `@decocms/apps/shopify/client` | `setShopifyFetch`, GraphQL helpers |
+| `@decocms/apps/shopify/loaders/*` | PDP, PLP, ProductList, RelatedProducts, Cart, Account |
+| `@decocms/apps/shopify/actions/cart/*` | `addItems`, `updateItems`, `discountCodesUpdate` |
+| `@decocms/apps/shopify/actions/user/*` | `signIn`, `signUp` |
 | `@decocms/apps/shopify/utils/*` | Transform, cookies, GraphQL queries |
 
-### Shared Commerce
+### Resend
 
-Platform-agnostic types and utilities.
+| Subpath | Purpose |
+|---------|---------|
+| `@decocms/apps/resend/client` | `initResendFromBlocks` |
+| `@decocms/apps/resend/sdk` | `sendEmail` |
+| `@decocms/apps/resend/actions/send` | Invocable email action |
 
-| Import | Purpose |
-|--------|---------|
-| `@decocms/apps/commerce/types` | schema.org Product, Offer, BreadcrumbList, etc. |
-| `@decocms/apps/commerce/components/Image` | Optimized commerce image component |
+### Shared commerce
+
+Platform-agnostic types and components.
+
+| Subpath | Purpose |
+|---------|---------|
+| `@decocms/apps/commerce/types` | schema.org `Product`, `ProductDetailsPage`, `ProductListingPage`, `Offer`, `BreadcrumbList`, etc. |
+| `@decocms/apps/commerce/components/Image` | Optimized commerce image with CDN routing |
+| `@decocms/apps/commerce/components/Picture` | `<picture>` with responsive sources |
 | `@decocms/apps/commerce/components/JsonLd` | Structured data for SEO |
-| `@decocms/apps/commerce/sdk/*` | useOffer, formatPrice, analytics, URL utils |
-| `@decocms/apps/commerce/utils/*` | productToAnalyticsItem, canonical, stateByZip |
+| `@decocms/apps/commerce/sdk/useOffer` | Pick the best offer per region/seller |
+| `@decocms/apps/commerce/sdk/format` | `formatPrice`, `formatPriceRange` |
+| `@decocms/apps/commerce/sdk/analytics` | Event types + `mapProductToAnalyticsItem` |
+| `@decocms/apps/commerce/sdk/useVariantPossibilities` | Variant axis builder for selectors |
 
-## Peer Dependencies
+### Website (utility app)
 
-- `@decocms/start` >= 0.19.0
-- `@tanstack/react-query` >= 5
-- `react` >= 18
-- `react-dom` >= 18
+| Subpath | Purpose |
+|---------|---------|
+| `@decocms/apps/website` | `configureWebsite`, `configureSeo` |
+| `@decocms/apps/website/loaders/redirectsFromCsv` | Bulk redirects from CSV |
+| `@decocms/apps/website/loaders/fonts/*` | Google fonts, custom CDN font loaders |
+
+Complete export tables: [docs.deco.cx/v2/en/reference/commerce-exports](https://docs.deco.cx/v2/en/reference/commerce-exports).
+
+---
+
+## Documentation
+
+The commerce documentation lives at **[docs.deco.cx/v2/en/commerce](https://docs.deco.cx/v2/en/commerce/overview)**:
+
+- [VTEX overview](https://docs.deco.cx/v2/en/commerce/vtex-overview) — config block, secrets, install steps.
+- [VTEX loaders & actions](https://docs.deco.cx/v2/en/commerce/vtex-loaders-and-actions) — input/output cookbook.
+- [VTEX hooks](https://docs.deco.cx/v2/en/commerce/vtex-hooks) — `useCart`, `useUser`, `useWishlist`, `useAutocomplete`.
+- [VTEX gotchas](https://docs.deco.cx/v2/en/commerce/vtex-gotchas) — cookies, sales channel, regionId, IS sort sanitization.
+- [Shopify](https://docs.deco.cx/v2/en/commerce/shopify) — configure, loaders, actions, cart-cookie wiring.
+- [Resend](https://docs.deco.cx/v2/en/commerce/resend) — email setup.
+
+---
+
+## Peer dependencies
+
+```json
+{
+  "@decocms/start": ">=2.0.0",
+  "@tanstack/react-query": ">=5.0.0",
+  "react": ">=19.0.0",
+  "react-dom": ">=19.0.0"
+}
+```
+
+The published peer floor is React 18 to ease incremental migration, but the v2 stack assumes React 19 + the React Compiler.
+
+---
 
 ## Development
 
@@ -69,6 +210,10 @@ Platform-agnostic types and utilities.
 npm run typecheck   # tsc --noEmit
 npm run check       # typecheck + unused export detection
 ```
+
+This is a library — there is no dev server. Consumer storefronts run their own `vite dev`.
+
+---
 
 ## License
 
