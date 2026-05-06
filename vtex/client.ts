@@ -4,6 +4,7 @@
  */
 
 import { RequestContext } from "@decocms/start/sdk/requestContext";
+import { sanitizeOutboundCookieHeader, warnDroppedCookies } from "./utils/cookieSanitizer";
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
 import { ANONYMOUS_COOKIE, SESSION_COOKIE } from "./utils/intelligentSearch";
 import { parseSegment, SEGMENT_COOKIE_NAME } from "./utils/segment";
@@ -276,14 +277,31 @@ export async function vtexCachedFetch<T>(
  * This mirrors deco-cx/deco's `proxySetCookie(response.headers, ctx.response.headers)`.
  */
 export async function vtexFetchWithCookies<T>(path: string, init?: RequestInit): Promise<T> {
-	// Auto-inject request cookies from RequestContext
+	// Auto-inject request cookies from RequestContext.
+	//
+	// We sanitize the forwarded Cookie header before sending it to VTEX:
+	// the janus gateway returns 503 (empty body) on any cookie value that
+	// isn't strict ASCII per RFC 6265. Third-party analytics tags that write
+	// raw UTF-8 into document.cookie (e.g. category names with accents) will
+	// otherwise poison every checkout call for the affected user. The drop
+	// report is emitted via warnDroppedCookies() so we have observability the
+	// next time a tag misbehaves.
 	const existingHeaders = init?.headers as Record<string, string> | undefined;
 	if (!existingHeaders?.cookie) {
 		const ctx = RequestContext.current;
-		const cookies = ctx?.request.headers.get("cookie");
-		if (cookies) {
-			init = { ...init, headers: { ...existingHeaders, cookie: cookies } };
+		const raw = ctx?.request.headers.get("cookie");
+		if (raw) {
+			const { cookies, dropped } = sanitizeOutboundCookieHeader(raw);
+			if (dropped.length) warnDroppedCookies(dropped, vtexHost());
+			if (cookies) {
+				init = { ...init, headers: { ...existingHeaders, cookie: cookies } };
+			}
 		}
+	} else {
+		// Caller passed an explicit cookie — sanitize it too.
+		const { cookies, dropped } = sanitizeOutboundCookieHeader(existingHeaders.cookie);
+		if (dropped.length) warnDroppedCookies(dropped, vtexHost());
+		init = { ...init, headers: { ...existingHeaders, cookie: cookies } };
 	}
 
 	const response = await vtexFetchResponse(path, init);
