@@ -7,27 +7,20 @@
  * TanStack Start's Vite plugin only transforms source files.
  */
 import { getVtexConfig } from "../client";
+import { extractVtexCookies } from "./cookieSanitizer";
 
 const DOMAIN_RE = /;\s*domain=[^;]*/gi;
 
-const VTEX_COOKIE_PREFIXES = [
-	"vtex_session=",
-	"vtex_segment=",
-	"VtexIdclientAutCookie",
-	"checkout.vtex.com",
-	"CheckoutOrderFormOwnership",
-];
-
 /**
  * Extract VTEX-relevant cookies from a raw Cookie header string.
- * Filters out analytics/CF cookies that can cause VTEX 503 errors.
+ *
+ * Strict allowlist: drops any cookie not on `VTEX_COOKIE_PREFIXES`, plus
+ * any cookie whose value contains non-ASCII bytes (which would otherwise
+ * make VTEX's janus gateway return 503 Service Unavailable). Both filters
+ * live in `./cookieSanitizer` — this is a thin compatibility wrapper.
  */
 export function extractVtexCookiesFromHeader(raw: string): string {
-	return raw
-		.split(";")
-		.map((c) => c.trim())
-		.filter((c) => VTEX_COOKIE_PREFIXES.some((prefix) => c.startsWith(prefix)))
-		.join("; ");
+	return extractVtexCookies(raw);
 }
 
 /**

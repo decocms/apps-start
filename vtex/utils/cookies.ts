@@ -121,29 +121,22 @@ export const proxySetCookie = (from: Headers, to: Headers, toDomain?: URL | stri
 export const CHECKOUT_DATA_ACCESS_COOKIE = "CheckoutDataAccess";
 export const VTEX_CHKO_AUTH = "Vtex_CHKO_Auth";
 
-/**
- * Cookie name prefixes that are VTEX-relevant.
- * Used by getVtexCookies() to filter request cookies before forwarding
- * to VTEX APIs — avoids undici non-ASCII warnings from other cookies.
- */
-export const VTEX_COOKIE_PREFIXES = [
-	"VtexIdclientAutCookie",
-	"checkout.vtex",
-	"CheckoutOrderFormOwnership",
-	"vtex_is_",
-];
+// Re-export the canonical allowlist from cookieSanitizer so consumers that
+// previously imported it from this module keep working. The single source
+// of truth lives in cookieSanitizer.ts.
+export { VTEX_COOKIE_PREFIXES } from "./cookieSanitizer";
+
+import { extractVtexCookies } from "./cookieSanitizer";
 
 /**
  * Filter a request's cookies to only VTEX-relevant ones.
- * Prevents undici non-ASCII header warnings when forwarding cookies to VTEX APIs.
+ *
+ * Strict allowlist: drops any cookie not on `VTEX_COOKIE_PREFIXES` plus any
+ * cookie whose value contains non-ASCII bytes (which would make VTEX's
+ * janus gateway return 503).
  */
 export function getVtexCookies(request: Request): string {
-	const raw = request.headers.get("cookie") ?? "";
-	return raw
-		.split(";")
-		.map((c) => c.trim())
-		.filter((c) => VTEX_COOKIE_PREFIXES.some((p) => c.startsWith(p)))
-		.join("; ");
+	return extractVtexCookies(request.headers.get("cookie") ?? "");
 }
 
 /**
