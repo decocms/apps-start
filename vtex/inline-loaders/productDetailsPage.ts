@@ -17,12 +17,14 @@ export interface PDPProps {
 	indexingSkus?: boolean;
 	/** Use product.description instead of metaTagDescription for SEO */
 	preferDescription?: boolean;
+	/** Use lean variant transform (no images/video) for hasVariant[]. Defaults to true. */
+	leanVariants?: boolean;
 }
 
 export default async function vtexProductDetailsPage(
 	props: PDPProps,
 ): Promise<ProductDetailsPage | null> {
-	const { slug, skuId, indexingSkus, preferDescription } = props;
+	const { slug, skuId, indexingSkus, preferDescription, leanVariants = true } = props;
 	if (!slug) return null;
 
 	try {
@@ -53,7 +55,7 @@ export default async function vtexProductDetailsPage(
 		const page = toProductPage(product, sku, kitItems, {
 			baseUrl,
 			priceCurrency: "BRL",
-			leanVariants: true,
+			leanVariants,
 		});
 
 		return {
