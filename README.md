@@ -17,6 +17,21 @@ Commerce integrations for [deco.cx](https://deco.cx) storefronts on **TanStack S
 npm install @decocms/apps
 ```
 
+### Release channels
+
+`@decocms/apps` publishes two npm dist-tags:
+
+- **`@latest`** — default channel. `npm install @decocms/apps` and any `^X.Y.Z` range resolve here.
+- **`@next`** — opt-in prerelease channel for validation builds (`X.Y.Z-next.N`). Carets never resolve to prereleases, so you only get these by asking:
+
+  ```bash
+  # Follow the next channel (re-resolves on each install)
+  npm install @decocms/apps@next
+
+  # Or pin an exact prerelease
+  npm install @decocms/apps@1.14.0-next.0
+  ```
+
 ---
 
 ## Minimum wiring
