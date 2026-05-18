@@ -7,7 +7,7 @@
  *   - vtex/actions/payment/deletePaymentToken.ts
  * @see https://developers.vtex.com/docs/api-reference
  */
-import { getVtexConfig, vtexFetch } from "../client";
+import { getVtexConfig, getVtexFetch, vtexFetch } from "../client";
 import { buildAuthCookieHeader, VTEX_AUTH_COOKIE } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
@@ -127,9 +127,10 @@ export async function notifyMe(props: NotifyMeProps): Promise<void> {
 	form.append("notifymeClientEmail", email);
 	form.append("notifymeIdSku", skuId);
 
-	await fetch(`https://${account}.vtexcommercestable.com.br/no-cache/AviseMe.aspx`, {
+	await getVtexFetch()(`https://${account}.vtexcommercestable.com.br/no-cache/AviseMe.aspx`, {
 		method: "POST",
 		body: form,
+		operation: "notifyme",
 	});
 }
 
@@ -148,7 +149,7 @@ export async function sendEvent(
 ): Promise<void> {
 	const { account } = getVtexConfig();
 
-	await fetch(`https://sp.vtex.com/event-api/v1/${account}/event`, {
+	await getVtexFetch()(`https://sp.vtex.com/event-api/v1/${account}/event`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
@@ -156,6 +157,7 @@ export async function sendEvent(
 			...isCookies,
 			agent: userAgent || "deco-sites/apps",
 		}),
+		operation: "analytics.event",
 	});
 }
 

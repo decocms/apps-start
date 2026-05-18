@@ -3,6 +3,10 @@
  * Uses VTEX's public REST APIs (Intelligent Search + Catalog + Checkout).
  */
 
+import type {
+	InstrumentedFetch,
+	InstrumentedFetchInit,
+} from "@decocms/start/sdk/instrumentedFetch";
 import { RequestContext } from "@decocms/start/sdk/requestContext";
 import { sanitizeOutboundCookieHeader, warnDroppedCookies } from "./utils/cookieSanitizer";
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
@@ -96,7 +100,7 @@ export interface VtexConfig {
 }
 
 let _config: VtexConfig | null = null;
-let _fetch: typeof fetch = globalThis.fetch;
+let _fetch: typeof fetch | InstrumentedFetch = globalThis.fetch;
 
 export function configureVtex(config: VtexConfig) {
 	_config = config;
@@ -105,17 +109,38 @@ export function configureVtex(config: VtexConfig) {
 
 /**
  * Override the fetch function used by all VTEX client calls.
- * Use this to plug in instrumented fetch for logging/tracing.
+ * Pass an `InstrumentedFetch` to get spans, traceparent injection,
+ * URL redaction, and the `commerce_request_duration_ms` histogram —
+ * use the pre-wired `createVtexFetch()` factory:
  *
- * @example
  * ```ts
- * import { createInstrumentedFetch } from "@decocms/start/sdk/instrumentedFetch";
- * import { setVtexFetch } from "@decocms/apps/vtex";
- * setVtexFetch(createInstrumentedFetch("vtex"));
+ * import { setVtexFetch, createVtexFetch } from "@decocms/apps/vtex";
+ * setVtexFetch(createVtexFetch());
+ * ```
+ *
+ * Accepts a plain `typeof fetch` too; in that mode VTEX calls are
+ * uninstrumented (useful for tests + sites that haven't onboarded
+ * the observability stack yet).
+ */
+export function setVtexFetch(fetchFn: typeof fetch | InstrumentedFetch) {
+	_fetch = fetchFn;
+}
+
+/**
+ * Read-only accessor for the configured VTEX fetch. Used by ad-hoc
+ * callsites that don't fit the `vtexFetch*` helpers (FormData
+ * uploads, the storefront proxies, .aspx endpoints) but still want
+ * to participate in the instrumentation set up via `setVtexFetch`.
+ *
+ * Callers can stamp a per-call operation through the init:
+ *
+ * ```ts
+ * const fetch = getVtexFetch();
+ * await fetch(url, { method: "POST", operation: "notifyme" });
  * ```
  */
-export function setVtexFetch(fetchFn: typeof fetch) {
-	_fetch = fetchFn;
+export function getVtexFetch(): InstrumentedFetch {
+	return _fetch as InstrumentedFetch;
 }
 
 export function getVtexConfig(): VtexConfig {
@@ -198,7 +223,10 @@ function hasCookieHeader(headers: HeadersInit | undefined): boolean {
 	return Object.keys(headers).some((k) => k.toLowerCase() === "cookie");
 }
 
-export async function vtexFetchResponse(path: string, init?: RequestInit): Promise<Response> {
+export async function vtexFetchResponse(
+	path: string,
+	init?: InstrumentedFetchInit,
+): Promise<Response> {
 	const raw = path.startsWith("http") ? path : `${baseUrl()}${path}`;
 	const url = sanitizeUrl(raw);
 
@@ -225,7 +253,7 @@ export async function vtexFetchResponse(path: string, init?: RequestInit): Promi
 	return response;
 }
 
-export async function vtexFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function vtexFetch<T>(path: string, init?: InstrumentedFetchInit): Promise<T> {
 	const response = await vtexFetchResponse(path, init);
 	return response.json();
 }
@@ -242,7 +270,7 @@ export interface VtexCachedFetchOptions {
  */
 export async function vtexCachedFetch<T>(
 	path: string,
-	init?: RequestInit,
+	init?: InstrumentedFetchInit,
 	cacheOpts?: VtexCachedFetchOptions,
 ): Promise<T | null> {
 	const method = (init?.method ?? "GET").toUpperCase();
@@ -276,7 +304,10 @@ export async function vtexCachedFetch<T>(
  *
  * This mirrors deco-cx/deco's `proxySetCookie(response.headers, ctx.response.headers)`.
  */
-export async function vtexFetchWithCookies<T>(path: string, init?: RequestInit): Promise<T> {
+export async function vtexFetchWithCookies<T>(
+	path: string,
+	init?: InstrumentedFetchInit,
+): Promise<T> {
 	// Auto-inject request cookies from RequestContext.
 	//
 	// We sanitize the forwarded Cookie header before sending it to VTEX:

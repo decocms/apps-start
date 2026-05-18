@@ -14,7 +14,7 @@
  * fetch handlers.
  */
 
-import { getVtexConfig, type VtexConfig, vtexHost } from "../client";
+import { getVtexConfig, getVtexFetch, type VtexConfig, vtexHost } from "../client";
 import { proxySetCookie } from "./cookies";
 
 export interface VtexProxyOptions {
@@ -173,7 +173,12 @@ export async function proxyToVtex(request: Request, options?: VtexProxyOptions):
 		init.duplex = "half";
 	}
 
-	const originResponse = await fetch(originUrl.toString(), init);
+	// Route through the configured VTEX fetch so traces / metrics / logs
+	// see the proxied origin call. The URL router classifies the call
+	// into the right `vtex.<area>.<op>` bucket (e.g. `vtex.checkout.*`,
+	// `vtex.vtexid.logout`, `vtex.io.segment`) — no per-callsite hint
+	// needed because we're a generic forwarder.
+	const originResponse = await getVtexFetch()(originUrl.toString(), init);
 
 	const responseHeaders = filterHeaders(new Headers(originResponse.headers));
 
@@ -380,7 +385,7 @@ export function createVtexCheckoutProxy(
 			init.duplex = "half";
 		}
 
-		const originRes = await fetch(originUrl.toString(), init);
+		const originRes = await getVtexFetch()(originUrl.toString(), init);
 		const resHeaders = filterHeadersStrict(new Headers(originRes.headers));
 		rewriteSetCookieDomain(originRes.headers, resHeaders, url.hostname);
 
