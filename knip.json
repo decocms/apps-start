@@ -23,8 +23,5 @@
   ],
   "ignoreBinaries": [
     "semantic-release"
-  ],
-  "ignoreDependencies": [
-    "@decocms/start"
   ]
 }
