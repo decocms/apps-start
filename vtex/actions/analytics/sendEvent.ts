@@ -8,7 +8,7 @@
  * @see https://developers.vtex.com/docs/api-reference/intelligent-search-api#post-/event-api/v1/-account-/event
  */
 
-import { getVtexConfig } from "../../client";
+import { getVtexConfig, getVtexFetch } from "../../client";
 import { ANONYMOUS_COOKIE, SESSION_COOKIE } from "../../utils/intelligentSearch";
 
 export type Props =
@@ -68,7 +68,7 @@ const action = async (props: Props, req: Request): Promise<null> => {
 	}
 
 	const url = `https://sp.vtex.com/event-api/v1/${account}/event`;
-	await fetch(url, {
+	await getVtexFetch()(url, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify({
@@ -77,6 +77,7 @@ const action = async (props: Props, req: Request): Promise<null> => {
 			anonymous,
 			agent: req.headers.get("user-agent") || "deco-sites/apps",
 		}),
+		operation: "analytics.event",
 	});
 
 	return null;

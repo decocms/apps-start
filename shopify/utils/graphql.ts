@@ -1,3 +1,6 @@
+import type { InstrumentedFetchInit } from "@decocms/start/sdk/instrumentedFetch";
+import { extractGraphqlOperationName } from "./graphqlOperationName";
+
 export function gql(strings: TemplateStringsArray, ...values: unknown[]): string {
 	return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ""), "");
 }
@@ -29,14 +32,22 @@ export function createGraphqlClient(
 		): Promise<T> {
 			const query = typeof queryOrDef === "string" ? queryOrDef : buildQuery(queryOrDef);
 
-			const response = await _fetch(endpoint, {
+			// Stamp the GraphQL operation as init.operation so the framework's
+			// span name becomes `shopify.<OperationName>` instead of the
+			// generic `shopify.storefront.graphql` from the URL router. The
+			// extra field is silently dropped by plain `fetch` and read by
+			// any `InstrumentedFetch` configured via `setShopifyFetch`.
+			const operation = extractGraphqlOperationName(query);
+			const init: InstrumentedFetchInit = {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					...headers,
 				},
 				body: JSON.stringify({ query, variables }),
-			});
+				...(operation ? { operation } : {}),
+			};
+			const response = await _fetch(endpoint, init);
 
 			if (!response.ok) {
 				throw new Error(`Shopify GraphQL error: ${response.status} ${response.statusText}`);

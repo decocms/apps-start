@@ -4,7 +4,7 @@
  *   - vtex/actions/profile/updateProfile.ts
  * @see https://developers.vtex.com/docs/guides/profile-system
  */
-import { getVtexConfig, vtexFetch } from "../client";
+import { getVtexConfig, getVtexFetch, vtexFetch } from "../client";
 import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
@@ -166,10 +166,11 @@ export async function updateProfileFromRequest(
 			corporateDocument tradeName stateRegistration
 		}
 	}`;
-	const res = await fetch(`https://${account}.myvtex.com/_v/private/graphql/v1`, {
+	const res = await getVtexFetch()(`https://${account}.myvtex.com/_v/private/graphql/v1`, {
 		method: "POST",
 		body: JSON.stringify({ query: QUERY, variables: { profile } }),
 		headers: { "Content-Type": "application/json", cookie },
+		operation: "io.graphql.UpdateProfile",
 	});
 	return res.json();
 }

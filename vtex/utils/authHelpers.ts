@@ -6,7 +6,7 @@
  * createServerFn itself must live in site source (not node_modules) because
  * TanStack Start's Vite plugin only transforms source files.
  */
-import { getVtexConfig } from "../client";
+import { getVtexConfig, getVtexFetch } from "../client";
 import { extractVtexCookies } from "./cookieSanitizer";
 
 const DOMAIN_RE = /;\s*domain=[^;]*/gi;
@@ -49,10 +49,11 @@ export async function performVtexLogout(cookies: string): Promise<{ setCookies: 
 	const domain = config.domain ?? "com.br";
 	const logoutUrl = `https://${config.account}.vtexcommercestable.${domain}/api/vtexid/pub/logout?scope=${config.account}&returnUrl=/`;
 
-	const res = await fetch(logoutUrl, {
+	const res = await getVtexFetch()(logoutUrl, {
 		method: "GET",
 		headers: { cookie: cookies },
 		redirect: "manual",
+		operation: "vtexid.logout",
 	});
 
 	const upstreamCookies = res.headers.getSetCookie?.() ?? [];

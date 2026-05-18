@@ -13,3 +13,5 @@
  */
 export * from "./client";
 export { configure, type VtexState } from "./mod";
+export { type CreateVtexFetchOptions, createVtexFetch } from "./utils/instrumentedFetch";
+export { vtexOperationRouter } from "./utils/operationRouter";

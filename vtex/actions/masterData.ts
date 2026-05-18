@@ -2,7 +2,7 @@
  * VTEX MasterData v2 API actions.
  * Generic CRUD operations on data entities.
  */
-import { getVtexConfig, vtexFetch, vtexFetchResponse } from "../client";
+import { getVtexConfig, getVtexFetch, vtexFetch, vtexFetchResponse } from "../client";
 
 function removeEmptyFields(obj: Record<string, any>): Record<string, any> {
 	return Object.fromEntries(
@@ -153,10 +153,11 @@ export async function uploadAttachment(opts: UploadAttachmentOpts): Promise<{ ok
 		headers["X-VTEX-API-AppToken"] = config.appToken;
 	}
 
-	const response = await fetch(url, {
+	const response = await getVtexFetch()(url, {
 		method: "POST",
 		headers,
 		body: formData,
+		operation: "masterdata.attachment.upload",
 	});
 
 	if (!response.ok) {
