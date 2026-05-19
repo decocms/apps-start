@@ -41,15 +41,13 @@ jobs:
 
       # Node 24 ships with npm 11.x, required for the OIDC handshake the npm
       # registry expects since ~May 2026. Node 22 still ships with npm 10,
-      # whose handshake the registry has deprecated — see npm/cli#8976 and
-      # npm/cli#8730. `registry-url` is intentionally omitted: setting it
-      # writes an `.npmrc` containing `_authToken=${NODE_AUTH_TOKEN}` and
-      # exports a placeholder NODE_AUTH_TOKEN, and npm prefers that
-      # (anonymous) token over the OIDC token exchange, producing a masked
-      # 404 publish error. See actions/setup-node#1477.
+      # whose handshake the registry has deprecated — see npm/cli#8976,
+      # npm/cli#8730, and the "Node 24 fix" writeup at
+      # https://medium.com/@kenricktan11/npm-trusted-publishers-the-weird-404-error-and-the-node-js-24-fix-a9f1d717a5dd
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          registry-url: https://registry.npmjs.org
 
       - run: npm ci
 
