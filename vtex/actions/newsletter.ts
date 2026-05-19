@@ -5,7 +5,7 @@
  *   - vtex/actions/newsletter/updateNewsletterOptIn.ts
  * @see https://developers.vtex.com/docs/guides/newsletter
  */
-import { getVtexConfig, vtexFetch } from "../client";
+import { getVtexConfig, getVtexFetch, vtexFetch } from "../client";
 import { buildAuthCookieHeader } from "../utils/vtexId";
 
 // ---------------------------------------------------------------------------
@@ -83,9 +83,10 @@ export async function subscribe(props: SubscribeProps): Promise<void> {
 	form.append("newsInternalPart", part);
 	form.append("newsInternalCampaign", campaing);
 
-	await fetch(`https://${account}.vtexcommercestable.com.br/no-cache/Newsletter.aspx`, {
+	await getVtexFetch()(`https://${account}.vtexcommercestable.com.br/no-cache/Newsletter.aspx`, {
 		method: "POST",
 		body: form,
+		operation: "newsletter.subscribe",
 	});
 }
 

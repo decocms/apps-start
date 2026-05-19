@@ -57,8 +57,11 @@ A working VTEX storefront needs three things: a `deco-vtex` config block, an `in
 
 ```ts
 import { createSiteSetup } from "@decocms/start/setup";
-import { createInstrumentedFetch } from "@decocms/start/sdk/instrumentedFetch";
-import { initVtexFromBlocks, setVtexFetch } from "@decocms/apps/vtex/client";
+import {
+  createVtexFetch,
+  initVtexFromBlocks,
+  setVtexFetch,
+} from "@decocms/apps/vtex";
 import { createVtexCommerceLoaders } from "@decocms/apps/vtex/commerceLoaders";
 
 createSiteSetup({
@@ -69,8 +72,27 @@ createSiteSetup({
   getCommerceLoaders: () => createVtexCommerceLoaders(),
 });
 
-setVtexFetch(createInstrumentedFetch("vtex"));
+// Plumbs spans, traceparent injection, URL redaction, and the
+// `commerce_request_duration_ms` histogram into every outbound
+// VTEX call. Operation names are derived from the URL via
+// `vtexOperationRouter` (overridable per call via `init.operation`).
+setVtexFetch(createVtexFetch());
 ```
+
+For Shopify storefronts the equivalent factory is `createShopifyFetch()`:
+
+```ts
+import { createShopifyFetch, setShopifyFetch } from "@decocms/apps/shopify";
+
+setShopifyFetch(createShopifyFetch());
+```
+
+Shopify's GraphQL operation name (`query Foo { ... }` → `Foo`) is
+extracted from the document body and stamped automatically — spans
+become `shopify.Foo` instead of the generic `shopify.storefront.graphql`.
+
+> **Heads up:** the factories require `@decocms/start@>=5.3.0-rc.0`
+> for the per-call `init.operation` API used to label spans.
 
 #### 3. Hooks in components
 
@@ -134,7 +156,9 @@ await sendEmail({
 | Subpath | Purpose |
 |---------|---------|
 | `@decocms/apps/vtex` | Barrel index |
-| `@decocms/apps/vtex/client` | `vtexFetch`, `vtexFetchWithCookies`, `intelligentSearch`, `setVtexFetch`, `initVtexFromBlocks`, `configureVtex` |
+| `@decocms/apps/vtex/client` | `vtexFetch`, `vtexFetchWithCookies`, `intelligentSearch`, `setVtexFetch`, `getVtexFetch`, `initVtexFromBlocks`, `configureVtex` |
+| `@decocms/apps/vtex` (barrel) | All of `client`, plus `createVtexFetch`, `vtexOperationRouter` for observability wiring |
+| `@decocms/apps/shopify` (barrel) | `createShopifyFetch`, `setShopifyFetch`, `shopifyOperationRouter`, `extractGraphqlOperationName` for observability wiring |
 | `@decocms/apps/vtex/commerceLoaders` | `createVtexCommerceLoaders` |
 | `@decocms/apps/vtex/loaders/*` | Cart, user, wishlist, search, catalog, sessions, orders, autocomplete |
 | `@decocms/apps/vtex/actions/*` | Cart mutations, auth, profile, address, wishlist, newsletter |

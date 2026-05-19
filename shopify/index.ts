@@ -34,4 +34,10 @@ export { default as userLoader } from "./loaders/user";
 export { getCartCookie, setCartCookie } from "./utils/cart";
 // Cookie utils
 export { getCookies, setCookie } from "./utils/cookies";
+export { extractGraphqlOperationName } from "./utils/graphqlOperationName";
+export {
+	type CreateShopifyFetchOptions,
+	createShopifyFetch,
+} from "./utils/instrumentedFetch";
+export { shopifyOperationRouter } from "./utils/operationRouter";
 export { getUserCookie, setUserCookie } from "./utils/user";
