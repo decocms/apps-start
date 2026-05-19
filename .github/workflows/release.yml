@@ -39,83 +39,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Node 24 ships with npm 11.x, required for the OIDC handshake the npm
+      # registry expects since ~May 2026. Node 22 still ships with npm 10,
+      # whose handshake the registry has deprecated — see npm/cli#8976 and
+      # npm/cli#8730. `registry-url` is intentionally omitted: setting it
+      # writes an `.npmrc` containing `_authToken=${NODE_AUTH_TOKEN}` and
+      # exports a placeholder NODE_AUTH_TOKEN, and npm prefers that
+      # (anonymous) token over the OIDC token exchange, producing a masked
+      # 404 publish error. See actions/setup-node#1477.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
 
       - run: npm ci
 
       - run: npm test
-
-      # Debug step: replicate the OIDC->npm exchange manually so we can
-      # see the actual error body npm returns at each step. The npm CLI
-      # hides response bodies even at --loglevel=silly. With this we get:
-      #   1. the OIDC token claims (already verified to match TP UI)
-      #   2. the response from npm's token-exchange endpoint, which is
-      #      what npm CLI does internally before the PUT to publish
-      #   3. the same exchange against @decocms/start (known working)
-      #      to compare
-      # Only the JWT's public header + payload claims and npm's
-      # response bodies are echoed; the signature is never logged.
-      - name: Debug — replicate OIDC token exchange and dump npm responses
-        run: |
-          set +e
-          OIDC_TOKEN=$(curl -sSL \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" \
-            | jq -r .value)
-
-          echo "=== STEP 1: OIDC token claims ==="
-          echo "$OIDC_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
-
-          echo ""
-          echo "=== STEP 2: POST /-/npm/v1/oidc/token/exchange for @decocms/apps (failing) ==="
-          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
-            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fapps" \
-            -H "Authorization: Bearer $OIDC_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{}'
-
-          echo ""
-          echo "=== STEP 3: extract bearer from exchange and probe with it ==="
-          EXCHANGE_RESP=$(curl -sSL \
-            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fapps" \
-            -H "Authorization: Bearer $OIDC_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{}')
-          NPM_BEARER=$(echo "$EXCHANGE_RESP" | jq -r .token)
-          NPM_BEARER_TYPE=$(echo "$EXCHANGE_RESP" | jq -r .token_type)
-          echo "Got bearer (type=$NPM_BEARER_TYPE, length=${#NPM_BEARER})"
-
-          echo ""
-          echo "=== STEP 4: whoami with the bearer ==="
-          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
-            "https://registry.npmjs.org/-/whoami" \
-            -H "Authorization: Bearer $NPM_BEARER"
-
-          echo ""
-          echo "=== STEP 5: GET the package metadata with the bearer ==="
-          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" -o /dev/null \
-            "https://registry.npmjs.org/@decocms/apps" \
-            -H "Authorization: Bearer $NPM_BEARER"
-
-          echo ""
-          echo "=== STEP 6: HEAD the publish endpoint with the bearer ==="
-          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" -I \
-            "https://registry.npmjs.org/@decocms%2fapps" \
-            -H "Authorization: Bearer $NPM_BEARER"
-
-          echo ""
-          echo "=== STEP 7: PUT a minimal probe doc with the bearer (full response body) ==="
-          PROBE_BODY='{"_id":"@decocms/apps","name":"@decocms/apps","versions":{"99.99.99-probe":{"name":"@decocms/apps","version":"99.99.99-probe","_id":"@decocms/apps@99.99.99-probe","dist":{"tarball":"https://registry.npmjs.org/@decocms/apps/-/apps-99.99.99-probe.tgz","shasum":"0000000000000000000000000000000000000000"}}},"_attachments":{}}'
-          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
-            -X PUT "https://registry.npmjs.org/@decocms%2fapps" \
-            -H "Authorization: Bearer $NPM_BEARER" \
-            -H "Content-Type: application/json" \
-            -d "$PROBE_BODY"
-          echo ""
-          echo "--- end exchange diagnostics ---"
 
       - name: Release
         run: npx semantic-release
