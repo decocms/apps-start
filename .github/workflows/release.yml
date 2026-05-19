@@ -78,13 +78,42 @@ jobs:
             -d '{}'
 
           echo ""
-          echo "=== STEP 3: POST /-/npm/v1/oidc/token/exchange for @decocms/start (working) ==="
-          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
-            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fstart" \
+          echo "=== STEP 3: extract bearer from exchange and probe with it ==="
+          EXCHANGE_RESP=$(curl -sSL \
+            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fapps" \
             -H "Authorization: Bearer $OIDC_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{}'
+            -d '{}')
+          NPM_BEARER=$(echo "$EXCHANGE_RESP" | jq -r .token)
+          NPM_BEARER_TYPE=$(echo "$EXCHANGE_RESP" | jq -r .token_type)
+          echo "Got bearer (type=$NPM_BEARER_TYPE, length=${#NPM_BEARER})"
 
+          echo ""
+          echo "=== STEP 4: whoami with the bearer ==="
+          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
+            "https://registry.npmjs.org/-/whoami" \
+            -H "Authorization: Bearer $NPM_BEARER"
+
+          echo ""
+          echo "=== STEP 5: GET the package metadata with the bearer ==="
+          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" -o /dev/null \
+            "https://registry.npmjs.org/@decocms/apps" \
+            -H "Authorization: Bearer $NPM_BEARER"
+
+          echo ""
+          echo "=== STEP 6: HEAD the publish endpoint with the bearer ==="
+          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" -I \
+            "https://registry.npmjs.org/@decocms%2fapps" \
+            -H "Authorization: Bearer $NPM_BEARER"
+
+          echo ""
+          echo "=== STEP 7: PUT a minimal probe doc with the bearer (full response body) ==="
+          PROBE_BODY='{"_id":"@decocms/apps","name":"@decocms/apps","versions":{"99.99.99-probe":{"name":"@decocms/apps","version":"99.99.99-probe","_id":"@decocms/apps@99.99.99-probe","dist":{"tarball":"https://registry.npmjs.org/@decocms/apps/-/apps-99.99.99-probe.tgz","shasum":"0000000000000000000000000000000000000000"}}},"_attachments":{}}'
+          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
+            -X PUT "https://registry.npmjs.org/@decocms%2fapps" \
+            -H "Authorization: Bearer $NPM_BEARER" \
+            -H "Content-Type: application/json" \
+            -d "$PROBE_BODY"
           echo ""
           echo "--- end exchange diagnostics ---"
 
