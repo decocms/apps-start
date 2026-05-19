@@ -48,6 +48,44 @@ jobs:
 
       - run: npm test
 
+      # Debug step: replicate the OIDC->npm exchange manually so we can
+      # see the actual error body npm returns at each step. The npm CLI
+      # hides response bodies even at --loglevel=silly. With this we get:
+      #   1. the OIDC token claims (already verified to match TP UI)
+      #   2. the response from npm's token-exchange endpoint, which is
+      #      what npm CLI does internally before the PUT to publish
+      #   3. the same exchange against @decocms/start (known working)
+      #      to compare
+      # Only the JWT's public header + payload claims and npm's
+      # response bodies are echoed; the signature is never logged.
+      - name: Debug — replicate OIDC token exchange and dump npm responses
+        run: |
+          set +e
+          OIDC_TOKEN=$(curl -sSL \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" \
+            | jq -r .value)
+
+          echo "=== STEP 1: OIDC token claims ==="
+          echo "$OIDC_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
+
+          echo ""
+          echo "=== STEP 2: POST /-/npm/v1/oidc/token/exchange for @decocms/apps (the failing one) ==="
+          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
+            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fapps" \
+            -H "Content-Type: application/json" \
+            -d "{\"jwt\":\"$OIDC_TOKEN\"}"
+
+          echo ""
+          echo "=== STEP 3: POST /-/npm/v1/oidc/token/exchange for @decocms/start (the working one) ==="
+          curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
+            -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fstart" \
+            -H "Content-Type: application/json" \
+            -d "{\"jwt\":\"$OIDC_TOKEN\"}"
+
+          echo ""
+          echo "--- end exchange diagnostics ---"
+
       - name: Release
         run: npx semantic-release
         env:
