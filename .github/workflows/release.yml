@@ -50,16 +50,9 @@ jobs:
 
       - run: npm test
 
-      # setup-node@v4's `registry-url` writes an .npmrc containing
-      # `_authToken=${NODE_AUTH_TOKEN}` and exports a placeholder
-      # NODE_AUTH_TOKEN. npm CLI prefers that (empty-stub) token over the
-      # OIDC token exchange, surfacing as the masked 404 we hit before.
-      # actions/setup-node#1477 tracks fixing this upstream; until then we
-      # delete that line so npm 11 falls back to OIDC trusted publishing.
-      - name: Strip setup-node's _authToken stub so npm falls back to OIDC
-        run: sed -i '/_authToken/d' "$NPM_CONFIG_USERCONFIG"
-
       - name: Release
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          npm_config_loglevel: verbose
