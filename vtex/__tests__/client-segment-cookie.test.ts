@@ -7,7 +7,14 @@
 
 import { RequestContext } from "@decocms/start/sdk/requestContext";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { configureVtex, setVtexFetch, vtexFetchResponse } from "../client";
+import {
+	configureVtex,
+	intelligentSearch,
+	setVtexFetch,
+	vtexCachedFetch,
+	vtexFetchResponse,
+} from "../client";
+import { clearFetchCache } from "../utils/fetchCache";
 
 function mockResponse(body: unknown = {}, status = 200): Response {
 	return {
@@ -43,6 +50,25 @@ function mockResponse(body: unknown = {}, status = 200): Response {
  * `vi.spyOn`. The spy is restored after `fn` resolves to keep tests
  * isolated. Nothing here depends on undici or ALS internals.
  */
+/**
+ * Read a header from an init in a shape-agnostic way. After the
+ * `mergeHeaders` refactor, `init.headers` is always a `Headers`
+ * instance — but the helper handles legacy shapes too so the tests
+ * stay robust if someone changes the merge implementation again.
+ */
+function headerValue(init: RequestInit | undefined, name: string): string | undefined {
+	const headers = init?.headers;
+	if (!headers) return undefined;
+	if (headers instanceof Headers) return headers.get(name) ?? undefined;
+	if (Array.isArray(headers)) {
+		const found = headers.find(([k]) => k.toLowerCase() === name.toLowerCase());
+		return found?.[1];
+	}
+	const rec = headers as Record<string, string>;
+	const key = Object.keys(rec).find((k) => k.toLowerCase() === name.toLowerCase());
+	return key ? rec[key] : undefined;
+}
+
 function withRequest<T>(cookieHeader: string | null, fn: () => Promise<T>): Promise<T> {
 	const headers = new Headers();
 	if (cookieHeader) headers.set("cookie", cookieHeader);
@@ -79,8 +105,7 @@ describe("vtexFetchResponse — vtex_segment cookie forwarding", () => {
 		await withRequest("vtex_segment=abc123; other=foo", async () => {
 			await vtexFetchResponse("/api/catalog_system/pub/products/x");
 		});
-		const headers = lastInit?.headers as Record<string, string>;
-		expect(headers.cookie).toBe("vtex_segment=abc123");
+		expect(headerValue(lastInit, "cookie")).toBe("vtex_segment=abc123");
 	});
 
 	it("does not overwrite a caller-supplied cookie header", async () => {
@@ -89,8 +114,7 @@ describe("vtexFetchResponse — vtex_segment cookie forwarding", () => {
 				headers: { cookie: "custom=zzz" },
 			});
 		});
-		const headers = lastInit?.headers as Record<string, string>;
-		expect(headers.cookie).toBe("custom=zzz");
+		expect(headerValue(lastInit, "cookie")).toBe("custom=zzz");
 	});
 
 	it("does not overwrite a caller-supplied Cookie header (case-insensitive)", async () => {
@@ -99,34 +123,26 @@ describe("vtexFetchResponse — vtex_segment cookie forwarding", () => {
 				headers: { Cookie: "custom=zzz" },
 			});
 		});
-		const headers = lastInit?.headers as Record<string, string>;
-		// The merged headers may contain both keys; the caller's value should win.
-		const lowered = Object.fromEntries(
-			Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]),
-		);
-		expect(lowered.cookie).toBe("custom=zzz");
+		expect(headerValue(lastInit, "cookie")).toBe("custom=zzz");
 	});
 
 	it("is a no-op when there is no incoming cookie header", async () => {
 		await withRequest(null, async () => {
 			await vtexFetchResponse("/api/x");
 		});
-		const headers = lastInit?.headers as Record<string, string>;
-		expect(headers.cookie).toBeUndefined();
+		expect(headerValue(lastInit, "cookie")).toBeUndefined();
 	});
 
 	it("is a no-op when there is a cookie header but no vtex_segment", async () => {
 		await withRequest("other=foo; another=bar", async () => {
 			await vtexFetchResponse("/api/x");
 		});
-		const headers = lastInit?.headers as Record<string, string>;
-		expect(headers.cookie).toBeUndefined();
+		expect(headerValue(lastInit, "cookie")).toBeUndefined();
 	});
 
 	it("does not crash when called outside a RequestContext", async () => {
 		await vtexFetchResponse("/api/x");
-		const headers = lastInit?.headers as Record<string, string>;
-		expect(headers.cookie).toBeUndefined();
+		expect(headerValue(lastInit, "cookie")).toBeUndefined();
 	});
 
 	it("preserves auth headers alongside the forwarded cookie", async () => {
@@ -134,9 +150,106 @@ describe("vtexFetchResponse — vtex_segment cookie forwarding", () => {
 		await withRequest("vtex_segment=abc123", async () => {
 			await vtexFetchResponse("/api/x");
 		});
-		const headers = lastInit?.headers as Record<string, string>;
-		expect(headers["X-VTEX-API-AppKey"]).toBe("k");
-		expect(headers["X-VTEX-API-AppToken"]).toBe("t");
-		expect(headers.cookie).toBe("vtex_segment=abc123");
+		expect(headerValue(lastInit, "X-VTEX-API-AppKey")).toBe("k");
+		expect(headerValue(lastInit, "X-VTEX-API-AppToken")).toBe("t");
+		expect(headerValue(lastInit, "cookie")).toBe("vtex_segment=abc123");
+	});
+
+	// Regression: when init.headers is a Headers object (as
+	// `createVtexCheckoutProxy` passes through `getVtexFetch()`), the
+	// existing cookie must survive verbatim. The naive
+	// `{ ...authHeaders, ...init?.headers }` spread collapses a Headers
+	// instance to `{}` (Headers has no own enumerable entries), which
+	// silently wipes the browser's full Cookie header — including the
+	// orderForm cookie any checkout flow depends on.
+	it("preserves an existing Cookie header when init.headers is a Headers instance", async () => {
+		await withRequest("vtex_segment=abc123", async () => {
+			const proxyInit: RequestInit = {
+				headers: new Headers({
+					cookie: "checkout.vtex.com=__ofid=xyz; vtex_segment=originalseg; foo=bar",
+				}),
+			};
+			await vtexFetchResponse("/api/checkout/pub/orderForm", proxyInit);
+		});
+		expect(headerValue(lastInit, "cookie")).toContain("checkout.vtex.com=__ofid=xyz");
+	});
+});
+
+// Module-level counter for cache-busting test URLs. `Date.now()` collides
+// when two tests run within the same millisecond and the SWR cache in
+// fetchWithCache short-circuits the second one — `_fetch` never runs and
+// `lastInit` stays `undefined`. Per-test ids are deterministic and
+// collision-free.
+let testUrlCounter = 0;
+const uniqPath = (prefix: string) => `${prefix}/${++testUrlCounter}`;
+
+describe("vtexCachedFetch — vtex_segment cookie forwarding", () => {
+	let lastInit: RequestInit | undefined;
+
+	beforeEach(() => {
+		clearFetchCache();
+		configureVtex({ account: "testaccount" });
+		lastInit = undefined;
+		setVtexFetch(((_url: string, init?: RequestInit) => {
+			lastInit = init;
+			return Promise.resolve(mockResponse({ ok: true }));
+		}) as typeof fetch);
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("forwards vtex_segment on cached GETs", async () => {
+		await withRequest("vtex_segment=abc123", async () => {
+			await vtexCachedFetch(uniqPath("/api/catalog_system/pub/products"));
+		});
+		expect(headerValue(lastInit, "cookie")).toBe("vtex_segment=abc123");
+	});
+
+	it("does not overwrite a caller-supplied cookie header", async () => {
+		await withRequest("vtex_segment=abc123", async () => {
+			await vtexCachedFetch(uniqPath("/api/x"), {
+				headers: { cookie: "custom=zzz" },
+			});
+		});
+		expect(headerValue(lastInit, "cookie")).toBe("custom=zzz");
+	});
+});
+
+describe("intelligentSearch — vtex_segment cookie forwarding", () => {
+	let lastInit: RequestInit | undefined;
+
+	beforeEach(() => {
+		// Reset the SWR cache: otherwise the second test in this block
+		// can serve the first test's cached body without invoking the
+		// stub _fetch, leaving lastInit undefined.
+		clearFetchCache();
+		configureVtex({ account: "testaccount" });
+		lastInit = undefined;
+		setVtexFetch(((_url: string, init?: RequestInit) => {
+			lastInit = init;
+			return Promise.resolve(mockResponse({ products: [] }));
+		}) as typeof fetch);
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("forwards vtex_segment when caller didn't pass cookieHeader", async () => {
+		await withRequest("vtex_segment=abc123; other=foo", async () => {
+			await intelligentSearch(uniqPath("/product_search"));
+		});
+		expect(headerValue(lastInit, "cookie")).toBe("vtex_segment=abc123");
+	});
+
+	it("respects an explicit cookieHeader override", async () => {
+		await withRequest("vtex_segment=abc123", async () => {
+			await intelligentSearch(uniqPath("/product_search"), undefined, {
+				cookieHeader: "custom=zzz",
+			});
+		});
+		expect(headerValue(lastInit, "cookie")).toBe("custom=zzz");
 	});
 });

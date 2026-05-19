@@ -241,16 +241,43 @@ export async function vtexFetchResponse(
 
 	const response = await _fetch(url, {
 		...init,
-		headers: {
-			...authHeaders(),
-			...(segmentCookie ? { cookie: segmentCookie } : {}),
-			...init?.headers,
-		},
+		headers: mergeHeaders(authHeaders(), segmentCookie, init?.headers),
 	});
 	if (!response.ok) {
 		throw new Error(`VTEX API error: ${response.status} ${response.statusText} - ${url}`);
 	}
 	return response;
+}
+
+/**
+ * Combine framework headers + optional segment cookie + caller headers,
+ * preserving the precedence "caller wins" regardless of whether the
+ * caller passed `Headers`, `string[][]`, or `Record<string, string>`.
+ *
+ * Why a helper: the naive `{ ...authHeaders, ...init?.headers }` spread
+ * silently collapses a `Headers` instance to `{}` (Headers has no own
+ * enumerable entries), which means any cookies the caller put on a
+ * Headers object are lost on the wire. The `createVtexCheckoutProxy`
+ * factory passes init with Headers, which makes this the failure mode
+ * for every forwarder that relies on browser-supplied cookies reaching
+ * VTEX. Funneling all merges through the `Headers` constructor (which
+ * correctly absorbs every HeadersInit shape) keeps the bug from
+ * sneaking back in.
+ */
+function mergeHeaders(
+	auth: Record<string, string>,
+	segmentCookie: string | null,
+	callerHeaders: HeadersInit | undefined,
+): Headers {
+	const merged = new Headers(auth);
+	if (segmentCookie) merged.set("cookie", segmentCookie);
+	if (callerHeaders) {
+		const incoming = new Headers(callerHeaders);
+		incoming.forEach((value, key) => {
+			merged.set(key, value);
+		});
+	}
+	return merged;
 }
 
 export async function vtexFetch<T>(path: string, init?: InstrumentedFetchInit): Promise<T> {
@@ -282,12 +309,22 @@ export async function vtexCachedFetch<T>(
 		? { ttl: cacheOpts.cacheTTL }
 		: undefined;
 
+	// Mirrors vtexFetchResponse: Legacy Catalog and several other GET
+	// endpoints gate regional seller availability on the `vtex_segment`
+	// cookie. Cached GETs (PDP / shelf product lookups) must see the same
+	// regionalization the rest of the stack does — otherwise sites have
+	// to wrap _fetch themselves to forward the cookie, which is easy to
+	// get subtly wrong (especially around HeadersInit shapes). Inline
+	// here keeps the surface small; if a third callsite appears we
+	// extract a shared helper.
+	const segmentCookie = !hasCookieHeader(init?.headers) ? getSegmentCookieHeader() : null;
+
 	return fetchWithCache<T>(
 		url,
 		() =>
 			_fetch(url, {
 				...init,
-				headers: { ...authHeaders(), ...init?.headers },
+				headers: mergeHeaders(authHeaders(), segmentCookie, init?.headers),
 			}),
 		opts,
 	);
@@ -383,6 +420,14 @@ export async function intelligentSearch<T>(
 	const headers: Record<string, string> = { ...authHeaders() };
 	if (opts?.cookieHeader) {
 		headers.cookie = opts.cookieHeader;
+	} else {
+		// IS already gets regionId on the query string above, but some
+		// internal IS flows (and downstream services it consults) still
+		// honor the `vtex_segment` cookie — forward it when the caller
+		// didn't pass an explicit one. See vtexCachedFetch for the same
+		// rationale.
+		const segmentCookie = getSegmentCookieHeader();
+		if (segmentCookie) headers.cookie = segmentCookie;
 	}
 
 	const fullUrl = url.toString();
