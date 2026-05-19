@@ -21,7 +21,7 @@
     "@semantic-release/release-notes-generator",
     ["@semantic-release/exec", {
       "prepareCmd": "npm version ${nextRelease.version} --no-git-tag-version",
-      "publishCmd": "npm publish --provenance --access public --loglevel=silly --tag ${nextRelease.channel || 'latest'}"
+      "publishCmd": "npm publish --access public --tag ${nextRelease.channel || 'latest'}"
     }],
     "@semantic-release/github"
   ]
