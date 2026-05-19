@@ -1,8 +1,5 @@
 {
-  "branches": [
-    "main",
-    { "name": "next", "prerelease": true }
-  ],
+  "branches": ["main"],
   "plugins": [
     ["@semantic-release/commit-analyzer", {
       "preset": "angular",
@@ -21,7 +18,7 @@
     "@semantic-release/release-notes-generator",
     ["@semantic-release/exec", {
       "prepareCmd": "npm version ${nextRelease.version} --no-git-tag-version",
-      "publishCmd": "npm publish --provenance --access public --tag ${nextRelease.channel || 'latest'}"
+      "publishCmd": "npm publish --access public"
     }],
     "@semantic-release/github"
   ]
