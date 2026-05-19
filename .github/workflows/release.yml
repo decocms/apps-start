@@ -70,18 +70,20 @@ jobs:
           echo "$OIDC_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
 
           echo ""
-          echo "=== STEP 2: POST /-/npm/v1/oidc/token/exchange for @decocms/apps (the failing one) ==="
+          echo "=== STEP 2: POST /-/npm/v1/oidc/token/exchange for @decocms/apps (failing) ==="
           curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
             -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fapps" \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"jwt\":\"$OIDC_TOKEN\"}"
+            -d '{}'
 
           echo ""
-          echo "=== STEP 3: POST /-/npm/v1/oidc/token/exchange for @decocms/start (the working one) ==="
+          echo "=== STEP 3: POST /-/npm/v1/oidc/token/exchange for @decocms/start (working) ==="
           curl -sSL -w "\nHTTP_STATUS=%{http_code}\n" \
             -X POST "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/%40decocms%2Fstart" \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"jwt\":\"$OIDC_TOKEN\"}"
+            -d '{}'
 
           echo ""
           echo "--- end exchange diagnostics ---"
