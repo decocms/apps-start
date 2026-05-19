@@ -40,10 +40,7 @@ jobs:
           fetch-depth: 0
 
       # Node 24 ships with npm 11.x, required for the OIDC handshake the npm
-      # registry expects since ~May 2026. Node 22 still ships with npm 10,
-      # whose handshake the registry has deprecated — see npm/cli#8976,
-      # npm/cli#8730, and the "Node 24 fix" writeup at
-      # https://medium.com/@kenricktan11/npm-trusted-publishers-the-weird-404-error-and-the-node-js-24-fix-a9f1d717a5dd
+      # registry expects since ~May 2026 (npm/cli#8976, npm/cli#8730).
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -52,6 +49,15 @@ jobs:
       - run: npm ci
 
       - run: npm test
+
+      # setup-node@v4's `registry-url` writes an .npmrc containing
+      # `_authToken=${NODE_AUTH_TOKEN}` and exports a placeholder
+      # NODE_AUTH_TOKEN. npm CLI prefers that (empty-stub) token over the
+      # OIDC token exchange, surfacing as the masked 404 we hit before.
+      # actions/setup-node#1477 tracks fixing this upstream; until then we
+      # delete that line so npm 11 falls back to OIDC trusted publishing.
+      - name: Strip setup-node's _authToken stub so npm falls back to OIDC
+        run: sed -i '/_authToken/d' "$NPM_CONFIG_USERCONFIG"
 
       - name: Release
         run: npx semantic-release
