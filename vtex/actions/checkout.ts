@@ -7,7 +7,7 @@
  * @see https://developers.vtex.com/docs/api-reference/checkout-api
  */
 
-import { getVtexConfig, vtexFetch, vtexFetchWithCookies } from "../client";
+import { getVtexConfig, vtexFetchWithCookies } from "../client";
 import type { OrderForm } from "../types";
 
 export const DEFAULT_EXPECTED_SECTIONS = [
@@ -179,7 +179,12 @@ export async function simulateCart(props: SimulateCartProps) {
 	const { items, postalCode, country, RnbBehavior = 1 } = props;
 	const config = getVtexConfig();
 	const params = appendSc(new URLSearchParams({ RnbBehavior: String(RnbBehavior) }));
-	return vtexFetch<any>(`/api/checkout/pub/orderForms/simulation?${params}`, {
+	// Uses vtexFetchWithCookies so any Set-Cookie VTEX returns on the
+	// orderForm-scoped simulation reaches the browser via RequestContext.
+	// Without this, the segment/ownership cookies VTEX may rotate during
+	// simulation are dropped, and the storefront's local orderFormId
+	// drifts away from VTEX's checkout.vtex.com server cookie.
+	return vtexFetchWithCookies<any>(`/api/checkout/pub/orderForms/simulation?${params}`, {
 		method: "POST",
 		body: JSON.stringify({
 			items,
@@ -352,7 +357,7 @@ export interface UpdateItemPriceProps {
 
 export async function updateItemPrice(props: UpdateItemPriceProps): Promise<OrderForm> {
 	const { orderFormId, itemIndex, price } = props;
-	return vtexFetch<OrderForm>(
+	return vtexFetchWithCookies<OrderForm>(
 		`/api/checkout/pub/orderForm/${orderFormId}/items/${itemIndex}/price`,
 		{ method: "PUT", body: JSON.stringify({ price }) },
 	);
@@ -403,7 +408,9 @@ export async function getInstallments(props: GetInstallmentsProps) {
 	const { orderFormId, paymentSystem } = props;
 	const params = new URLSearchParams({ paymentSystem: String(paymentSystem) });
 	appendSc(params);
-	return vtexFetch<any>(`/api/checkout/pub/orderForm/${orderFormId}/installments?${params}`);
+	return vtexFetchWithCookies<any>(
+		`/api/checkout/pub/orderForm/${orderFormId}/installments?${params}`,
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -434,7 +441,9 @@ export interface ChangeToAnonymousUserProps {
 
 export async function changeToAnonymousUser(props: ChangeToAnonymousUserProps): Promise<OrderForm> {
 	const { orderFormId } = props;
-	return vtexFetch<OrderForm>(`/api/checkout/changeToAnonymousUser/${orderFormId}`);
+	// This endpoint rotates the orderForm ownership cookies — must use
+	// vtexFetchWithCookies so the new cookies reach the browser.
+	return vtexFetchWithCookies<OrderForm>(`/api/checkout/changeToAnonymousUser/${orderFormId}`);
 }
 
 export interface ClearOrderFormMessagesProps {
@@ -445,10 +454,13 @@ export async function clearOrderFormMessages(
 	props: ClearOrderFormMessagesProps,
 ): Promise<OrderForm> {
 	const { orderFormId } = props;
-	return vtexFetch<OrderForm>(`/api/checkout/pub/orderForm/${orderFormId}/messages/clear`, {
-		method: "POST",
-		body: JSON.stringify({}),
-	});
+	return vtexFetchWithCookies<OrderForm>(
+		`/api/checkout/pub/orderForm/${orderFormId}/messages/clear`,
+		{
+			method: "POST",
+			body: JSON.stringify({}),
+		},
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -477,7 +489,7 @@ export async function getSellersByRegion(
 	const params = new URLSearchParams({ country: "BRA", postalCode });
 	const sc = salesChannel ?? getVtexConfig().salesChannel;
 	if (sc) params.set("sc", sc);
-	const resp = await vtexFetch<RegionResult[]>(`/api/checkout/pub/regions/?${params}`);
+	const resp = await vtexFetchWithCookies<RegionResult[]>(`/api/checkout/pub/regions/?${params}`);
 	return resp[0]?.sellers?.length > 0 ? resp[0] : null;
 }
 
@@ -490,12 +502,19 @@ export interface SetShippingPostalCodeProps {
 export async function setShippingPostalCode(props: SetShippingPostalCodeProps): Promise<boolean> {
 	const { orderFormId, postalCode, country = "BRA" } = props;
 	try {
-		await vtexFetch<any>(`/api/checkout/pub/orderForm/${orderFormId}/attachments/shippingData`, {
-			method: "POST",
-			body: JSON.stringify({
-				selectedAddresses: [{ postalCode, country }],
-			}),
-		});
+		// VTEX docs note that /attachments/shippingData can rotate the
+		// CheckoutOrderFormOwnership cookie. vtexFetchWithCookies ensures
+		// any such Set-Cookie reaches the browser via RequestContext,
+		// keeping the storefront and VTEX bound to the same orderForm.
+		await vtexFetchWithCookies<any>(
+			`/api/checkout/pub/orderForm/${orderFormId}/attachments/shippingData`,
+			{
+				method: "POST",
+				body: JSON.stringify({
+					selectedAddresses: [{ postalCode, country }],
+				}),
+			},
+		);
 		return true;
 	} catch {
 		return false;
