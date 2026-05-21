@@ -223,6 +223,40 @@ function hasCookieHeader(headers: HeadersInit | undefined): boolean {
 	return Object.keys(headers).some((k) => k.toLowerCase() === "cookie");
 }
 
+/**
+ * Read the cookie header value from any HeadersInit shape.
+ * Returns undefined when no cookie header is set.
+ */
+function readCookieHeader(headers: HeadersInit | undefined): string | undefined {
+	if (!headers) return undefined;
+	if (headers instanceof Headers) return headers.get("cookie") ?? undefined;
+	if (Array.isArray(headers)) {
+		const found = headers.find(([k]) => k.toLowerCase() === "cookie");
+		return found?.[1];
+	}
+	const rec = headers as Record<string, string>;
+	const key = Object.keys(rec).find((k) => k.toLowerCase() === "cookie");
+	return key ? rec[key] : undefined;
+}
+
+/**
+ * Return a new Headers instance that copies `headers` and replaces the
+ * `cookie` value with `cookieValue` (or removes it when undefined).
+ * Centralises the "merge cookie into existing init.headers" operation so
+ * we never spread a Headers instance as a plain object — that collapses
+ * to {} because Headers has no own enumerable entries, and silently
+ * wipes every other header the caller set. See PR #53.
+ */
+function withCookieHeader(
+	headers: HeadersInit | undefined,
+	cookieValue: string | undefined,
+): Headers {
+	const next = new Headers(headers ?? {});
+	if (cookieValue) next.set("cookie", cookieValue);
+	else next.delete("cookie");
+	return next;
+}
+
 export async function vtexFetchResponse(
 	path: string,
 	init?: InstrumentedFetchInit,
@@ -354,22 +388,29 @@ export async function vtexFetchWithCookies<T>(
 	// otherwise poison every checkout call for the affected user. The drop
 	// report is emitted via warnDroppedCookies() so we have observability the
 	// next time a tag misbehaves.
-	const existingHeaders = init?.headers as Record<string, string> | undefined;
-	if (!existingHeaders?.cookie) {
+	//
+	// Headers normalisation: callers pass either Headers, [name,value][],
+	// or Record<string,string>. We must NEVER spread a Headers instance as
+	// a plain object — it collapses to {} and silently drops every other
+	// header the caller set (auth, content-type, etc.). withCookieHeader()
+	// funnels every shape through the Headers constructor and is the only
+	// safe way to rewrite the cookie value.
+	const callerCookie = readCookieHeader(init?.headers);
+	if (!callerCookie) {
 		const ctx = RequestContext.current;
 		const raw = ctx?.request.headers.get("cookie");
 		if (raw) {
 			const { cookies, dropped } = sanitizeOutboundCookieHeader(raw);
 			if (dropped.length) warnDroppedCookies(dropped, vtexHost());
 			if (cookies) {
-				init = { ...init, headers: { ...existingHeaders, cookie: cookies } };
+				init = { ...init, headers: withCookieHeader(init?.headers, cookies) };
 			}
 		}
 	} else {
 		// Caller passed an explicit cookie — sanitize it too.
-		const { cookies, dropped } = sanitizeOutboundCookieHeader(existingHeaders.cookie);
+		const { cookies, dropped } = sanitizeOutboundCookieHeader(callerCookie);
 		if (dropped.length) warnDroppedCookies(dropped, vtexHost());
-		init = { ...init, headers: { ...existingHeaders, cookie: cookies } };
+		init = { ...init, headers: withCookieHeader(init?.headers, cookies) };
 	}
 
 	const response = await vtexFetchResponse(path, init);
