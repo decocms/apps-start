@@ -109,6 +109,10 @@ interface ProductOptions {
 	leanVariants?: boolean;
 	/** Property names to keep on lean variant additionalProperty. Defaults to VARIANT_PROPERTY_NAMES. */
 	variantPropertyNames?: Set<string>;
+	/** When leanVariants is true, still include image[0] on each variant entry. Default true. */
+	variantIncludeImage?: boolean;
+	/** When leanVariants is true, still include inventoryLevel on each variant offer. Default true. */
+	variantIncludeInventory?: boolean;
 }
 
 /** Returns first available sku */
@@ -670,16 +674,18 @@ const VARIANT_PROPERTY_NAMES = new Set(["Cor", "Voltagem", "Tamanho"]);
 
 /**
  * Build a minimal offer for variant display. Keeps only availability and seller.
- * No priceSpecification, no inventoryLevel, no teasers.
+ * No priceSpecification, no teasers. inventoryLevel is preserved from the real
+ * offer unless `includeInventory` is false (variant selectors rely on it to
+ * decide stock state per SKU — dropping it hard-zeroes every variant).
  */
-const buildOfferVariant = (offer: Offer): Offer => ({
+const buildOfferVariant = (offer: Offer, includeInventory: boolean): Offer => ({
 	"@type": "Offer",
 	identifier: offer.identifier,
 	price: offer.price,
 	seller: offer.seller,
 	availability: offer.availability,
 	priceSpecification: [],
-	inventoryLevel: { value: 0 },
+	inventoryLevel: includeInventory ? offer.inventoryLevel : { value: 0 },
 });
 
 /**
@@ -688,9 +694,11 @@ const buildOfferVariant = (offer: Offer): Offer => ({
  * Keeps only what variant selectors need:
  * - url, productID, sku, name, inProductGroupWithID
  * - additionalProperty filtered to variant-differentiating props (Cor, Voltagem, Tamanho)
- * - offers with availability + seller only (no price specs)
+ * - image[0] (when variantIncludeImage is not false) — selectors render thumbnails
+ * - offers with availability + seller + real inventoryLevel (when variantIncludeInventory
+ *   is not false) — selectors decide stock state per SKU from inventoryLevel.value
  *
- * Drops: images, description, video, brand, category, gtin, releaseDate,
+ * Drops: description, video, brand, category, gtin, releaseDate,
  *        alternateName, isAccessoryOrSparePartFor, isVariantOf
  */
 export const toProductVariant = <P extends LegacyProductVTEX | ProductVTEX>(
@@ -699,9 +707,11 @@ export const toProductVariant = <P extends LegacyProductVTEX | ProductVTEX>(
 	options: ProductOptions,
 ): Product => {
 	const { baseUrl, priceCurrency } = options;
-	const { productId } = product;
+	const { productId, items } = product;
 	const { name, itemId: skuId } = sku;
 	const variantProps = options.variantPropertyNames ?? VARIANT_PROPERTY_NAMES;
+	const includeImage = options.variantIncludeImage !== false;
+	const includeInventory = options.variantIncludeInventory !== false;
 
 	// additionalProperty: only variant-differentiating specs
 	const specificationsAdditionalProperty = isLegacySku(sku)
@@ -711,11 +721,34 @@ export const toProductVariant = <P extends LegacyProductVTEX | ProductVTEX>(
 		variantProps.has(prop.name ?? ""),
 	);
 
-	// Offers: all sellers but lean (availability + seller only)
+	// Offers: best seller, lean (availability + seller; optional inventoryLevel)
 	const offerConverter = isLegacyProduct(product) ? toOfferLegacy : toOffer;
 	const allOffers = (sku.sellers ?? []).map(offerConverter).sort(bestOfferFirst);
 	const bestOffer = allOffers[0];
-	const leanOffers = bestOffer ? [buildOfferVariant(bestOffer)] : [];
+	const leanOffers = bestOffer ? [buildOfferVariant(bestOffer, includeInventory)] : [];
+
+	// image[0] only — selectors render a single thumbnail. Reuse the same
+	// imagesByKey lookup toProduct uses so URLs stay consistent across variants.
+	const imagesByKey =
+		options.imagesByKey ??
+		items
+			.flatMap((i) => i.images)
+			.reduce((map, img) => {
+				img?.imageUrl && map.set(getImageKey(img.imageUrl), img.imageUrl);
+				return map;
+			}, new Map<string, string>());
+
+	const image = includeImage
+		? nonEmptyArray(sku.images)
+				?.slice(0, 1)
+				.map(({ imageUrl, imageText, imageLabel }) => ({
+					"@type": "ImageObject" as const,
+					alternateName: imageText || imageLabel || "",
+					url: imagesByKey.get(getImageKey(imageUrl)) ?? imageUrl,
+					name: imageLabel || "",
+					encodingFormat: "image",
+				}))
+		: undefined;
 
 	return {
 		"@type": "Product",
@@ -725,6 +758,7 @@ export const toProductVariant = <P extends LegacyProductVTEX | ProductVTEX>(
 		url: getProductURL(baseUrl, product, sku.itemId).href,
 		inProductGroupWithID: productId,
 		additionalProperty,
+		...(image ? { image } : {}),
 		offers: aggregateOffers(leanOffers, priceCurrency),
 	};
 };
