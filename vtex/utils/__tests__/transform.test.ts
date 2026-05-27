@@ -586,12 +586,11 @@ describe("toProductVariant", () => {
 		expect(result.inProductGroupWithID).toBe("PROD1");
 	});
 
-	it("drops images, description, video, brand, gtin, releaseDate", () => {
+	it("drops description, video, brand, gtin, releaseDate, isVariantOf", () => {
 		const product = makeISProduct({ items: [makeISSku()] });
 		const sku = makeISSku();
 		const result = toProductVariant(product, sku, baseOptions);
 
-		expect(result.image).toBeUndefined();
 		expect(result.video).toBeUndefined();
 		expect(result.description).toBeUndefined();
 		expect(result.brand).toBeUndefined();
@@ -601,6 +600,51 @@ describe("toProductVariant", () => {
 		expect(result.isVariantOf).toBeUndefined();
 		expect(result.isAccessoryOrSparePartFor).toBeUndefined();
 		expect(result.category).toBeUndefined();
+	});
+
+	it("includes image[0] by default — selectors render thumbnails from it", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, baseOptions);
+
+		expect(result.image).toHaveLength(1);
+		expect(result.image?.[0]).toMatchObject({
+			"@type": "ImageObject",
+			url: "https://img.com/1.jpg",
+			encodingFormat: "image",
+		});
+	});
+
+	it("includes real inventoryLevel by default — selectors gate stock state on it", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, baseOptions);
+
+		const offer = result.offers!.offers[0];
+		expect(offer.inventoryLevel?.value).toBe(10);
+	});
+
+	it("drops image when variantIncludeImage: false", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, {
+			...baseOptions,
+			variantIncludeImage: false,
+		});
+
+		expect(result.image).toBeUndefined();
+	});
+
+	it("zeros inventoryLevel when variantIncludeInventory: false (legacy lean behavior)", () => {
+		const product = makeISProduct({ items: [makeISSku()] });
+		const sku = makeISSku();
+		const result = toProductVariant(product, sku, {
+			...baseOptions,
+			variantIncludeInventory: false,
+		});
+
+		const offer = result.offers!.offers[0];
+		expect(offer.inventoryLevel?.value).toBe(0);
 	});
 
 	it("filters additionalProperty to variant-differentiating names only", () => {

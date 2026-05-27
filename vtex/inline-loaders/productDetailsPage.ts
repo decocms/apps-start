@@ -17,14 +17,31 @@ export interface PDPProps {
 	indexingSkus?: boolean;
 	/** Use product.description instead of metaTagDescription for SEO */
 	preferDescription?: boolean;
-	/** Use lean variant transform (no images/video) for hasVariant[]. Defaults to true. */
+	/**
+	 * Use lean variant transform for hasVariant[]. Defaults to false on PDPs:
+	 * variant selectors need image[] and real inventoryLevel to render thumbnails
+	 * and per-SKU stock state, so a full toProduct(level=1) is the safe default.
+	 * Opt-in only if payload size becomes a problem.
+	 */
 	leanVariants?: boolean;
+	/** When leanVariants is true, still include image[0] on each variant. Default true. */
+	variantIncludeImage?: boolean;
+	/** When leanVariants is true, still include inventoryLevel on each variant. Default true. */
+	variantIncludeInventory?: boolean;
 }
 
 export default async function vtexProductDetailsPage(
 	props: PDPProps,
 ): Promise<ProductDetailsPage | null> {
-	const { slug, skuId, indexingSkus, preferDescription, leanVariants = true } = props;
+	const {
+		slug,
+		skuId,
+		indexingSkus,
+		preferDescription,
+		leanVariants = false,
+		variantIncludeImage = true,
+		variantIncludeInventory = true,
+	} = props;
 	if (!slug) return null;
 
 	try {
@@ -56,6 +73,8 @@ export default async function vtexProductDetailsPage(
 			baseUrl,
 			priceCurrency: "BRL",
 			leanVariants,
+			variantIncludeImage,
+			variantIncludeInventory,
 		});
 
 		return {
