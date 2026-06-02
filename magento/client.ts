@@ -138,8 +138,19 @@ export interface MagentoFetchOpts extends RequestInit {
 	authenticated?: boolean;
 }
 
-function buildHeaders(opts: MagentoFetchOpts, c: MagentoConfig): Headers {
+function buildHeaders(
+	opts: MagentoFetchOpts,
+	c: MagentoConfig,
+	attachMagentoIdentity: boolean,
+): Headers {
 	const headers = new Headers(opts.headers ?? {});
+	// `attachMagentoIdentity` is false when the request is going to a host
+	// that isn't the configured Magento backend. None of the Magento-only
+	// headers below should leak in that case: the Bearer is privileged, the
+	// `x-origin-header` is a secret that third parties shouldn't see, and a
+	// forced `Referer` would broadcast our Magento storefront URL.
+	if (!attachMagentoIdentity) return headers;
+
 	if (opts.authenticated !== false && c.apiKey) {
 		headers.set("Authorization", `Bearer ${c.apiKey}`);
 	}
@@ -159,13 +170,13 @@ export function magentoFetch(path: string, opts: MagentoFetchOpts = {}): Promise
 		? new URL(path)
 		: new URL(path.startsWith("/") ? path : `/${path}`, baseUrl);
 
-	// Only attach the Magento Bearer token when the request is going to the
-	// configured Magento host. An absolute URL to a different origin would
-	// otherwise leak the admin token via the Authorization header (and our
-	// x-origin-header / Referer overrides). Callers that genuinely want to
-	// hit a third-party host must opt out with `authenticated: false`.
+	// Only attach Magento identity (Bearer, x-origin-header, forced Referer)
+	// when the request is going to the configured Magento host. An absolute
+	// URL to a different origin would otherwise leak the admin token *and*
+	// our origin/Referer secrets to that third party. Callers that genuinely
+	// want a third-party call must still pass `authenticated: false` for
+	// clarity at the call site.
 	const sameOrigin = target.origin === baseUrl.origin;
-	const safeOpts: MagentoFetchOpts = sameOrigin ? opts : { ...opts, authenticated: false };
 
-	return fetch(target, { ...safeOpts, headers: buildHeaders(safeOpts, c) });
+	return fetch(target, { ...opts, headers: buildHeaders(opts, c, sameOrigin) });
 }
