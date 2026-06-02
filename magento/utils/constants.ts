@@ -20,6 +20,12 @@ export const URL_KEY = "url_key";
 export const IN_STOCK = "https://schema.org/InStock";
 export const OUT_OF_STOCK = "https://schema.org/OutOfStock";
 
+// Rating bounds used by `utils/transform.ts` (and the review/rating
+// loaders that follow) when mapping Magento's integer-rating scale
+// into schema.org `AggregateRating`'s 1–5 range.
+export const MAX_RATING_VALUE = 5;
+export const MIN_RATING_VALUE = 1;
+
 /**
  * Default filter mapping consumed by `utils/graphql.ts:filtersFromUrlGraphQL`.
  * Each entry pairs a Magento attribute slug with the comparison operator
