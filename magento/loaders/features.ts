@@ -12,5 +12,5 @@
 import { getMagentoConfig, type MagentoFeatures } from "../client";
 
 export default function features(): MagentoFeatures {
-  return getMagentoConfig().features ?? {};
+	return getMagentoConfig().features ?? {};
 }

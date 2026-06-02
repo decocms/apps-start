@@ -18,43 +18,43 @@ import type { MagentoCart } from "../types";
 const CART_COOKIE = "dataservices_cart_id";
 
 function readCartIdFromCookie(headers: Headers): string | null {
-  const cookies = getCookies(headers);
-  const raw = cookies[CART_COOKIE];
-  if (!raw) return null;
-  // Magento sets the cookie as `"<id>"` (JSON-encoded). Try to parse;
-  // fall back to the raw string if it isn't quoted.
-  try {
-    const parsed = JSON.parse(raw);
-    return typeof parsed === "string" ? parsed : raw;
-  } catch {
-    return raw;
-  }
+	const cookies = getCookies(headers);
+	const raw = cookies[CART_COOKIE];
+	if (!raw) return null;
+	// Magento sets the cookie as `"<id>"` (JSON-encoded). Try to parse;
+	// fall back to the raw string if it isn't quoted.
+	try {
+		const parsed = JSON.parse(raw);
+		return typeof parsed === "string" ? parsed : raw;
+	} catch {
+		return raw;
+	}
 }
 
 export interface CartLoaderProps {
-  /** Override the cart id (used by checkout flows that already know it). */
-  cartId?: string;
+	/** Override the cart id (used by checkout flows that already know it). */
+	cartId?: string;
 }
 
 export default async function cart(
-  props: CartLoaderProps | undefined,
-  req: Request,
+	props: CartLoaderProps | undefined,
+	req: Request,
 ): Promise<MagentoCart | null> {
-  const cartId = props?.cartId ?? readCartIdFromCookie(req.headers);
-  if (!cartId) return null;
+	const cartId = props?.cartId ?? readCartIdFromCookie(req.headers);
+	if (!cartId) return null;
 
-  const { site, useSuffix } = getMagentoConfig();
-  const suffix = useSuffix ? "_suffix" : "";
-  // cartId comes from the request cookie and is user-controlled. Encode
-  // it before splicing into the admin REST path so it can't break out of
-  // the path segment (and can't tack on query/fragment parts that hit a
-  // different endpoint with the privileged Bearer token).
-  const path = `/${encodeURIComponent(site)}/V1/carts/${encodeURIComponent(cartId)}${suffix}`;
+	const { site, useSuffix } = getMagentoConfig();
+	const suffix = useSuffix ? "_suffix" : "";
+	// cartId comes from the request cookie and is user-controlled. Encode
+	// it before splicing into the admin REST path so it can't break out of
+	// the path segment (and can't tack on query/fragment parts that hit a
+	// different endpoint with the privileged Bearer token).
+	const path = `/${encodeURIComponent(site)}/V1/carts/${encodeURIComponent(cartId)}${suffix}`;
 
-  const res = await magentoFetch(path);
-  if (!res.ok) {
-    if (res.status === 404) return null; // expired/invalid cart cookie
-    throw new Error(`[Magento] cart loader: ${res.status} ${res.statusText}`);
-  }
-  return (await res.json()) as MagentoCart;
+	const res = await magentoFetch(path);
+	if (!res.ok) {
+		if (res.status === 404) return null; // expired/invalid cart cookie
+		throw new Error(`[Magento] cart loader: ${res.status} ${res.statusText}`);
+	}
+	return (await res.json()) as MagentoCart;
 }

@@ -15,5 +15,5 @@
 import type { AppMiddleware } from "../commerce/app-types";
 
 export const magentoMiddleware: AppMiddleware = async (_request, next) => {
-  return next();
+	return next();
 };

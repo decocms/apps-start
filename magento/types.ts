@@ -6,24 +6,24 @@
 import type { MagentoFeatures } from "./client";
 
 export interface MagentoCart {
-  id: string | null;
-  items: MagentoCartItem[];
-  totals?: {
-    subtotal?: number;
-    grand_total?: number;
-    discount_amount?: number;
-    shipping_amount?: number;
-  };
-  coupon_code?: string | null;
+	id: string | null;
+	items: MagentoCartItem[];
+	totals?: {
+		subtotal?: number;
+		grand_total?: number;
+		discount_amount?: number;
+		shipping_amount?: number;
+	};
+	coupon_code?: string | null;
 }
 
 export interface MagentoCartItem {
-  item_id: number;
-  sku: string;
-  name?: string;
-  qty: number;
-  price?: number;
-  row_total?: number;
+	item_id: number;
+	sku: string;
+	name?: string;
+	qty: number;
+	price?: number;
+	row_total?: number;
 }
 
 export type Features = MagentoFeatures;

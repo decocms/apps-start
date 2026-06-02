@@ -20,54 +20,54 @@
 // ---------------------------------------------------------------------------
 
 export interface MagentoFeatures {
-  dangerouslyDisableWishlist?: boolean;
-  dangerouslyDisableOnLoadUpdate?: boolean;
-  dangerouslyReturnNullAfterAction?: boolean;
-  dangerouslyDontReturnCartAfterAction?: boolean;
-  dangerouslyDisableOnVisibilityChangeUpdate?: boolean;
+	dangerouslyDisableWishlist?: boolean;
+	dangerouslyDisableOnLoadUpdate?: boolean;
+	dangerouslyReturnNullAfterAction?: boolean;
+	dangerouslyDontReturnCartAfterAction?: boolean;
+	dangerouslyDisableOnVisibilityChangeUpdate?: boolean;
 }
 
 export interface MagentoImagesConfig {
-  imagesQtd: number;
-  imagesUrl: string;
+	imagesQtd: number;
+	imagesUrl: string;
 }
 
 export interface MagentoPricingConfig {
-  maxInstallments: number;
-  minInstallmentValue: number;
+	maxInstallments: number;
+	minInstallmentValue: number;
 }
 
 export interface MagentoCartConfigs {
-  countProductImageInCart?: number;
-  changeCardIdAfterCheckout?: boolean;
-  cartErrorMessages?: string[];
+	countProductImageInCart?: number;
+	changeCardIdAfterCheckout?: boolean;
+	cartErrorMessages?: string[];
 }
 
 export interface MagentoConfig {
-  /** Magento storefront base URL, e.g. `https://loja.granado.com.br/` */
-  baseUrl: string;
-  /** Bearer token for `Authorization` header on admin REST calls */
-  apiKey: string;
-  /** Store ID used in headers + path prefixes */
-  storeId: number;
-  /** Site/site-code used in path segments */
-  site: string;
-  /** Which Store header to send (default: "site") */
-  storeHeader?: string;
-  /** Optional opaque header value sent as `x-origin-header` */
-  originHeader?: string;
-  /** Currency code (e.g. "BRL") */
-  currencyCode?: string;
-  /** Whether to append `_suffix` to admin endpoints */
-  useSuffix?: boolean;
-  /** Behavior toggles surfaced to client hooks */
-  features?: MagentoFeatures;
-  /** Cart-specific tunables */
-  cartConfigs?: MagentoCartConfigs;
-  /** Images CDN config */
-  imagesConfig?: MagentoImagesConfig;
-  /** Pricing rules for installments display */
-  pricingConfig?: MagentoPricingConfig;
+	/** Magento storefront base URL, e.g. `https://loja.granado.com.br/` */
+	baseUrl: string;
+	/** Bearer token for `Authorization` header on admin REST calls */
+	apiKey: string;
+	/** Store ID used in headers + path prefixes */
+	storeId: number;
+	/** Site/site-code used in path segments */
+	site: string;
+	/** Which Store header to send (default: "site") */
+	storeHeader?: string;
+	/** Optional opaque header value sent as `x-origin-header` */
+	originHeader?: string;
+	/** Currency code (e.g. "BRL") */
+	currencyCode?: string;
+	/** Whether to append `_suffix` to admin endpoints */
+	useSuffix?: boolean;
+	/** Behavior toggles surfaced to client hooks */
+	features?: MagentoFeatures;
+	/** Cart-specific tunables */
+	cartConfigs?: MagentoCartConfigs;
+	/** Images CDN config */
+	imagesConfig?: MagentoImagesConfig;
+	/** Pricing rules for installments display */
+	pricingConfig?: MagentoPricingConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,17 +77,17 @@ export interface MagentoConfig {
 let config: MagentoConfig | null = null;
 
 export function configureMagento(c: MagentoConfig): void {
-  config = c;
+	config = c;
 }
 
 export function getMagentoConfig(): MagentoConfig {
-  if (!config) {
-    throw new Error(
-      "[Magento] configureMagento() must be called before loaders run. " +
-        "Wire it in your site's setup, e.g. configureMagento(blocks.magento).",
-    );
-  }
-  return config;
+	if (!config) {
+		throw new Error(
+			"[Magento] configureMagento() must be called before loaders run. " +
+				"Wire it in your site's setup, e.g. configureMagento(blocks.magento).",
+		);
+	}
+	return config;
 }
 
 /**
@@ -97,36 +97,36 @@ export function getMagentoConfig(): MagentoConfig {
  * passes through as `""`.
  */
 export function initMagentoFromBlocks(blocks: Record<string, unknown>): void {
-  const block = blocks.magento as Record<string, any> | undefined;
-  if (!block) {
-    console.warn("[Magento] No `magento` block found in CMS; skipping init.");
-    return;
-  }
+	const block = blocks.magento as Record<string, any> | undefined;
+	if (!block) {
+		console.warn("[Magento] No `magento` block found in CMS; skipping init.");
+		return;
+	}
 
-  const resolveSecret = (v: unknown): string => {
-    if (typeof v === "string") return v;
-    if (v && typeof v === "object") {
-      const ref = v as { name?: string };
-      if (ref.name) return process.env[ref.name] ?? "";
-    }
-    return "";
-  };
+	const resolveSecret = (v: unknown): string => {
+		if (typeof v === "string") return v;
+		if (v && typeof v === "object") {
+			const ref = v as { name?: string };
+			if (ref.name) return process.env[ref.name] ?? "";
+		}
+		return "";
+	};
 
-  const apiConfig = block.apiConfig ?? {};
-  configureMagento({
-    baseUrl: apiConfig.baseUrl ?? "",
-    apiKey: resolveSecret(apiConfig.apiKey),
-    storeId: apiConfig.storeId ?? 1,
-    site: apiConfig.site ?? "",
-    storeHeader: apiConfig.storeHeader,
-    originHeader: resolveSecret(apiConfig.originHeader),
-    currencyCode: apiConfig.currencyCode,
-    useSuffix: apiConfig.useSuffix,
-    features: block.features,
-    cartConfigs: block.cartConfigs,
-    imagesConfig: block.imagesConfig,
-    pricingConfig: block.pricingConfig,
-  });
+	const apiConfig = block.apiConfig ?? {};
+	configureMagento({
+		baseUrl: apiConfig.baseUrl ?? "",
+		apiKey: resolveSecret(apiConfig.apiKey),
+		storeId: apiConfig.storeId ?? 1,
+		site: apiConfig.site ?? "",
+		storeHeader: apiConfig.storeHeader,
+		originHeader: resolveSecret(apiConfig.originHeader),
+		currencyCode: apiConfig.currencyCode,
+		useSuffix: apiConfig.useSuffix,
+		features: block.features,
+		cartConfigs: block.cartConfigs,
+		imagesConfig: block.imagesConfig,
+		pricingConfig: block.pricingConfig,
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -134,40 +134,38 @@ export function initMagentoFromBlocks(blocks: Record<string, unknown>): void {
 // ---------------------------------------------------------------------------
 
 export interface MagentoFetchOpts extends RequestInit {
-  /** Whether to attach the admin Bearer token. Default true. */
-  authenticated?: boolean;
+	/** Whether to attach the admin Bearer token. Default true. */
+	authenticated?: boolean;
 }
 
 function buildHeaders(opts: MagentoFetchOpts, c: MagentoConfig): Headers {
-  const headers = new Headers(opts.headers ?? {});
-  if (opts.authenticated !== false && c.apiKey) {
-    headers.set("Authorization", `Bearer ${c.apiKey}`);
-  }
-  if (c.originHeader) {
-    headers.set("x-origin-header", c.originHeader);
-  }
-  if (!headers.has("Referer")) {
-    headers.set("Referer", c.baseUrl);
-  }
-  return headers;
+	const headers = new Headers(opts.headers ?? {});
+	if (opts.authenticated !== false && c.apiKey) {
+		headers.set("Authorization", `Bearer ${c.apiKey}`);
+	}
+	if (c.originHeader) {
+		headers.set("x-origin-header", c.originHeader);
+	}
+	if (!headers.has("Referer")) {
+		headers.set("Referer", c.baseUrl);
+	}
+	return headers;
 }
 
 export function magentoFetch(path: string, opts: MagentoFetchOpts = {}): Promise<Response> {
-  const c = getMagentoConfig();
-  const baseUrl = new URL(c.baseUrl);
-  const target = path.startsWith("http")
-    ? new URL(path)
-    : new URL(path.startsWith("/") ? path : `/${path}`, baseUrl);
+	const c = getMagentoConfig();
+	const baseUrl = new URL(c.baseUrl);
+	const target = path.startsWith("http")
+		? new URL(path)
+		: new URL(path.startsWith("/") ? path : `/${path}`, baseUrl);
 
-  // Only attach the Magento Bearer token when the request is going to the
-  // configured Magento host. An absolute URL to a different origin would
-  // otherwise leak the admin token via the Authorization header (and our
-  // x-origin-header / Referer overrides). Callers that genuinely want to
-  // hit a third-party host must opt out with `authenticated: false`.
-  const sameOrigin = target.origin === baseUrl.origin;
-  const safeOpts: MagentoFetchOpts = sameOrigin
-    ? opts
-    : { ...opts, authenticated: false };
+	// Only attach the Magento Bearer token when the request is going to the
+	// configured Magento host. An absolute URL to a different origin would
+	// otherwise leak the admin token via the Authorization header (and our
+	// x-origin-header / Referer overrides). Callers that genuinely want to
+	// hit a third-party host must opt out with `authenticated: false`.
+	const sameOrigin = target.origin === baseUrl.origin;
+	const safeOpts: MagentoFetchOpts = sameOrigin ? opts : { ...opts, authenticated: false };
 
-  return fetch(target, { ...safeOpts, headers: buildHeaders(safeOpts, c) });
+	return fetch(target, { ...safeOpts, headers: buildHeaders(safeOpts, c) });
 }
