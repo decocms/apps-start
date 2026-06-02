@@ -19,6 +19,18 @@
 // Config shapes
 // ---------------------------------------------------------------------------
 
+/**
+ * URL-search-param filter mapping consumed by GraphQL product loaders.
+ * Each entry pairs a Magento attribute slug (`value`) with the
+ * comparison operator the storefront's URL filters use (`type`). The
+ * default mapping lives in `utils/constants.ts:DEFAULT_GRAPHQL_FILTERS`;
+ * sites extend it via the `customFilters` prop on PLP/list loaders.
+ */
+export interface FiltersGraphQL {
+	value: string;
+	type: "EQUAL" | "MATCH" | "RANGE";
+}
+
 export interface MagentoFeatures {
 	dangerouslyDisableWishlist?: boolean;
 	dangerouslyDisableOnLoadUpdate?: boolean;
