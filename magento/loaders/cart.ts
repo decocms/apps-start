@@ -45,7 +45,11 @@ export default async function cart(
 
   const { site, useSuffix } = getMagentoConfig();
   const suffix = useSuffix ? "_suffix" : "";
-  const path = `/${site}/V1/carts/${cartId}${suffix}`;
+  // cartId comes from the request cookie and is user-controlled. Encode
+  // it before splicing into the admin REST path so it can't break out of
+  // the path segment (and can't tack on query/fragment parts that hit a
+  // different endpoint with the privileged Bearer token).
+  const path = `/${encodeURIComponent(site)}/V1/carts/${encodeURIComponent(cartId)}${suffix}`;
 
   const res = await magentoFetch(path);
   if (!res.ok) {

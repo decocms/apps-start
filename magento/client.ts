@@ -154,8 +154,20 @@ function buildHeaders(opts: MagentoFetchOpts, c: MagentoConfig): Headers {
 
 export function magentoFetch(path: string, opts: MagentoFetchOpts = {}): Promise<Response> {
   const c = getMagentoConfig();
-  const url = path.startsWith("http")
-    ? path
-    : `${c.baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
-  return fetch(url, { ...opts, headers: buildHeaders(opts, c) });
+  const baseUrl = new URL(c.baseUrl);
+  const target = path.startsWith("http")
+    ? new URL(path)
+    : new URL(path.startsWith("/") ? path : `/${path}`, baseUrl);
+
+  // Only attach the Magento Bearer token when the request is going to the
+  // configured Magento host. An absolute URL to a different origin would
+  // otherwise leak the admin token via the Authorization header (and our
+  // x-origin-header / Referer overrides). Callers that genuinely want to
+  // hit a third-party host must opt out with `authenticated: false`.
+  const sameOrigin = target.origin === baseUrl.origin;
+  const safeOpts: MagentoFetchOpts = sameOrigin
+    ? opts
+    : { ...opts, authenticated: false };
+
+  return fetch(target, { ...safeOpts, headers: buildHeaders(safeOpts, c) });
 }

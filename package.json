@@ -101,6 +101,7 @@
   },
   "files": [
     "commerce/",
+    "magento/",
     "shopify/",
     "vtex/",
     "resend/",
