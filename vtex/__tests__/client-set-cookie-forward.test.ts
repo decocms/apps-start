@@ -55,12 +55,13 @@ function headerValue(init: RequestInit | undefined, name: string): string | unde
 function withRequest<T>(
 	cookieHeader: string | null,
 	fn: (ctx: { responseHeaders: Headers }) => Promise<T>,
+	requestUrl = "https://store.example.com/api/checkout/pub/orderForm",
 ): Promise<T> {
 	const reqHeaders = new Headers();
 	if (cookieHeader) reqHeaders.set("cookie", cookieHeader);
 	const responseHeaders = new Headers();
 	const fakeCtx = {
-		request: { headers: reqHeaders } as unknown as Request,
+		request: { headers: reqHeaders, url: requestUrl } as unknown as Request,
 		signal: new AbortController().signal,
 		responseHeaders,
 		bag: new Map(),
@@ -107,7 +108,12 @@ describe("vtexFetchWithCookies — inbound Set-Cookie capture", () => {
 		expect(captured.some((c) => c.startsWith("CheckoutOrderFormOwnership="))).toBe(true);
 	});
 
-	it("strips the Domain= attribute so the browser scopes to the storefront host", async () => {
+	// The cart server-fn cookie MUST land at the same scope as the checkout
+	// proxy (domain-scoped to the storefront host) and native VTEX
+	// (`domain=<host>`). Stripping the Domain (host-only) creates a second,
+	// distinct cookie that drifts from the proxy's and causes the
+	// nondeterministic empty-cart bug. So we rewrite Domain, not strip it.
+	it("rewrites the Domain= attribute to the storefront host (matches the proxy)", async () => {
 		setVtexFetch((() =>
 			Promise.resolve(
 				mockResponse({
@@ -117,13 +123,58 @@ describe("vtexFetchWithCookies — inbound Set-Cookie capture", () => {
 				}),
 			)) as typeof fetch);
 
-		const captured = await withRequest("foo=bar", async ({ responseHeaders }) => {
-			await vtexFetchWithCookies("/api/checkout/pub/orderForm");
-			return responseHeaders.getSetCookie();
-		});
+		const captured = await withRequest(
+			"foo=bar",
+			async ({ responseHeaders }) => {
+				await vtexFetchWithCookies("/api/checkout/pub/orderForm");
+				return responseHeaders.getSetCookie();
+			},
+			"https://www.casaevideo.com.br/api/checkout/pub/orderForm",
+		);
 
-		expect(captured[0]).not.toMatch(/domain=/i);
+		// domain-scoped to the storefront host, NOT the original VTEX domain
+		expect(captured[0]).toMatch(/Domain=www\.casaevideo\.com\.br/);
+		expect(captured[0]).not.toMatch(/vtexcommercestable/i);
 		expect(captured[0]).toContain("checkout.vtex.com=__ofid=abc");
+	});
+
+	it("rewrites only the Domain attribute, not a domain= substring in the cookie value", async () => {
+		setVtexFetch((() =>
+			Promise.resolve(
+				mockResponse({
+					// Pathological value embedding `domain=` before the first `;`.
+					setCookies: [
+						"checkout.vtex.com=__ofid=domain=keep; Domain=.vtexcommercestable.com.br; Path=/",
+					],
+				}),
+			)) as typeof fetch);
+
+		const captured = await withRequest(
+			"foo=bar",
+			async ({ responseHeaders }) => {
+				await vtexFetchWithCookies("/api/checkout/pub/orderForm");
+				return responseHeaders.getSetCookie();
+			},
+			"https://www.casaevideo.com.br/api/checkout/pub/orderForm",
+		);
+
+		// the value's `domain=keep` is untouched; the attribute is rewritten
+		expect(captured[0]).toContain("__ofid=domain=keep");
+		expect(captured[0]).toMatch(/;\s*Domain=www\.casaevideo\.com\.br/);
+		expect(captured[0]).not.toMatch(/vtexcommercestable/i);
+	});
+
+	it("falls back to stripping Domain when there is no request scope (module init)", async () => {
+		setVtexFetch((() =>
+			Promise.resolve(
+				mockResponse({
+					setCookies: [
+						"checkout.vtex.com=__ofid=abc; Domain=.vtexcommercestable.com.br; Path=/",
+					],
+				}),
+			)) as typeof fetch);
+		// No withRequest wrapper → RequestContext.current is null.
+		await expect(vtexFetchWithCookies("/api/checkout/pub/orderForm")).resolves.toBeDefined();
 	});
 
 	it("skips Intelligent Search cookies (managed by middleware, not actions)", async () => {

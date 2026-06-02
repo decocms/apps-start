@@ -400,6 +400,52 @@ export function createVtexCheckoutProxy(
 			}
 		}
 
+		// ------------------------------------------------------------------
+		// Checkout cookie canonicalization + legacy residue cleanup.
+		//
+		// `checkout.vtex.com` is written by two code paths that must agree on
+		// scope: this proxy (domain-scoped to the storefront host) and the
+		// cart server functions (also domain-scoped, post-fix). Older
+		// `@decocms/apps` versions wrote the server-function cookie HOST-ONLY,
+		// so returning users can carry a stale host-only `checkout.vtex.com`
+		// that coexists with the domain-scoped one (distinct browser keys),
+		// drifts to a different orderForm id, and breaks checkout because VTEX
+		// reads whichever the browser sends last (RFC 6265 §5.4, by creation
+		// time — nondeterministic).
+		//
+		// On checkout UI entry we use the storefront's source-of-truth orderForm
+		// id — the JS-readable `checkout.vtex.com__orderFormId` mirror that VTEX
+		// checkout maintains — to (a) re-assert the canonical DOMAIN-scoped
+		// cookie and (b) expire the stale HOST-ONLY variant. The browser applies
+		// these on the document response before the checkout SPA fires its
+		// orderForm XHR, so that XHR carries a single, correct cookie. This is a
+		// no-op once a jar has cycled (mirror == domain-scoped value, no
+		// host-only variant left), so it is safe to run unconditionally.
+		//
+		// Gated to GET document navigations only: mutation endpoints
+		// (`POST /checkout/changeToAnonymousUser`, login merges, etc.) legitimately
+		// change the orderForm, and at document-load time the mirror and VTEX's
+		// view agree, so we never fight a deliberate server-side orderForm change.
+		if (isCheckoutUI && request.method === "GET") {
+			const reqCookie = request.headers.get("cookie") ?? "";
+			// Anchor to a cookie-name boundary (start or `; `) so a decoy value
+			// embedding this string inside another cookie can't be captured.
+			const mirror = reqCookie.match(
+				/(?:^|;\s*)checkout\.vtex\.com__orderFormId=([^;]+)/i,
+			)?.[1];
+			if (mirror) {
+				resHeaders.append(
+					"Set-Cookie",
+					`checkout.vtex.com=__ofid=${mirror}; Domain=${url.hostname}; Path=/; Secure; SameSite=Lax; HttpOnly`,
+				);
+				// Expire the stale host-only variant (NO Domain attribute → a
+				// distinct key from the domain-scoped cookie above, so this
+				// cannot delete the authoritative cookie).
+				resHeaders.append("Set-Cookie", "checkout.vtex.com=; Path=/; Max-Age=0");
+				resHeaders.append("Set-Cookie", "CheckoutOrderFormOwnership=; Path=/; Max-Age=0");
+			}
+		}
+
 		// Rewrite redirect Location headers from VTEX domains to storefront
 		if (originRes.status >= 300 && originRes.status < 400) {
 			const loc = originRes.headers.get("location");

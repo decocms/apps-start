@@ -25,6 +25,53 @@ function getResponseHeaders(): Headers | null {
 	return ctx ? ctx.responseHeaders : null;
 }
 
+/**
+ * Hostname of the active storefront request, or `null` outside a request
+ * scope. Used to rewrite the `Domain` attribute of VTEX `Set-Cookie`
+ * headers so server-function cookies are scoped identically to the ones
+ * `createVtexCheckoutProxy` emits (`rewriteSetCookieDomain` → `url.hostname`)
+ * and to what VTEX itself sets natively (`domain=<host>`).
+ */
+function getRequestHost(): string | null {
+	const ctx = RequestContext.current;
+	if (!ctx) return null;
+	try {
+		return new URL(ctx.request.url).hostname;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Normalize a VTEX `Set-Cookie` so the browser accepts it on the storefront
+ * host AND so it lands at the SAME cookie scope as the checkout proxy.
+ *
+ * VTEX sets `checkout.vtex.com` / `CheckoutOrderFormOwnership` with
+ * `domain=<vtex-host>` (e.g. `casaevideonewio.vtexcommercestable.com.br`),
+ * which the browser would reject on the storefront host. There are two ways
+ * to make it acceptable:
+ *
+ *   - strip the `Domain` attribute   → host-only cookie
+ *   - rewrite `Domain` to `<host>`    → domain-scoped cookie
+ *
+ * The checkout proxy does the latter. If this path does the former, the
+ * cart's cookie (host-only) and the proxy's cookie (domain-scoped) become
+ * TWO DISTINCT cookies in the browser: they don't overwrite each other, can
+ * drift to different orderForm ids, and VTEX reads whichever is sent last
+ * (RFC 6265 §5.4 orders by creation time) — a nondeterministic empty-cart
+ * bug. Rewriting (instead of stripping) keeps both writers on the same key
+ * so the newest write always wins. When the host is unknown (only at module
+ * init, never inside a real request) we fall back to stripping.
+ */
+function rewriteCookieDomain(cookie: string, host: string | null): string {
+	// Anchor to an attribute boundary (`; `) so we never touch a `domain=`
+	// substring that happens to live inside the cookie value (before the
+	// first `;`).
+	return host
+		? cookie.replace(/(;\s*)domain=[^;]*/i, `$1Domain=${host}`)
+		: cookie.replace(/;\s*domain=[^;]*/gi, "");
+}
+
 // ---------------------------------------------------------------------------
 // URL sanitization (ported from deco-cx/apps vtex/utils/fetchVTEX.ts)
 // ---------------------------------------------------------------------------
@@ -420,14 +467,14 @@ export async function vtexFetchWithCookies<T>(
 	// but skip VTEX internal IS cookies (managed server-side by the middleware).
 	const responseHeaders = getResponseHeaders();
 	if (responseHeaders) {
+		const host = getRequestHost();
 		const setCookies =
 			typeof response.headers.getSetCookie === "function" ? response.headers.getSetCookie() : [];
 		for (const cookie of setCookies) {
 			if (cookie.startsWith(`${SESSION_COOKIE}=`) || cookie.startsWith(`${ANONYMOUS_COOKIE}=`)) {
 				continue;
 			}
-			const stripped = cookie.replace(/;\s*domain=[^;]*/gi, "");
-			responseHeaders.append("set-cookie", stripped);
+			responseHeaders.append("set-cookie", rewriteCookieDomain(cookie, host));
 		}
 	}
 
