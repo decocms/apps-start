@@ -428,7 +428,11 @@ export function createVtexCheckoutProxy(
 		// view agree, so we never fight a deliberate server-side orderForm change.
 		if (isCheckoutUI && request.method === "GET") {
 			const reqCookie = request.headers.get("cookie") ?? "";
-			const mirror = reqCookie.match(/checkout\.vtex\.com__orderFormId=([^;]+)/i)?.[1];
+			// Anchor to a cookie-name boundary (start or `; `) so a decoy value
+			// embedding this string inside another cookie can't be captured.
+			const mirror = reqCookie.match(
+				/(?:^|;\s*)checkout\.vtex\.com__orderFormId=([^;]+)/i,
+			)?.[1];
 			if (mirror) {
 				resHeaders.append(
 					"Set-Cookie",

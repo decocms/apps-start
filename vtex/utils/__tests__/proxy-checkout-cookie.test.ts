@@ -107,6 +107,18 @@ describe("createVtexCheckoutProxy — checkout cookie canonicalization", () => {
 		expect(cookies.some((c) => /^checkout\.vtex\.com=__ofid=abc123/.test(c))).toBe(false);
 	});
 
+	it("anchors the mirror match to a cookie boundary (ignores a decoy inside another value)", async () => {
+		const proxy = makeProxy();
+		const { request, url } = req(
+			"/checkout/",
+			"junk=checkout.vtex.com__orderFormId=DECOY; checkout.vtex.com__orderFormId=real123",
+		);
+		const res = await proxy(request, url);
+		const cookies = res.headers.getSetCookie();
+		expect(cookies.some((c) => /^checkout\.vtex\.com=__ofid=real123/.test(c))).toBe(true);
+		expect(cookies.some((c) => /__ofid=DECOY/.test(c))).toBe(false);
+	});
+
 	it("does not canonicalize on POST checkout-UI mutations (VTEX may change the orderForm)", async () => {
 		const proxy = makeProxy();
 		const { request, url } = req(

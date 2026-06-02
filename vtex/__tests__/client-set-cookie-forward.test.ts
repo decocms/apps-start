@@ -138,6 +138,32 @@ describe("vtexFetchWithCookies — inbound Set-Cookie capture", () => {
 		expect(captured[0]).toContain("checkout.vtex.com=__ofid=abc");
 	});
 
+	it("rewrites only the Domain attribute, not a domain= substring in the cookie value", async () => {
+		setVtexFetch((() =>
+			Promise.resolve(
+				mockResponse({
+					// Pathological value embedding `domain=` before the first `;`.
+					setCookies: [
+						"checkout.vtex.com=__ofid=domain=keep; Domain=.vtexcommercestable.com.br; Path=/",
+					],
+				}),
+			)) as typeof fetch);
+
+		const captured = await withRequest(
+			"foo=bar",
+			async ({ responseHeaders }) => {
+				await vtexFetchWithCookies("/api/checkout/pub/orderForm");
+				return responseHeaders.getSetCookie();
+			},
+			"https://www.casaevideo.com.br/api/checkout/pub/orderForm",
+		);
+
+		// the value's `domain=keep` is untouched; the attribute is rewritten
+		expect(captured[0]).toContain("__ofid=domain=keep");
+		expect(captured[0]).toMatch(/;\s*Domain=www\.casaevideo\.com\.br/);
+		expect(captured[0]).not.toMatch(/vtexcommercestable/i);
+	});
+
 	it("falls back to stripping Domain when there is no request scope (module init)", async () => {
 		setVtexFetch((() =>
 			Promise.resolve(

@@ -64,8 +64,11 @@ function getRequestHost(): string | null {
  * init, never inside a real request) we fall back to stripping.
  */
 function rewriteCookieDomain(cookie: string, host: string | null): string {
+	// Anchor to an attribute boundary (`; `) so we never touch a `domain=`
+	// substring that happens to live inside the cookie value (before the
+	// first `;`).
 	return host
-		? cookie.replace(/domain=[^;]*/i, `Domain=${host}`)
+		? cookie.replace(/(;\s*)domain=[^;]*/i, `$1Domain=${host}`)
 		: cookie.replace(/;\s*domain=[^;]*/gi, "");
 }
 
