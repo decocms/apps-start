@@ -27,3 +27,25 @@ export interface MagentoCartItem {
 }
 
 export type Features = MagentoFeatures;
+
+/**
+ * Magento newsletter subscription response shape — what
+ * `actions/newsletter/subscribe` returns to the storefront.
+ */
+export interface NewsletterData {
+	success: boolean;
+	message: string;
+}
+
+/**
+ * Stock-alert mutation response from Magento's GraphQL endpoint —
+ * `actions/product/stockAlert` returns this (or `{ error }`).
+ */
+export interface ProductStockAlertResponse {
+	data?: {
+		productStockAlert: {
+			message: string;
+			status: boolean;
+		};
+	};
+}
