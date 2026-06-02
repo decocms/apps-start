@@ -43,13 +43,17 @@ export default async function cart(
 	const cartId = props?.cartId ?? readCartIdFromCookie(req.headers);
 	if (!cartId) return null;
 
-	const { site, useSuffix } = getMagentoConfig();
-	const suffix = useSuffix ? "_suffix" : "";
-	// cartId comes from the request cookie and is user-controlled. Encode
-	// it before splicing into the admin REST path so it can't break out of
-	// the path segment (and can't tack on query/fragment parts that hit a
-	// different endpoint with the privileged Bearer token).
-	const path = `/${encodeURIComponent(site)}/V1/carts/${encodeURIComponent(cartId)}${suffix}`;
+	const { site } = getMagentoConfig();
+	// Magento exposes the cart endpoint at /rest/:site/V1/carts/:cartId — the
+	// /rest/ prefix is mandatory and matches the Fresh/Deno original
+	// (deco-cx/apps/magento/loaders/cart.ts uses
+	// clientAdmin["GET /rest/:site/V1/carts/:cartId"]).
+	//
+	// cartId comes from the request cookie and is user-controlled. Both
+	// `site` and `cartId` are URL-encoded so neither can break out of its
+	// path segment and hit a different endpoint while the privileged
+	// Bearer token is still attached.
+	const path = `/rest/${encodeURIComponent(site)}/V1/carts/${encodeURIComponent(cartId)}`;
 
 	const res = await magentoFetch(path);
 	if (!res.ok) {
