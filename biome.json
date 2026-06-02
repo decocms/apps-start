@@ -35,6 +35,7 @@
 	"files": {
 		"includes": [
 			"commerce/**",
+			"magento/**",
 			"shopify/**",
 			"vtex/**",
 			"resend/**",
