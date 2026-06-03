@@ -49,6 +49,14 @@ export function getAlgoliaConfig(): AlgoliaConfig {
  * Returns the configured `SearchClient` from `algoliasearch`. The
  * instance is cached so all loaders/actions in a worker share one
  * client (and therefore one in-memory request cache).
+ *
+ * Prefers `adminApiKey` (broader scope — needed for indexing/settings
+ * actions) but falls back to `searchApiKey` so search-only sites that
+ * never set the admin secret as a worker env var still serve hits.
+ * Both keys live in the same SDK instance because v4's SearchClient
+ * doesn't expose a key swap; downstream write actions that require
+ * admin scope should check `getAlgoliaConfig().adminApiKey` themselves
+ * and surface a clear "admin key missing" error.
  */
 export function getAlgoliaClient(): SearchClient {
 	if (cachedClient) return cachedClient;
@@ -56,15 +64,15 @@ export function getAlgoliaClient(): SearchClient {
 	if (!c.applicationId) {
 		throw new Error("[Algolia] applicationId is required.");
 	}
-	if (!c.adminApiKey) {
+	const key = c.adminApiKey || c.searchApiKey;
+	if (!key) {
 		throw new Error(
-			"[Algolia] adminApiKey is required. The admin key drives the SDK " +
-				"because some operations (indexing, settings) need admin scope. " +
-				"It is never exposed to the browser — search-only calls use " +
-				"`searchApiKey` from getAlgoliaConfig().",
+			"[Algolia] Either adminApiKey or searchApiKey is required. " +
+				"Set ADMIN_KEY (or the env var your CMS block's Secret references) " +
+				"as a worker env var, or populate searchApiKey on the block.",
 		);
 	}
-	cachedClient = algoliasearch(c.applicationId, c.adminApiKey);
+	cachedClient = algoliasearch(c.applicationId, key);
 	return cachedClient;
 }
 
