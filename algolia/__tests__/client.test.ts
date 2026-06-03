@@ -85,9 +85,21 @@ describe("getAlgoliaClient", () => {
 		expect(() => mod.getAlgoliaClient()).toThrowError(/applicationId/);
 	});
 
-	it("throws when adminApiKey is missing", () => {
-		mod.configureAlgolia({ applicationId: "APP", searchApiKey: "S", adminApiKey: "" });
-		expect(() => mod.getAlgoliaClient()).toThrowError(/adminApiKey/);
+	it("falls back to searchApiKey when adminApiKey is empty", () => {
+		mod.configureAlgolia({ applicationId: "APP", searchApiKey: "SEARCH_ONLY", adminApiKey: "" });
+		mod.getAlgoliaClient();
+		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith("APP", "SEARCH_ONLY");
+	});
+
+	it("throws when both keys are empty", () => {
+		mod.configureAlgolia({ applicationId: "APP", searchApiKey: "", adminApiKey: "" });
+		expect(() => mod.getAlgoliaClient()).toThrowError(/adminApiKey or searchApiKey/);
+	});
+
+	it("prefers adminApiKey over searchApiKey when both present", () => {
+		mod.configureAlgolia({ applicationId: "APP", searchApiKey: "S", adminApiKey: "ADMIN" });
+		mod.getAlgoliaClient();
+		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith("APP", "ADMIN");
 	});
 });
 
