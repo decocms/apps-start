@@ -16,8 +16,7 @@
  *     Magento, and Algolia has consistent muscle memory.
  */
 
-import algoliasearch, { type SearchClient } from "algoliasearch";
-import { createFetchRequester } from "@algolia/requester-fetch";
+import { algoliasearch, type SearchClient } from "algoliasearch";
 
 import type { AlgoliaConfig } from "./types";
 
@@ -73,14 +72,10 @@ export function getAlgoliaClient(): SearchClient {
 				"as a worker env var, or populate searchApiKey on the block.",
 		);
 	}
-	// algoliasearch v4's default Node http requester relies on
-	// `node:http` which isn't available in Cloudflare Workers, so the
-	// first request hangs / crashes. `@algolia/requester-fetch` uses
-	// the global `fetch`, which is what every Deco target runtime
-	// provides — Workers, Bun, modern Node.
-	cachedClient = algoliasearch(c.applicationId, key, {
-		requester: createFetchRequester(),
-	});
+	// algoliasearch v5 uses the global `fetch` and `crypto` APIs by
+	// default — works on Cloudflare Workers, Bun, Deno, modern Node.
+	// v4 (with crypto / node:http imports) does not run on Workers.
+	cachedClient = algoliasearch(c.applicationId, key);
 	return cachedClient;
 }
 
