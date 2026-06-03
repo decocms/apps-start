@@ -17,6 +17,7 @@
  */
 
 import algoliasearch, { type SearchClient } from "algoliasearch";
+import { createFetchRequester } from "@algolia/requester-fetch";
 
 import type { AlgoliaConfig } from "./types";
 
@@ -72,7 +73,14 @@ export function getAlgoliaClient(): SearchClient {
 				"as a worker env var, or populate searchApiKey on the block.",
 		);
 	}
-	cachedClient = algoliasearch(c.applicationId, key);
+	// algoliasearch v4's default Node http requester relies on
+	// `node:http` which isn't available in Cloudflare Workers, so the
+	// first request hangs / crashes. `@algolia/requester-fetch` uses
+	// the global `fetch`, which is what every Deco target runtime
+	// provides — Workers, Bun, modern Node.
+	cachedClient = algoliasearch(c.applicationId, key, {
+		requester: createFetchRequester(),
+	});
 	return cachedClient;
 }
 

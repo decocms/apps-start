@@ -123,6 +123,7 @@
     "access": "public"
   },
   "peerDependencies": {
+    "@algolia/requester-fetch": "^4",
     "@decocms/start": ">=5.3.0",
     "@tanstack/react-query": ">=5",
     "algoliasearch": "^4 || ^5",
@@ -130,6 +131,9 @@
     "react-dom": ">=18"
   },
   "peerDependenciesMeta": {
+    "@algolia/requester-fetch": {
+      "optional": true
+    },
     "algoliasearch": {
       "optional": true
     }
@@ -140,6 +144,7 @@
     "@semantic-release/exec": "^7.1.0",
     "@tanstack/react-query": "^5.90.21",
     "@types/react": "^19.0.0",
+    "@algolia/requester-fetch": "^4.27.0",
     "@vitest/coverage-v8": "^4.1.0",
     "algoliasearch": "^4.27.0",
     "happy-dom": "^20.9.0",

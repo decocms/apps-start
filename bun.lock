@@ -5,6 +5,7 @@
     "": {
       "name": "@decocms/apps",
       "devDependencies": {
+        "@algolia/requester-fetch": "^4.27.0",
         "@biomejs/biome": "^2.4.7",
         "@decocms/start": "5.3.0",
         "@semantic-release/exec": "^7.1.0",
@@ -21,6 +22,7 @@
         "vitest": "^4.1.0",
       },
       "peerDependencies": {
+        "@algolia/requester-fetch": "^4",
         "@decocms/start": ">=5.3.0",
         "@tanstack/react-query": ">=5",
         "algoliasearch": "^4 || ^5",
@@ -28,6 +30,7 @@
         "react-dom": ">=18",
       },
       "optionalPeers": [
+        "@algolia/requester-fetch",
         "algoliasearch",
       ],
     },
@@ -66,6 +69,8 @@
     "@algolia/requester-browser-xhr": ["@algolia/requester-browser-xhr@4.27.0", "", { "dependencies": { "@algolia/requester-common": "4.27.0" } }, "sha512-dTenMBIIpyp5o3C2ZnfbsuSlD/lL9jPkk6T+2+qm38fyw2nf49ANbcHFE79NgiGrnmw7QrYveCs9NIP3Wk4v6g=="],
 
     "@algolia/requester-common": ["@algolia/requester-common@4.27.0", "", {}, "sha512-VC3prAQVgWTubMStb3mJz6i61Hqbtagi2LeIbgNtoFJFff3XZDcAaO1D5r0GYl2+DrB2VzUHnQXbkiuI+HHYyg=="],
+
+    "@algolia/requester-fetch": ["@algolia/requester-fetch@4.27.0", "", { "dependencies": { "@algolia/requester-common": "4.27.0" } }, "sha512-kMpcyZENA9sHu2218S0CXi5G/8aqX7dfPfF+10h3IqnCDvwQMb6QPkEDqqKTd3SaR45wmBe5lXDOFVpHxnjm3w=="],
 
     "@algolia/requester-node-http": ["@algolia/requester-node-http@4.27.0", "", { "dependencies": { "@algolia/requester-common": "4.27.0" } }, "sha512-y8nUqaUQeSOQ5oaNo0b2QPznyBFW9LoIwljyUphJ+gUZpU6O/j2/C8ovoqDpIe6J0etqHg5RCcBizrCFZuLpyw=="],
 

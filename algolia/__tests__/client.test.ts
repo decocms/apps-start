@@ -59,7 +59,7 @@ describe("getAlgoliaClient", () => {
 	it("constructs the SDK with applicationId + adminApiKey", () => {
 		mod.configureAlgolia({ applicationId: "APP_X", searchApiKey: "S", adminApiKey: "ADMIN" });
 		const client = mod.getAlgoliaClient();
-		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith("APP_X", "ADMIN");
+		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith("APP_X", "ADMIN", expect.objectContaining({ requester: expect.anything() }));
 		expect(client).toEqual({ __mockClient: true });
 	});
 
@@ -77,7 +77,7 @@ describe("getAlgoliaClient", () => {
 		mod.configureAlgolia({ applicationId: "APP_X", searchApiKey: "S", adminApiKey: "ADMIN2" });
 		mod.getAlgoliaClient();
 		expect(algoliasearchSpy).toHaveBeenCalledTimes(2);
-		expect(algoliasearchSpy).toHaveBeenNthCalledWith(2, "APP_X", "ADMIN2");
+		expect(algoliasearchSpy).toHaveBeenNthCalledWith(2, "APP_X", "ADMIN2", expect.anything());
 	});
 
 	it("throws when applicationId is missing", () => {
@@ -88,7 +88,11 @@ describe("getAlgoliaClient", () => {
 	it("falls back to searchApiKey when adminApiKey is empty", () => {
 		mod.configureAlgolia({ applicationId: "APP", searchApiKey: "SEARCH_ONLY", adminApiKey: "" });
 		mod.getAlgoliaClient();
-		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith("APP", "SEARCH_ONLY");
+		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith(
+			"APP",
+			"SEARCH_ONLY",
+			expect.objectContaining({ requester: expect.anything() }),
+		);
 	});
 
 	it("throws when both keys are empty", () => {
@@ -99,7 +103,11 @@ describe("getAlgoliaClient", () => {
 	it("prefers adminApiKey over searchApiKey when both present", () => {
 		mod.configureAlgolia({ applicationId: "APP", searchApiKey: "S", adminApiKey: "ADMIN" });
 		mod.getAlgoliaClient();
-		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith("APP", "ADMIN");
+		expect(algoliasearchSpy).toHaveBeenCalledExactlyOnceWith(
+			"APP",
+			"ADMIN",
+			expect.objectContaining({ requester: expect.anything() }),
+		);
 	});
 });
 
