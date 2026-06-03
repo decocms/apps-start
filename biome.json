@@ -37,6 +37,7 @@
 			"commerce/**",
 			"magento/**",
 			"algolia/**",
+			"salesforce/**",
 			"shopify/**",
 			"vtex/**",
 			"resend/**",
