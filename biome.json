@@ -36,6 +36,7 @@
 		"includes": [
 			"commerce/**",
 			"magento/**",
+			"algolia/**",
 			"shopify/**",
 			"vtex/**",
 			"resend/**",
