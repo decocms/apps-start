@@ -16,7 +16,7 @@
  *     Magento, and Algolia has consistent muscle memory.
  */
 
-import { algoliasearch, type SearchClient } from "algoliasearch";
+import algoliasearch, { type SearchClient } from "algoliasearch";
 
 import type { AlgoliaConfig } from "./types";
 

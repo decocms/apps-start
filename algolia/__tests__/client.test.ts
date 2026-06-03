@@ -17,8 +17,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const algoliasearchSpy = vi.fn(() => ({ __mockClient: true }));
 
+// algoliasearch v4 uses a default export; v5 uses a named export. The
+// production module imports the default with a `type SearchClient`
+// type-only named import, so mocking the default is sufficient.
 vi.mock("algoliasearch", () => ({
-	algoliasearch: (...args: unknown[]) =>
+	default: (...args: unknown[]) =>
 		algoliasearchSpy(...(args as Parameters<typeof algoliasearchSpy>)),
 }));
 
