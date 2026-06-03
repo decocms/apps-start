@@ -101,14 +101,14 @@ describe("getAlgoliaClient", () => {
 });
 
 describe("initAlgoliaFromBlocks", () => {
-	it("returns false and skips configure() when block is absent", () => {
-		const result = mod.initAlgoliaFromBlocks({});
+	it("returns false and skips configure() when block is absent", async () => {
+		const result = await mod.initAlgoliaFromBlocks({});
 		expect(result).toBe(false);
 		expect(() => mod.getAlgoliaConfig()).toThrowError(/configureAlgolia/);
 	});
 
-	it("reads applicationId + searchApiKey + adminApiKey from the block", () => {
-		const result = mod.initAlgoliaFromBlocks({
+	it("reads applicationId + searchApiKey + adminApiKey from the block", async () => {
+		const result = await mod.initAlgoliaFromBlocks({
 			"deco-algolia": {
 				applicationId: "APP",
 				searchApiKey: "SEARCH",
@@ -123,9 +123,9 @@ describe("initAlgoliaFromBlocks", () => {
 		});
 	});
 
-	it("dereferences a Secret-shaped adminApiKey via process.env", () => {
+	it("dereferences a Secret-shaped adminApiKey via process.env", async () => {
 		process.env.TEST_ADMIN_KEY = "from-env";
-		mod.initAlgoliaFromBlocks({
+		await mod.initAlgoliaFromBlocks({
 			"deco-algolia": {
 				applicationId: "APP",
 				searchApiKey: "SEARCH",
@@ -138,8 +138,8 @@ describe("initAlgoliaFromBlocks", () => {
 		expect(mod.getAlgoliaConfig().adminApiKey).toBe("from-env");
 	});
 
-	it("falls back to empty string when env var is unset", () => {
-		mod.initAlgoliaFromBlocks({
+	it("falls back to empty string when env var is unset", async () => {
+		await mod.initAlgoliaFromBlocks({
 			"deco-algolia": {
 				applicationId: "APP",
 				searchApiKey: "SEARCH",
@@ -152,8 +152,8 @@ describe("initAlgoliaFromBlocks", () => {
 		expect(mod.getAlgoliaConfig().adminApiKey).toBe("");
 	});
 
-	it("honors a custom block key", () => {
-		mod.initAlgoliaFromBlocks(
+	it("honors a custom block key", async () => {
+		await mod.initAlgoliaFromBlocks(
 			{
 				"my-algolia": {
 					applicationId: "X",
@@ -164,5 +164,32 @@ describe("initAlgoliaFromBlocks", () => {
 			"my-algolia",
 		);
 		expect(mod.getAlgoliaConfig().applicationId).toBe("X");
+	});
+
+	// Encrypted-secret flow: the CMS block ships `{ encrypted, name }`,
+	// the framework's `resolveSecret` (from `@decocms/start/sdk/crypto`)
+	// is supposed to AES-CBC decrypt `encrypted` using `DECO_CRYPTO_KEY`.
+	// In a vitest worker `crypto.subtle` is available but the AES key
+	// material isn't shipped to the runner — without `DECO_CRYPTO_KEY`,
+	// `resolveSecret` skips the decrypt step and falls back to the env
+	// var. That fallback path is what this test pins: prod sites either
+	// set the env var on top OR (more commonly) rely on the decrypt to
+	// succeed against the worker's `DECO_CRYPTO_KEY` binding.
+	it("uses env var fallback when DECO_CRYPTO_KEY is unset and encrypted is present", async () => {
+		delete process.env.DECO_CRYPTO_KEY;
+		process.env.FALLBACK_ADMIN_KEY = "from-env-fallback";
+		await mod.initAlgoliaFromBlocks({
+			"deco-algolia": {
+				applicationId: "APP",
+				searchApiKey: "SEARCH",
+				adminApiKey: {
+					__resolveType: "website/loaders/secret.ts",
+					encrypted: "deadbeef",
+					name: "FALLBACK_ADMIN_KEY",
+				},
+			},
+		});
+		expect(mod.getAlgoliaConfig().adminApiKey).toBe("from-env-fallback");
+		delete process.env.FALLBACK_ADMIN_KEY;
 	});
 });

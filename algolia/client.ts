@@ -84,46 +84,43 @@ export function getAlgoliaClient(): SearchClient {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a secret-shaped CMS field (`{__resolveType:
- * "website/loaders/secret.ts", name: "X"}`) to its plain-string value
- * by reading the named env var. Strings pass through unchanged; null
- * / undefined / unrecognized shapes become "".
- *
- * The Deco CMS stores admin keys as `Secret` references that the old
- * resolver pipeline used to dereference at boot. `@decocms/start`
- * doesn't run that pipeline before init, so we resolve here — same
- * trade-off Magento and VTEX took.
- */
-function resolveSecret(v: unknown): string {
-	if (typeof v === "string") return v;
-	if (v && typeof v === "object") {
-		const ref = v as { name?: string };
-		if (ref.name) return process.env[ref.name] ?? "";
-	}
-	return "";
-}
-
-/**
  * Best-effort init from a CMS block — mirrors `initMagentoFromBlocks`.
+ *
+ * Resolves `adminApiKey` via the shared `resolveSecret` from
+ * `@decocms/start/sdk/crypto`, which walks: plain string → `.get()`
+ * accessor → AES-CBC decrypt of `.encrypted` (using `DECO_CRYPTO_KEY`)
+ * → `process.env[name]` fallback. Previously this init had its own
+ * local helper that only consulted `process.env`, which meant any
+ * site relying on the encrypted-secret round-trip (the production
+ * Deco CMS default) silently produced `adminApiKey: ""` and
+ * `getAlgoliaClient()` either threw or fell back to `searchApiKey`.
+ *
+ * Async because the AES decrypt is async — site setups must `await`
+ * the call before any algolia loader fires.
+ *
  * The block is conventionally keyed `deco-algolia` (matches the prod
  * Fresh sites' admin block name), but a custom key can be passed for
- * sites that named theirs differently.
- *
- * Returns true if the block was found and applied, false otherwise.
- * The site setup typically ignores the return value — the next
- * loader-time `getAlgoliaConfig()` call will throw with a clear
- * message if config was never set.
+ * sites that named theirs differently. Returns true if the block was
+ * found and applied, false otherwise.
  */
-export function initAlgoliaFromBlocks(
+export async function initAlgoliaFromBlocks(
 	blocks: Record<string, unknown>,
 	blockKey = "deco-algolia",
-): boolean {
+): Promise<boolean> {
 	const block = blocks[blockKey] as Record<string, unknown> | undefined;
 	if (!block) return false;
 
+	const { resolveSecret } = await import("@decocms/start/sdk/crypto");
+
 	const applicationId = typeof block.applicationId === "string" ? block.applicationId : "";
 	const searchApiKey = typeof block.searchApiKey === "string" ? block.searchApiKey : "";
-	const adminApiKey = resolveSecret(block.adminApiKey);
+
+	const adminApiKeyEnvName: string =
+		block.adminApiKey && typeof block.adminApiKey === "object" &&
+			typeof (block.adminApiKey as { name?: unknown }).name === "string"
+			? (block.adminApiKey as { name: string }).name
+			: "";
+	const adminApiKey = (await resolveSecret(block.adminApiKey, adminApiKeyEnvName)) ?? "";
 
 	configureAlgolia({ applicationId, searchApiKey, adminApiKey });
 	return true;
