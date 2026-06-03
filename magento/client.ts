@@ -104,34 +104,68 @@ export function getMagentoConfig(): MagentoConfig {
 
 /**
  * Best-effort init from a CMS block — mirrors `initVtexFromBlocks`.
- * Resolves secret references (`__resolveType: "website/loaders/secret.ts"`)
- * by reading the named env var; if absent or invalid, the block field
- * passes through as `""`.
+ *
+ * Resolves secret references stored in the CMS block (`apiKey`,
+ * `originHeader`) in this priority:
+ *   1. Plain string                                              (dev override)
+ *   2. `{ get: () => string }` object                            (legacy)
+ *   3. `{ encrypted: "<hex>" }` decrypted via `DECO_CRYPTO_KEY`   (prod)
+ *   4. `{ name: "ENV_VAR" }` → `process.env[name]`               (fallback)
+ *
+ * (3) is what the production Deco CMS actually stores — admin
+ * encrypts the secret with the site's `DECO_CRYPTO_KEY` so the value
+ * never leaves the worker in plain text. Previously this init only
+ * read `process.env[name]`, which silently produced `apiKey: ""` for
+ * any site that hadn't *also* set the named env var as a CF Worker
+ * secret. Result: `Authorization: Bearer ` header missing on every
+ * request → Magento 401 → minicart/cart-related loaders dead. The
+ * shared `resolveSecret` helper from `@decocms/start/sdk/crypto`
+ * handles the full chain, matching how VTEX and Shopify configure
+ * themselves.
+ *
+ * Because the AES-CBC decrypt step is async, this function is now
+ * `Promise<void>` — site setups must `await` the call before any
+ * loader fires.
  */
-export function initMagentoFromBlocks(blocks: Record<string, unknown>): void {
+export async function initMagentoFromBlocks(blocks: Record<string, unknown>): Promise<void> {
+	// Lazy-imported to keep `@decocms/start/sdk/crypto` out of the
+	// import graph for sites that wire Magento manually via
+	// `configureMagento({ apiKey: "..." })` without ever calling this
+	// helper (e.g. unit tests, CLI tools).
+	const { resolveSecret } = await import("@decocms/start/sdk/crypto");
+
 	const block = blocks.magento as Record<string, any> | undefined;
 	if (!block) {
 		console.warn("[Magento] No `magento` block found in CMS; skipping init.");
 		return;
 	}
 
-	const resolveSecret = (v: unknown): string => {
-		if (typeof v === "string") return v;
-		if (v && typeof v === "object") {
-			const ref = v as { name?: string };
-			if (ref.name) return process.env[ref.name] ?? "";
+	const apiConfig = block.apiConfig ?? {};
+
+	// The env-var fallback names match the Secret block's `name` field
+	// when present. `resolveSecret` cycles through the chain documented
+	// above; an empty string here means every layer was empty, which we
+	// pass through verbatim so `buildHeaders` can detect it.
+	const extractEnvName = (value: unknown): string => {
+		if (value && typeof value === "object") {
+			const name = (value as { name?: unknown }).name;
+			if (typeof name === "string") return name;
 		}
 		return "";
 	};
+	const apiKeyEnvName = extractEnvName(apiConfig.apiKey);
+	const originHeaderEnvName = extractEnvName(apiConfig.originHeader);
 
-	const apiConfig = block.apiConfig ?? {};
+	const apiKey = (await resolveSecret(apiConfig.apiKey, apiKeyEnvName)) ?? "";
+	const originHeader = (await resolveSecret(apiConfig.originHeader, originHeaderEnvName)) ?? "";
+
 	configureMagento({
 		baseUrl: apiConfig.baseUrl ?? "",
-		apiKey: resolveSecret(apiConfig.apiKey),
+		apiKey,
 		storeId: apiConfig.storeId ?? 1,
 		site: apiConfig.site ?? "",
 		storeHeader: apiConfig.storeHeader,
-		originHeader: resolveSecret(apiConfig.originHeader),
+		originHeader,
 		currencyCode: apiConfig.currencyCode,
 		useSuffix: apiConfig.useSuffix,
 		features: block.features,

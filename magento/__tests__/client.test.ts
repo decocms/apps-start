@@ -157,3 +157,96 @@ describe("magentoFetch — cross-origin guard", () => {
 		expect((init.headers as Headers).get("authorization")).toBe("Bearer secret-bearer");
 	});
 });
+
+describe("initMagentoFromBlocks — secret resolution", () => {
+	beforeEach(() => {
+		vi.resetModules();
+	});
+
+	it("returns early when the `magento` block is absent", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const { initMagentoFromBlocks, getMagentoConfig } = await import("../client");
+		await initMagentoFromBlocks({});
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("No `magento` block"));
+		expect(() => getMagentoConfig()).toThrow(/configureMagento\(\) must be called/);
+	});
+
+	it("reads plain-string apiKey directly", async () => {
+		const { initMagentoFromBlocks, getMagentoConfig } = await import("../client");
+		await initMagentoFromBlocks({
+			magento: {
+				apiConfig: {
+					baseUrl: "https://loja.example.com/",
+					apiKey: "plain-string-key",
+					site: "example",
+					storeId: 1,
+				},
+			},
+		});
+		expect(getMagentoConfig().apiKey).toBe("plain-string-key");
+	});
+
+	it("dereferences a Secret-shaped apiKey via process.env (the env fallback path)", async () => {
+		process.env.TEST_MAGENTO_KEY = "from-env";
+		const { initMagentoFromBlocks, getMagentoConfig } = await import("../client");
+		await initMagentoFromBlocks({
+			magento: {
+				apiConfig: {
+					baseUrl: "https://loja.example.com/",
+					apiKey: {
+						__resolveType: "website/loaders/secret.ts",
+						name: "TEST_MAGENTO_KEY",
+					},
+					site: "example",
+					storeId: 1,
+				},
+			},
+		});
+		expect(getMagentoConfig().apiKey).toBe("from-env");
+		delete process.env.TEST_MAGENTO_KEY;
+	});
+
+	it("falls back to empty string when secret is unresolvable", async () => {
+		// no DECO_CRYPTO_KEY, no env var with this name, no decrypt
+		// → resolveSecret returns null → init writes "".
+		delete process.env.DECO_CRYPTO_KEY;
+		const { initMagentoFromBlocks, getMagentoConfig } = await import("../client");
+		await initMagentoFromBlocks({
+			magento: {
+				apiConfig: {
+					baseUrl: "https://loja.example.com/",
+					apiKey: {
+						__resolveType: "website/loaders/secret.ts",
+						encrypted: "deadbeef",
+						name: "UNDEFINED_ENV_VAR_DO_NOT_SET",
+					},
+					site: "example",
+					storeId: 1,
+				},
+			},
+		});
+		expect(getMagentoConfig().apiKey).toBe("");
+	});
+
+	it("resolves both apiKey and originHeader independently", async () => {
+		process.env.TEST_API_KEY = "api-from-env";
+		process.env.TEST_ORIGIN = "origin-from-env";
+		const { initMagentoFromBlocks, getMagentoConfig } = await import("../client");
+		await initMagentoFromBlocks({
+			magento: {
+				apiConfig: {
+					baseUrl: "https://loja.example.com/",
+					apiKey: { name: "TEST_API_KEY" },
+					originHeader: { name: "TEST_ORIGIN" },
+					site: "example",
+					storeId: 1,
+				},
+			},
+		});
+		const cfg = getMagentoConfig();
+		expect(cfg.apiKey).toBe("api-from-env");
+		expect(cfg.originHeader).toBe("origin-from-env");
+		delete process.env.TEST_API_KEY;
+		delete process.env.TEST_ORIGIN;
+	});
+});
