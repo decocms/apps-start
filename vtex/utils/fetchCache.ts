@@ -10,6 +10,12 @@
 const DEFAULT_MAX_ENTRIES = 500;
 const MAX_RETRIES = 2;
 const RETRY_DELAYS = [200, 400];
+// Per-attempt timeout. Bounds how long a single hung `fetch()` can hold an
+// inflight entry alive. Without this, a VTEX subrequest that never settles
+// leaks the inflight Map slot forever and every subsequent request for the
+// same cache key joins the zombie Promise, pinning memory until
+// `exceededMemory` (observed in prod: 514 hard crashes / 24h on a PLP route).
+const FETCH_TIMEOUT_MS = 10_000;
 
 interface CacheEntry {
 	body: unknown;
@@ -47,6 +53,28 @@ function sleep(ms: number): Promise<void> {
 
 function isRetryable(response: Response): boolean {
 	return response.status >= 500 || response.status === 429;
+}
+
+/**
+ * Race a Promise against a timeout so callers' `.finally()` always runs.
+ * Critical for evicting the inflight Map entry when a `fetch()` hangs —
+ * without this, a never-settling Promise leaks the Map slot forever and
+ * every subsequent request for the same key joins the zombie Promise.
+ */
+function withTimeout<T>(
+	work: Promise<T>,
+	ms: number,
+	label: string,
+): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			reject(new Error(`${label} timed out after ${ms}ms`));
+		}, ms);
+	});
+	return Promise.race([work, timeout]).finally(() => {
+		clearTimeout(timer);
+	});
 }
 
 async function executeFetch(
@@ -131,8 +159,14 @@ export function fetchWithCache<T>(
 
 		if (isStale && !entry.refreshing) {
 			entry.refreshing = true;
-			// Background refresh: no retry — stale data is already being served
-			executeFetch(cacheKey, doFetch, false)
+			// Background refresh: no retry — stale data is already being served.
+			// Timeout guards against a hung VTEX response leaving `refreshing`
+			// stuck true forever (which would silently disable revalidation).
+			withTimeout(
+				executeFetch(cacheKey, doFetch, false),
+				FETCH_TIMEOUT_MS,
+				`fetchCache stale-refresh ${cacheKey}`,
+			)
 				.then((fresh) => {
 					const ttl = opts?.ttl ?? ttlForStatus(fresh.status);
 					const existingWasSuccess = entry.status >= 200 && entry.status < 300;
@@ -156,7 +190,15 @@ export function fetchWithCache<T>(
 	const existing = inflight.get(cacheKey);
 	if (existing) return existing.then((e) => e.body as T | null);
 
-	const promise = executeFetch(cacheKey, doFetch)
+	// Wrap with a timeout so the `.finally()` below always runs and evicts
+	// the inflight slot — even if `executeFetch` never settles. See the
+	// FETCH_TIMEOUT_MS comment at the top of this file for the leak this
+	// guards against.
+	const promise = withTimeout(
+		executeFetch(cacheKey, doFetch),
+		FETCH_TIMEOUT_MS,
+		`fetchCache ${cacheKey}`,
+	)
 		.then((fresh) => {
 			const ttl = opts?.ttl ?? ttlForStatus(fresh.status);
 			if (ttl > 0) {

@@ -82,4 +82,31 @@ describe("fetchWithCache", () => {
 		clearFetchCache();
 		expect(getFetchCacheStats()).toEqual({ entries: 0, inflight: 0 });
 	});
+
+	it("evicts the inflight slot when the fetch never settles", async () => {
+		vi.useFakeTimers();
+		try {
+			// `doFetch` returns a Promise that never resolves — simulates a hung
+			// VTEX subrequest (TCP open, no FIN, no response). Without the
+			// timeout guard, the inflight Map entry would leak forever and
+			// subsequent callers would `await` a zombie Promise — the prod
+			// memory-leak this fix addresses.
+			const doFetch = vi.fn(() => new Promise<Response>(() => {}));
+
+			const pending = fetchWithCache("hung-key", doFetch);
+			// Swallow the eventual rejection so the unhandled rejection doesn't
+			// fail the test runner.
+			pending.catch(() => {});
+
+			expect(getFetchCacheStats().inflight).toBe(1);
+
+			// Fast-forward past the 10s fetch timeout.
+			await vi.advanceTimersByTimeAsync(11_000);
+
+			await expect(pending).rejects.toThrow(/timed out/);
+			expect(getFetchCacheStats().inflight).toBe(0);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });
