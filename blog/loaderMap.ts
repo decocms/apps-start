@@ -2,7 +2,7 @@
  * Blog loader map factory for CMS block resolution.
  *
  * Returns a `Record<string, LoaderFn>` that the site spreads into its
- * block loader registry (currently named COMMERCE_LOADERS by convention).
+ * block loader registry.
  */
 
 import AuthorLoader from "./loaders/Author";

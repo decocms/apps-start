@@ -2,12 +2,12 @@
  * Public API for the blog app.
  */
 
+export { getRecordsByPath } from "./core/records";
 /** @deprecated Use `createBlogLoaders` instead. */
 export {
 	createBlogLoaders,
 	createBlogLoaders as createBlogCommerceLoaders,
-} from "./commerceLoaders";
-export { getRecordsByPath } from "./core/records";
+} from "./loaderMap";
 export { configure } from "./mod";
 
 // Types
