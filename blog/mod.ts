@@ -12,6 +12,7 @@ import manifest from "./manifest.gen";
 // State
 // -------------------------------------------------------------------------
 
+// biome-ignore lint/complexity/noBannedTypes: empty state placeholder for future use
 export type BlogState = {};
 
 // -------------------------------------------------------------------------
@@ -23,6 +24,7 @@ export type BlogState = {};
  * Always returns an AppDefinition (no required fields).
  */
 export async function configure(
+	// biome-ignore lint/suspicious/noExplicitAny: block data comes from CMS with no fixed schema
 	_block: any,
 	_resolveSecret: ResolveSecretFn,
 ): Promise<AppDefinition<BlogState>> {

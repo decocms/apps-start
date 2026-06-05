@@ -14,6 +14,7 @@ import BlogRelatedPostsLoader from "./loaders/BlogRelatedPosts";
 import CategoryLoader from "./loaders/Category";
 import GetCategoriesLoader from "./loaders/GetCategories";
 
+// biome-ignore lint/suspicious/noExplicitAny: loader props/returns vary per block
 export type LoaderFn = (props: any, request?: Request) => Promise<any> | any;
 
 /**
