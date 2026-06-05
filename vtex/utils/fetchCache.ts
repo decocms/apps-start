@@ -61,11 +61,7 @@ function isRetryable(response: Response): boolean {
  * without this, a never-settling Promise leaks the Map slot forever and
  * every subsequent request for the same key joins the zombie Promise.
  */
-function withTimeout<T>(
-	work: Promise<T>,
-	ms: number,
-	label: string,
-): Promise<T> {
+function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const timeout = new Promise<never>((_, reject) => {
 		timer = setTimeout(() => {

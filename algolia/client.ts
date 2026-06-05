@@ -116,8 +116,9 @@ export async function initAlgoliaFromBlocks(
 	const searchApiKey = typeof block.searchApiKey === "string" ? block.searchApiKey : "";
 
 	const adminApiKeyEnvName: string =
-		block.adminApiKey && typeof block.adminApiKey === "object" &&
-			typeof (block.adminApiKey as { name?: unknown }).name === "string"
+		block.adminApiKey &&
+		typeof block.adminApiKey === "object" &&
+		typeof (block.adminApiKey as { name?: unknown }).name === "string"
 			? (block.adminApiKey as { name: string }).name
 			: "";
 	const adminApiKey = (await resolveSecret(block.adminApiKey, adminApiKeyEnvName)) ?? "";
