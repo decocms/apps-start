@@ -168,9 +168,7 @@ describe("vtexFetchWithCookies — inbound Set-Cookie capture", () => {
 		setVtexFetch((() =>
 			Promise.resolve(
 				mockResponse({
-					setCookies: [
-						"checkout.vtex.com=__ofid=abc; Domain=.vtexcommercestable.com.br; Path=/",
-					],
+					setCookies: ["checkout.vtex.com=__ofid=abc; Domain=.vtexcommercestable.com.br; Path=/"],
 				}),
 			)) as typeof fetch);
 		// No withRequest wrapper → RequestContext.current is null.
