@@ -79,7 +79,13 @@
     "./website/flags/multivariate/*": "./website/flags/multivariate/*.ts",
     "./website/utils/*": "./website/utils/*.ts",
     "./website/sections/*": "./website/sections/*.tsx",
-    "./website/sections/Seo/*": "./website/sections/Seo/*.tsx"
+    "./website/sections/Seo/*": "./website/sections/Seo/*.tsx",
+    "./blog": "./blog/index.ts",
+    "./blog/mod": "./blog/mod.ts",
+    "./blog/types": "./blog/types.ts",
+    "./blog/commerceLoaders": "./blog/commerceLoaders.ts",
+    "./blog/loaders/*": "./blog/loaders/*.ts",
+    "./blog/core/*": "./blog/core/*.ts"
   },
   "scripts": {
     "generate:manifests": "tsx scripts/generate-manifests.ts",
@@ -108,6 +114,7 @@
     "url": "https://github.com/decocms/apps-start.git"
   },
   "files": [
+    "blog/",
     "commerce/",
     "magento/",
     "algolia/",

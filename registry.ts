@@ -53,6 +53,13 @@ export const APP_REGISTRY: AppRegistry = [
 		category: "email",
 		description: "Transactional email via Resend",
 	},
+	{
+		blockKey: "deco-blog",
+		module: () => import("./blog/mod"),
+		displayName: "Blog",
+		category: "content",
+		description: "Blog posts, categories, and authors from CMS collections",
+	},
 ];
 
 export default APP_REGISTRY;

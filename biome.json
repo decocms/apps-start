@@ -34,6 +34,7 @@
 	},
 	"files": {
 		"includes": [
+			"blog/**",
 			"commerce/**",
 			"magento/**",
 			"algolia/**",
