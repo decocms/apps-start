@@ -34,7 +34,7 @@ describe("createShopifyFetch", () => {
 		});
 	});
 
-	it("emits commerce_request_duration_ms with provider=shopify on success", async () => {
+	it("emits http.client.request.duration with provider=shopify on success", async () => {
 		const { calls, meter } = captureHistogram();
 		configureMeter(meter);
 
@@ -44,10 +44,11 @@ describe("createShopifyFetch", () => {
 		await fetchFn("https://store.myshopify.com/api/2025-04/graphql.json", { method: "POST" });
 
 		expect(calls).toHaveLength(1);
+		expect(calls[0].name).toBe("http.client.request.duration");
 		expect(calls[0].attrs).toMatchObject({
 			provider: "shopify",
 			operation: "storefront.graphql",
-			status_code: "200",
+			status_class: "2xx",
 		});
 	});
 
