@@ -1,4 +1,3 @@
-import type { BlogPost, SortBy } from "../types";
 import handlePosts, {
 	filterPostsByCategory,
 	filterPostsBySlugs,
@@ -7,6 +6,7 @@ import handlePosts, {
 	slicePosts,
 	sortPosts,
 } from "../core/handlePosts";
+import type { BlogPost, SortBy } from "../types";
 
 function makePost(overrides: Partial<BlogPost> = {}): BlogPost {
 	return {
