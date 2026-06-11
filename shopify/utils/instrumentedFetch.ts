@@ -7,8 +7,9 @@
  *      traceparent, URL redaction).
  *   2. `shopifyOperationRouter` as the URL fallback for non-GraphQL
  *      and unnamed-GraphQL calls.
- *   3. An `onComplete` that records `commerce_request_duration_ms`
- *      with `provider: "shopify"`.
+ *   3. An `onComplete` that records the canonical
+ *      `http.client.request.duration` histogram (via the framework's
+ *      `recordCommerceMetric(...)` helper) with `provider: "shopify"`.
  *
  * Sites do:
  *
@@ -26,10 +27,8 @@ import {
 	createInstrumentedFetch,
 	type InstrumentedFetch,
 } from "@decocms/start/sdk/instrumentedFetch";
-import { getMeter } from "@decocms/start/sdk/observability";
+import { recordCommerceMetric } from "@decocms/start/sdk/observability";
 import { shopifyOperationRouter } from "./operationRouter";
-
-const HISTOGRAM_NAME = "commerce_request_duration_ms";
 
 export interface CreateShopifyFetchOptions {
 	baseFetch?: typeof fetch;
@@ -45,12 +44,11 @@ export function createShopifyFetch(options: CreateShopifyFetchOptions = {}): Ins
 		onComplete: disableHistogram
 			? undefined
 			: ({ operation, status, durationMs, cached }) => {
-					const meter = getMeter();
-					meter?.histogramRecord?.(HISTOGRAM_NAME, durationMs, {
+					recordCommerceMetric(durationMs, {
 						provider: "shopify",
 						operation,
-						status_code: String(status),
-						cached: cached ? "true" : "false",
+						status_class: `${Math.floor(status / 100)}xx`,
+						cached,
 					});
 				},
 	});

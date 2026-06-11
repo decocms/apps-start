@@ -10,10 +10,10 @@
  *   2. The `vtexOperationRouter` URL→operation mapping so unannotated
  *      callsites still get semantic span names + histogram labels.
  *   3. An `onComplete` callback that records every call into the
- *      `commerce_request_duration_ms` histogram via the meter
- *      configured by `instrumentWorker(...)` in
+ *      canonical `http.client.request.duration` histogram via the
+ *      framework's `recordCommerceMetric(...)` helper in
  *      `@decocms/start/sdk/observability` — `provider`, `operation`,
- *      `status_code`, and `cached` labels.
+ *      `status_class`, and `cached` labels.
  *
  * Sites opt in once at startup:
  *
@@ -34,10 +34,8 @@ import {
 	createInstrumentedFetch,
 	type InstrumentedFetch,
 } from "@decocms/start/sdk/instrumentedFetch";
-import { getMeter } from "@decocms/start/sdk/observability";
+import { recordCommerceMetric } from "@decocms/start/sdk/observability";
 import { vtexOperationRouter } from "./operationRouter";
-
-const HISTOGRAM_NAME = "commerce_request_duration_ms";
 
 export interface CreateVtexFetchOptions {
 	/**
@@ -48,10 +46,10 @@ export interface CreateVtexFetchOptions {
 	 */
 	baseFetch?: typeof fetch;
 	/**
-	 * Disable the `commerce_request_duration_ms` histogram emission.
-	 * The framework's span and structured logs still emit. Useful when
-	 * the consumer wants to record its own histogram with a custom shape.
-	 * Default: false.
+	 * Disable the `http.client.request.duration` histogram emission for
+	 * VTEX calls. The framework's span and structured logs still emit.
+	 * Useful when the consumer wants to record its own histogram with a
+	 * custom shape. Default: false.
 	 */
 	disableHistogram?: boolean;
 }
@@ -69,12 +67,11 @@ export function createVtexFetch(options: CreateVtexFetchOptions = {}): Instrumen
 		onComplete: disableHistogram
 			? undefined
 			: ({ operation, status, durationMs, cached }) => {
-					const meter = getMeter();
-					meter?.histogramRecord?.(HISTOGRAM_NAME, durationMs, {
+					recordCommerceMetric(durationMs, {
 						provider: "vtex",
 						operation,
-						status_code: String(status),
-						cached: cached ? "true" : "false",
+						status_class: `${Math.floor(status / 100)}xx`,
+						cached,
 					});
 				},
 	});

@@ -157,7 +157,7 @@ export function configureVtex(config: VtexConfig) {
 /**
  * Override the fetch function used by all VTEX client calls.
  * Pass an `InstrumentedFetch` to get spans, traceparent injection,
- * URL redaction, and the `commerce_request_duration_ms` histogram —
+ * URL redaction, and the canonical `http.client.request.duration` histogram —
  * use the pre-wired `createVtexFetch()` factory:
  *
  * ```ts

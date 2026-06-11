@@ -73,9 +73,10 @@ createSiteSetup({
 });
 
 // Plumbs spans, traceparent injection, URL redaction, and the
-// `commerce_request_duration_ms` histogram into every outbound
-// VTEX call. Operation names are derived from the URL via
-// `vtexOperationRouter` (overridable per call via `init.operation`).
+// canonical `http.client.request.duration` histogram into every
+// outbound VTEX call (via `recordCommerceMetric`). Operation names
+// are derived from the URL via `vtexOperationRouter` (overridable
+// per call via `init.operation`).
 setVtexFetch(createVtexFetch());
 ```
 

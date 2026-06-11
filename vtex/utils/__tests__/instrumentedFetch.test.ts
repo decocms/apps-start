@@ -6,8 +6,9 @@
  *
  *   - The URL router is plumbed through so unannotated callsites get
  *     semantic span operations + histogram labels.
- *   - The `commerce_request_duration_ms` histogram is recorded with the
- *     right labels on every call.
+ *   - The canonical `http.client.request.duration` histogram is recorded
+ *     with the right labels on every call (via the framework's
+ *     `recordCommerceMetric` helper).
  *   - `disableHistogram: true` opts out cleanly.
  *   - A caller's explicit `init.operation` wins over the URL router
  *     (delegating to the framework, but worth asserting at this seam).
@@ -50,7 +51,7 @@ describe("createVtexFetch", () => {
 		});
 	});
 
-	it("records commerce_request_duration_ms with provider/operation/status labels on success", async () => {
+	it("records http.client.request.duration with provider/operation/status labels on success", async () => {
 		const { calls, meter } = captureHistogram();
 		configureMeter(meter);
 
@@ -60,12 +61,12 @@ describe("createVtexFetch", () => {
 		await fetchFn("https://store.vtexcommercestable.com.br/api/sessions");
 
 		expect(calls).toHaveLength(1);
-		expect(calls[0].name).toBe("commerce_request_duration_ms");
+		expect(calls[0].name).toBe("http.client.request.duration");
 		expect(calls[0].attrs).toMatchObject({
 			provider: "vtex",
 			operation: "sessions.get",
-			status_code: "200",
-			cached: "false",
+			status_class: "2xx",
+			cached: false,
 		});
 		expect(calls[0].value).toBeGreaterThanOrEqual(0);
 	});
@@ -109,10 +110,10 @@ describe("createVtexFetch", () => {
 
 		await fetchFn("https://store.vtexcommercestable.com.br/api/sessions");
 
-		expect(calls[0].attrs.cached).toBe("true");
+		expect(calls[0].attrs.cached).toBe(true);
 	});
 
-	it("emits status_code reflecting the actual response status", async () => {
+	it("emits status_class derived from the actual response status", async () => {
 		const { calls, meter } = captureHistogram();
 		configureMeter(meter);
 
@@ -121,7 +122,7 @@ describe("createVtexFetch", () => {
 
 		await fetchFn("https://store.vtexcommercestable.com.br/api/sessions");
 
-		expect(calls[0].attrs.status_code).toBe("503");
+		expect(calls[0].attrs.status_class).toBe("5xx");
 	});
 
 	it("skips histogram emission when disableHistogram is true", async () => {

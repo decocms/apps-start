@@ -11,7 +11,7 @@ export const sortPosts = (blogPosts: BlogPost[], sortBy: SortBy): BlogPost[] => 
 	const sortMethod = (parts[0] in blogPosts[0] ? parts[0] : "date") as keyof BlogPost;
 	const sortOrder = VALID_SORT_ORDERS.includes(parts[1]) ? parts[1] : "desc";
 
-	return blogPosts.toSorted((a, b) => {
+	return [...blogPosts].sort((a, b) => {
 		if (!a[sortMethod] && !b[sortMethod]) return 0;
 		if (!a[sortMethod]) return 1;
 		if (!b[sortMethod]) return -1;
