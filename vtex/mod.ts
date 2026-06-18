@@ -112,6 +112,7 @@ const vtexMiddleware: AppMiddleware = async (request, next) => {
  * Returns an AppDefinition or null if required fields are missing.
  */
 export async function configure(
+	// biome-ignore lint/suspicious/noExplicitAny: block data comes from CMS with no fixed schema
 	block: any,
 	resolveSecret: ResolveSecretFn,
 ): Promise<AppDefinition<VtexState> | null> {

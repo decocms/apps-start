@@ -7,8 +7,8 @@
 
 import type { AppDefinition, ResolveSecretFn } from "../commerce/app-types";
 import { configureWebsite } from "./client";
-import manifest from "./manifest.gen";
 import type { Props as SecretProps } from "./loaders/secret";
+import manifest from "./manifest.gen";
 import type { WebsiteConfig } from "./types";
 
 // -------------------------------------------------------------------------
