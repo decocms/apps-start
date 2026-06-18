@@ -7,7 +7,7 @@ import {
 	toFacetPath,
 } from "../client";
 import { pickSku, toProduct } from "../utils/transform";
-import type { Product as ProductVTEX } from "../utils/types";
+import type { Product as ProductVTEX, Sort } from "../utils/types";
 
 export interface SelectedFacet {
 	key: string;
@@ -42,12 +42,40 @@ export const mapLabelledFuzzyToFuzzy = (label?: LabelledFuzzy): "0" | "1" | "aut
 };
 
 export interface PLPProps {
+	/**
+	 * @title Query
+	 * @description Overrides the search term used to fetch the listing.
+	 */
 	query?: string;
+	/**
+	 * @title Items per page
+	 * @description Number of products per page to display.
+	 */
 	count?: number;
-	sort?: string;
-	fuzzy?: string;
+	/**
+	 * @title Sorting
+	 * @description Order in which products are returned.
+	 */
+	sort?: Sort;
+	/**
+	 * @title Fuzzy
+	 * @description Controls Intelligent Search typo tolerance.
+	 */
+	fuzzy?: LabelledFuzzy;
+	/**
+	 * @title Page offset
+	 * @description Starting page (0-indexed) for the listing query.
+	 */
 	page?: number;
+	/**
+	 * @title Selected Facets
+	 * @description Override selected facets from the URL (e.g. force a collection).
+	 */
 	selectedFacets?: SelectedFacet[];
+	/**
+	 * @title Hide Unavailable Items
+	 * @description Do not return out-of-stock items.
+	 */
 	hideUnavailableItems?: boolean;
 	/** Injected by CMS resolve — the matched page path (e.g. "/pisos/piso-vinilico-clicado") */
 	__pagePath?: string;
@@ -301,7 +329,10 @@ export default async function vtexProductListingPage(props: PLPProps): Promise<a
 	const rawCount = Number(countFromUrl ?? props.count ?? 12);
 	const count = Number.isFinite(rawCount) && rawCount > 0 ? rawCount : 12;
 	const sort = props.sort || pageUrl?.searchParams.get("sort") || "";
-	const fuzzy = props.fuzzy ?? pageUrl?.searchParams.get("fuzzy") ?? undefined;
+	// props.fuzzy is a friendly LabelledFuzzy ("automatic"|…) — translate it to the
+	// raw IS API value. The URL param is already a raw value, so it passes through.
+	const fuzzy =
+		mapLabelledFuzzyToFuzzy(props.fuzzy) ?? pageUrl?.searchParams.get("fuzzy") ?? undefined;
 	const pageFromUrl = pageUrl?.searchParams.get("page");
 	const rawPage = props.page ?? (pageFromUrl ? Number(pageFromUrl) - 1 : 0);
 	const page = Number.isFinite(rawPage) && rawPage >= 0 ? Math.floor(rawPage) : 0;
