@@ -19,6 +19,10 @@ import type { AppDefinition, AppMiddleware, ResolveSecretFn } from "../commerce/
 import { configureVtex, type VtexConfig } from "./client";
 import manifest from "./manifest.gen";
 import { extractVtexContext, propagateISCookies, vtexCacheControl } from "./middleware";
+import type { Props } from "./props";
+
+export type { Props } from "./props";
+export type { Secret } from "../website/cms-props";
 
 // -------------------------------------------------------------------------
 // State
@@ -81,3 +85,8 @@ export async function configure(
 
 /** Placeholder preview for CMS editor — evolves when admin supports it. */
 export const preview = undefined;
+
+/** Default export for schema generation and Deno-style app bridges. */
+export default function VTEX(_props: Props) {
+	return { state: _props };
+}
