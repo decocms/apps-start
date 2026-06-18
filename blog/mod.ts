@@ -9,11 +9,19 @@ import type { AppDefinition, ResolveSecretFn } from "../commerce/app-types";
 import manifest from "./manifest.gen";
 
 // -------------------------------------------------------------------------
-// State
+// CMS Props
 // -------------------------------------------------------------------------
 
-// biome-ignore lint/complexity/noBannedTypes: empty state placeholder for future use
-export type BlogState = {};
+/** @title Deco Blog */
+export interface Props {
+	/**
+	 * @title Page Slug
+	 * @description The slug of the BlogPostPage to embed. Use :category and :slug.
+	 */
+	pageSlug?: string;
+}
+
+export type BlogState = Props;
 
 // -------------------------------------------------------------------------
 // Configure
@@ -31,9 +39,14 @@ export async function configure(
 	return {
 		name: "blog",
 		manifest,
-		state: {},
+		state: { pageSlug: _block?.pageSlug },
 	};
 }
 
 /** Placeholder preview for CMS editor. */
 export const preview = undefined;
+
+/** Default export for schema generation and Deno-style app bridges. */
+export default function Blog(state: Props) {
+	return { state };
+}

@@ -16,9 +16,72 @@
  */
 
 import type { AppDefinition, AppMiddleware, ResolveSecretFn } from "../commerce/app-types";
+import type { Secret } from "../website/mod";
 import { configureVtex, type VtexConfig } from "./client";
 import manifest from "./manifest.gen";
 import { extractVtexContext, propagateISCookies, vtexCacheControl } from "./middleware";
+
+// -------------------------------------------------------------------------
+// CMS Props (mirrors deco-cx/apps/vtex/mod.ts)
+// -------------------------------------------------------------------------
+
+/** @title VTEX */
+export interface Props {
+	/**
+	 * @description VTEX Account name
+	 */
+	account: string;
+
+	/**
+	 * @title Public store URL
+	 * @description Domain registered on License Manager (e.g. secure.mystore.com.br)
+	 */
+	publicUrl: string;
+
+	/** @title App Key */
+	appKey?: Secret;
+
+	/**
+	 * @title App Token
+	 * @format password
+	 */
+	appToken?: Secret;
+
+	/**
+	 * @title Default Sales Channel
+	 * @deprecated
+	 */
+	salesChannel?: string;
+
+	/**
+	 * @title Set Refresh Token
+	 * @default false
+	 */
+	setRefreshToken?: boolean;
+
+	defaultSegment?: Record<string, unknown>;
+
+	usePortalSitemap?: boolean;
+
+	/**
+	 * @hide true
+	 * @default vtex
+	 */
+	platform?: "vtex";
+
+	advancedConfigs?: {
+		doNotFetchVariantsForRelatedProducts?: boolean;
+		removeUTMFromCacheKey?: boolean;
+	};
+
+	/** @title Cached Search Terms */
+	cachedSearchTerms?: {
+		terms?: unknown;
+		extraTerms?: string[];
+	};
+}
+
+export type { Secret };
 
 // -------------------------------------------------------------------------
 // State
@@ -49,6 +112,7 @@ const vtexMiddleware: AppMiddleware = async (request, next) => {
  * Returns an AppDefinition or null if required fields are missing.
  */
 export async function configure(
+	// biome-ignore lint/suspicious/noExplicitAny: block data comes from CMS with no fixed schema
 	block: any,
 	resolveSecret: ResolveSecretFn,
 ): Promise<AppDefinition<VtexState> | null> {
@@ -81,3 +145,8 @@ export async function configure(
 
 /** Placeholder preview for CMS editor — evolves when admin supports it. */
 export const preview = undefined;
+
+/** Default export for schema generation and Deno-style app bridges. */
+export default function VTEX(_props: Props) {
+	return { state: _props };
+}
