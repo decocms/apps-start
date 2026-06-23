@@ -8,6 +8,7 @@ import {
 } from "../client";
 import { pickSku, toProduct } from "../utils/transform";
 import type { Product as ProductVTEX, Sort } from "../utils/types";
+import type { ProductListingPage } from "../../commerce/types/commerce";
 
 export interface SelectedFacet {
 	key: string;
@@ -244,12 +245,13 @@ function pageTypesToBreadcrumb(pageTypes: PageType[]) {
 
 // -- SEO from page types (mirrors original pageTypesToSeo) --
 
-function pageTypesToSeo(pageTypes: PageType[]) {
+function pageTypesToSeo(pageTypes: PageType[]): ProductListingPage["seo"] {
 	const current = pageTypes[pageTypes.length - 1];
 	if (!current) return undefined;
 	return {
 		title: current.title || current.name || "",
 		description: current.metaTagDescription || "",
+		canonical: "",
 	};
 }
 
@@ -321,7 +323,7 @@ function isValidPLPPath(path: string): boolean {
  * 4. Transform facets to FilterToggle format
  * 5. Build pagination from IS response
  */
-export default async function vtexProductListingPage(props: PLPProps): Promise<any | null> {
+export default async function vtexProductListingPage(props: PLPProps): Promise<ProductListingPage | null> {
 	const pageUrl = props.__pageUrl ? new URL(props.__pageUrl, "https://localhost") : null;
 
 	const query = props.query ?? pageUrl?.searchParams.get("q") ?? "";
