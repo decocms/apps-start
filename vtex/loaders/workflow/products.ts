@@ -3,10 +3,10 @@
  * Maps IS response to schema.org Product[] following deco-cx/apps pattern.
  */
 
-import type { Product } from "../../commerce/types/commerce";
-import { getVtexConfig, intelligentSearch, toFacetPath } from "../client";
-import { pickSku, toProduct } from "../utils/transform";
-import type { Product as ProductVTEX } from "../utils/types";
+import type { Product } from "../../../commerce/types/commerce";
+import { getVtexConfig, intelligentSearch, toFacetPath } from "../../client";
+import { pickSku, toProduct } from "../../utils/transform";
+import type { Product as ProductVTEX } from "../../utils/types";
 
 export interface WorkflowProductsProps {
 	props?: {

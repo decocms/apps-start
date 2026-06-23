@@ -1,7 +1,7 @@
 /**
  * Standard VTEX commerce loader map factory for CMS block resolution.
  *
- * Wraps all VTEX inline loaders with createCachedLoader, applies universal
+ * Wraps all VTEX loaders with createCachedLoader, applies universal
  * workarounds (slug fallback, IS sort sanitization, map=productClusterIds),
  * and registers both `.ts` and `.ts`-less aliases.
  *
@@ -11,14 +11,14 @@
 
 import { createCachedLoader } from "@decocms/start/sdk/cachedLoader";
 import type { CacheProfileName } from "@decocms/start/sdk/cacheHeaders";
-import vtexProductDetailsPage from "./inline-loaders/productDetailsPage";
-import vtexProductList from "./inline-loaders/productList";
-import vtexProductListingPage from "./inline-loaders/productListingPage";
-import vtexProductListShelf from "./inline-loaders/productListShelf";
-import vtexRelatedProducts from "./inline-loaders/relatedProducts";
-import vtexSuggestions from "./inline-loaders/suggestions";
-import vtexWorkflowProducts from "./inline-loaders/workflowProducts";
 import { getCategoryTree } from "./loaders/catalog";
+import vtexProductDetailsPage from "./loaders/intelligentSearch/productDetailsPage";
+import vtexProductListShelf from "./loaders/intelligentSearch/productList";
+import vtexProductListingPage from "./loaders/intelligentSearch/productListingPage";
+import vtexSuggestions from "./loaders/intelligentSearch/suggestions";
+import vtexRelatedProducts from "./loaders/legacy/relatedProductsLoader";
+import vtexProductList from "./loaders/productListFull";
+import vtexWorkflowProducts from "./loaders/workflow/products";
 import { VALID_IS_SORTS } from "./utils/intelligentSearch";
 
 export type CommerceLoaderFn = (props: any) => Promise<any>;

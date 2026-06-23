@@ -5,9 +5,9 @@ import {
 	type PageType,
 	pageTypesFromPath,
 	toFacetPath,
-} from "../client";
-import { pickSku, toProduct } from "../utils/transform";
-import type { Product as ProductVTEX, Sort } from "../utils/types";
+} from "../../client";
+import { pickSku, toProduct } from "../../utils/transform";
+import type { Product as ProductVTEX, Sort } from "../../utils/types";
 
 export interface SelectedFacet {
 	key: string;

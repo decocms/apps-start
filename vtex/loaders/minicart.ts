@@ -12,8 +12,8 @@
  * @example
  * ```ts
  * // setup/commerce-loaders.ts
- * import minicart from "@decocms/apps/vtex/inline-loaders/minicart";
- * registerInlineLoader("vtex/inline-loaders/minicart", minicart);
+ * import minicart from "@decocms/apps/vtex/loaders/minicart";
+ * registerInlineLoader("vtex/loaders/minicart", minicart);
  * ```
  */
 

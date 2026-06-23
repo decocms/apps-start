@@ -6,10 +6,10 @@
  * (name, URL, images, price, installments, PIX, availability, brand).
  */
 
-import type { Product } from "../../commerce/types/commerce";
-import { getVtexConfig, intelligentSearch, toFacetPath } from "../client";
-import { pickSku, sortProducts, toProductShelf } from "../utils/transform";
-import type { Product as ProductVTEX } from "../utils/types";
+import type { Product } from "../../../commerce/types/commerce";
+import { getVtexConfig, intelligentSearch, toFacetPath } from "../../client";
+import { pickSku, sortProducts, toProductShelf } from "../../utils/transform";
+import type { Product as ProductVTEX } from "../../utils/types";
 
 export interface ProductListProps {
 	props?: CollectionProps | QueryProps | ProductIDProps | FacetsProps;

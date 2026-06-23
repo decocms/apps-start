@@ -7,11 +7,11 @@
  * single search/{slug}/p call instead of each doing their own.
  */
 
-import type { Product } from "../../commerce/types/commerce";
-import { getVtexConfig, vtexCachedFetch } from "../client";
-import { resolveProductIdBySlug } from "../utils/slugCache";
-import { pickSku, toProduct } from "../utils/transform";
-import type { LegacyProduct } from "../utils/types";
+import type { Product } from "../../../commerce/types/commerce";
+import { getVtexConfig, vtexCachedFetch } from "../../client";
+import { resolveProductIdBySlug } from "../../utils/slugCache";
+import { pickSku, toProduct } from "../../utils/transform";
+import type { LegacyProduct } from "../../utils/types";
 
 export type CrossSellingType =
 	| "similars"
