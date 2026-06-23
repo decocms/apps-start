@@ -3,10 +3,10 @@
  * Maps VTEX IS response to commerce Suggestion type.
  */
 
-import type { Product, Suggestion } from "../../commerce/types/commerce";
-import { getVtexConfig, intelligentSearch } from "../client";
-import { pickSku, toProduct } from "../utils/transform";
-import type { Product as ProductVTEX } from "../utils/types";
+import type { Product, Suggestion } from "../../../commerce/types/commerce";
+import { getVtexConfig, intelligentSearch } from "../../client";
+import { pickSku, toProduct } from "../../utils/transform";
+import type { Product as ProductVTEX } from "../../utils/types";
 
 export interface SuggestionsProps {
 	query?: string;

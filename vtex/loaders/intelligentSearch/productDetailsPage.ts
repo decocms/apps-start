@@ -4,11 +4,11 @@
  * following the same pattern as deco-cx/apps.
  */
 
-import type { ProductDetailsPage } from "../../commerce/types/commerce";
-import { getVtexConfig, vtexCachedFetch } from "../client";
-import { searchBySlug } from "../utils/slugCache";
-import { pickSku, toProductPage } from "../utils/transform";
-import type { LegacyProduct } from "../utils/types";
+import type { ProductDetailsPage } from "../../../commerce/types/commerce";
+import { getVtexConfig, vtexCachedFetch } from "../../client";
+import { searchBySlug } from "../../utils/slugCache";
+import { pickSku, toProductPage } from "../../utils/transform";
+import type { LegacyProduct } from "../../utils/types";
 
 export interface PDPProps {
 	slug?: string;
