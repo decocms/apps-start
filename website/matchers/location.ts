@@ -7,32 +7,56 @@ export interface Coordinate {
 	radius?: number;
 }
 
+/**
+ * A rule that matches by a circular area (haversine radius).
+ *
+ * @title Map
+ */
 export interface Map {
+	/**
+	 * @title Mode
+	 * @default map
+	 * @description Match users inside a circular area on the map.
+	 */
+	type: "map";
 	/**
 	 * @title Area selection
 	 * @format map
 	 * @example -7.27820,-35.97630,2000
+	 * @description "latitude,longitude,radius_in_meters" for haversine-radius matching.
 	 */
-	coordinates?: string;
+	coordinates: string;
 }
 
 /**
+ * A rule that matches by Cloudflare geo headers (country / region / city).
+ *
+ * @title Location
  * @format location
  */
 export interface Location {
 	/**
+	 * @title Mode
+	 * @default location
+	 * @description Match users by country, region and city.
+	 */
+	type: "location";
+	/**
 	 * @title City
 	 * @example São Paulo
+	 * @description Exact city name (case-insensitive) as returned by Cloudflare's cf-ipcity header.
 	 */
 	city?: string;
 	/**
 	 * @title Region Code
 	 * @example SP
+	 * @description Matches Cloudflare's cf-region-code header — usually the ISO 3166-2 subdivision code (SP, RJ, MG, …); some regions return numeric codes. Full names like "São Paulo" are NOT matched.
 	 */
 	regionCode?: string;
 	/**
 	 * @title Country
 	 * @example BR
+	 * @description ISO 3166-1 alpha-2 code (BR, US, AR, …) as returned by Cloudflare's cf-ipcountry header.
 	 */
 	country?: string;
 }

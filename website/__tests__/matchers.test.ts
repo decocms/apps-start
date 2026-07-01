@@ -215,22 +215,30 @@ describe("MatchHost", () => {
 describe("MatchLocation", () => {
 	it("matches by country", () => {
 		const ctx = makeCtx({ headers: { "cf-ipcountry": "BR" } });
-		expect(MatchLocation({ includeLocations: [{ country: "BR" }] }, ctx)).toBe(true);
+		expect(MatchLocation({ includeLocations: [{ type: "location", country: "BR" }] }, ctx)).toBe(
+			true,
+		);
 	});
 
 	it("does not match wrong country", () => {
 		const ctx = makeCtx({ headers: { "cf-ipcountry": "US" } });
-		expect(MatchLocation({ includeLocations: [{ country: "BR" }] }, ctx)).toBe(false);
+		expect(MatchLocation({ includeLocations: [{ type: "location", country: "BR" }] }, ctx)).toBe(
+			false,
+		);
 	});
 
 	it("excludes matching location", () => {
 		const ctx = makeCtx({ headers: { "cf-ipcountry": "BR" } });
-		expect(MatchLocation({ excludeLocations: [{ country: "BR" }] }, ctx)).toBe(false);
+		expect(MatchLocation({ excludeLocations: [{ type: "location", country: "BR" }] }, ctx)).toBe(
+			false,
+		);
 	});
 
 	it("matches by city", () => {
 		const ctx = makeCtx({ headers: { "cf-ipcity": "Sao Paulo", "cf-ipcountry": "BR" } });
-		expect(MatchLocation({ includeLocations: [{ city: "Sao Paulo" }] }, ctx)).toBe(true);
+		expect(
+			MatchLocation({ includeLocations: [{ type: "location", city: "Sao Paulo" }] }, ctx),
+		).toBe(true);
 	});
 
 	it("returns true when includeLocations is empty", () => {
