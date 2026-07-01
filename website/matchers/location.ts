@@ -10,11 +10,15 @@ export interface Coordinate {
 export interface Map {
 	/**
 	 * @title Area selection
+	 * @format map
 	 * @example -7.27820,-35.97630,2000
 	 */
 	coordinates?: string;
 }
 
+/**
+ * @format location
+ */
 export interface Location {
 	/**
 	 * @title City
