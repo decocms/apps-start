@@ -13,11 +13,6 @@ import type { Product as ProductVTEX } from "../utils/types";
 
 export interface ProductListProps {
 	props?: CollectionProps | QueryProps | ProductIDProps | FacetsProps;
-	query?: string;
-	count?: number;
-	sort?: string;
-	collection?: string;
-	hideUnavailableItems?: boolean;
 }
 
 /** @title Collection ID */
