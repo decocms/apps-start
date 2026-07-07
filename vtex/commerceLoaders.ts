@@ -16,6 +16,7 @@ import vtexProductDetailsPage from "./loaders/intelligentSearch/productDetailsPa
 import vtexProductListShelf from "./loaders/intelligentSearch/productList";
 import vtexProductListingPage from "./loaders/intelligentSearch/productListingPage";
 import vtexSuggestions from "./loaders/intelligentSearch/suggestions";
+import vtexProductListLegacy from "./loaders/legacy/productList";
 import vtexRelatedProducts from "./loaders/legacy/relatedProductsLoader";
 import vtexProductList from "./loaders/productListFull";
 import vtexWorkflowProducts from "./loaders/workflow/products";
@@ -100,6 +101,11 @@ export function createVtexCommerceLoaders(
 	const cachedProductListShelf = createCachedLoader(
 		"vtex/productListShelf",
 		vtexProductListShelf,
+		profiles.listing,
+	);
+	const cachedProductListLegacy = createCachedLoader(
+		"vtex/productListLegacy",
+		vtexProductListLegacy,
 		profiles.listing,
 	);
 	const cachedPDP = createCachedLoader(
@@ -212,9 +218,9 @@ export function createVtexCommerceLoaders(
 		"vtex/loaders/intelligentSearch/productList.ts": cachedProductListShelf,
 		"vtex/loaders/intelligentSearch/productDetailsPage.ts": cachedPDP,
 		"vtex/loaders/intelligentSearch/suggestions.ts": cachedSuggestions,
-		// Legacy loaders (map to same cached functions)
+		// Legacy loaders
 		"vtex/loaders/legacy/productDetailsPage.ts": cachedPDP,
-		"vtex/loaders/legacy/productList.ts": cachedProductListShelf,
+		"vtex/loaders/legacy/productList.ts": cachedProductListLegacy,
 		"vtex/loaders/legacy/relatedProductsLoader.ts": relatedWithSlugFallback,
 		// Workflow
 		"vtex/loaders/workflow/products.ts": cachedWorkflowProducts,

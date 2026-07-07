@@ -105,6 +105,7 @@ function resolveParams(props: ProductListProps): {
 	};
 }
 
+/** @title Intelligent Search */
 export default async function vtexProductListShelf(
 	props: ProductListProps,
 ): Promise<Product[] | null> {
