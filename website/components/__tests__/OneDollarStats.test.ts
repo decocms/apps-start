@@ -125,6 +125,32 @@ describe("initOneDollarStats", () => {
 		expect(view).toHaveBeenCalledWith({ abtest_a: true });
 	});
 
+	it("exposes the active flags on window.DECO.flags", () => {
+		setStonks();
+		document.cookie = `deco_segment=${btoa(
+			encodeURIComponent(JSON.stringify({ active: ["abtest_a"], inactiveDrawn: ["abtest_b"] })),
+		)}`;
+
+		initOneDollarStats();
+
+		expect((window as Window & { DECO?: { flags?: unknown } }).DECO?.flags).toEqual({
+			abtest_a: true,
+			abtest_b: false,
+		});
+	});
+
+	it("preserves window.DECO.events when exposing flags", () => {
+		setStonks();
+		setDeco();
+		document.cookie = `deco_segment=${btoa(encodeURIComponent(JSON.stringify({ active: ["x"] })))}`;
+
+		initOneDollarStats();
+
+		const deco = (window as Window & { DECO?: { flags?: unknown; events?: unknown } }).DECO;
+		expect(deco?.flags).toEqual({ x: true });
+		expect(deco?.events).toBeDefined();
+	});
+
 	it("waits for stonks via polling when SDK loads late", () => {
 		const view = vi.fn();
 		// Stonks NOT set yet.
