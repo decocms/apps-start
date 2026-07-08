@@ -211,6 +211,14 @@ export function initOneDollarStats(): void {
 
 	const flags = readFlagsFromCookie();
 
+	// Expose the active A/B flags on window.DECO.flags so app code and GTM can
+	// read the visitor's cohort (a read-only mirror of the deco_segment cookie).
+	// Kept off window.DECO.events, which is the event bus, not state. Cast to
+	// avoid coupling to the bus's Window typing (declared by the site runtime).
+	const deco = (window as unknown as { DECO?: { flags?: Record<string, boolean> } }).DECO ?? {};
+	deco.flags = flags;
+	(window as unknown as { DECO?: unknown }).DECO = deco;
+
 	// 1) Initial pageview + SPA nav tracking, with flag enrichment.
 	whenReady(
 		() =>
