@@ -1,3 +1,14 @@
+> **This repo is no longer actively developed.** `@decocms/apps` has moved into
+> the `decocms/blocks` monorepo, split by platform: `@decocms/apps-vtex`,
+> `@decocms/apps-shopify`, `@decocms/apps-magento`, `@decocms/apps-algolia`,
+> `@decocms/apps-salesforce`, `@decocms/apps-resend`, `@decocms/apps-blog`,
+> `@decocms/apps-website`, `@decocms/apps-commerce`. New sites should depend
+> on those instead. The `@decocms/apps` package on npm keeps working for
+> existing consumers — it is not unpublished or deprecated on npm, only this
+> repo's active development has stopped. See
+> https://github.com/decocms/blocks/blob/v7/docs/apps-monorepo-migration-design.md
+> for the full rationale.
+
 # @decocms/apps
 
 [![npm version](https://img.shields.io/npm/v/@decocms/apps.svg)](https://www.npmjs.com/package/@decocms/apps)
