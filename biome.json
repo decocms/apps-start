@@ -45,5 +45,33 @@
 			"website/**",
 			"vitest.config.ts"
 		]
-	}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"vtex/**",
+				"magento/**",
+				"resend/**",
+				"shopify/**",
+				"website/**",
+				"!vtex/hooks/**",
+				"!**/*.test.ts",
+				"!**/__tests__/**"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedGlobals": {
+							"level": "error",
+							"options": {
+								"deniedGlobals": {
+									"fetch": "Bare fetch() skips the request timeout. Use this package's timeout-wrapped client (e.g. fetchSafe/vtexFetch/magentoFetch/withFetchTimeout from commerce/utils/fetchTimeout) instead."
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	]
 }

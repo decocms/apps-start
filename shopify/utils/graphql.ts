@@ -1,5 +1,5 @@
 import type { InstrumentedFetchInit } from "@decocms/start/sdk/instrumentedFetch";
-import { withFetchTimeout } from "../../commerce/utils/fetchTimeout";
+import { type FetchFn, withFetchTimeout } from "../../commerce/utils/fetchTimeout";
 import { extractGraphqlOperationName } from "./graphqlOperationName";
 
 export function gql(strings: TemplateStringsArray, ...values: unknown[]): string {
@@ -23,7 +23,7 @@ export interface GraphQLClient {
 export function createGraphqlClient(
 	endpoint: string,
 	headers: Record<string, string>,
-	fetchFn?: typeof fetch,
+	fetchFn?: FetchFn,
 ): GraphQLClient {
 	const _fetch = fetchFn ?? withFetchTimeout();
 	return {

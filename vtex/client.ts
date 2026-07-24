@@ -8,7 +8,7 @@ import type {
 	InstrumentedFetchInit,
 } from "@decocms/start/sdk/instrumentedFetch";
 import { RequestContext } from "@decocms/start/sdk/requestContext";
-import { withFetchTimeout } from "../commerce/utils/fetchTimeout";
+import { type FetchFn, withFetchTimeout } from "../commerce/utils/fetchTimeout";
 import { sanitizeOutboundCookieHeader, warnDroppedCookies } from "./utils/cookieSanitizer";
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
 import { ANONYMOUS_COOKIE, SESSION_COOKIE } from "./utils/intelligentSearch";
@@ -148,7 +148,7 @@ export interface VtexConfig {
 }
 
 let _config: VtexConfig | null = null;
-let _fetch: typeof fetch | InstrumentedFetch = withFetchTimeout();
+let _fetch: FetchFn | InstrumentedFetch = withFetchTimeout();
 
 export function configureVtex(config: VtexConfig) {
 	_config = config;
@@ -170,7 +170,7 @@ export function configureVtex(config: VtexConfig) {
  * uninstrumented (useful for tests + sites that haven't onboarded
  * the observability stack yet).
  */
-export function setVtexFetch(fetchFn: typeof fetch | InstrumentedFetch) {
+export function setVtexFetch(fetchFn: FetchFn | InstrumentedFetch) {
 	_fetch = fetchFn;
 }
 
