@@ -8,6 +8,7 @@ import type {
 	InstrumentedFetchInit,
 } from "@decocms/start/sdk/instrumentedFetch";
 import { RequestContext } from "@decocms/start/sdk/requestContext";
+import { withFetchTimeout } from "../commerce/utils/fetchTimeout";
 import { sanitizeOutboundCookieHeader, warnDroppedCookies } from "./utils/cookieSanitizer";
 import { type FetchCacheOptions, fetchWithCache } from "./utils/fetchCache";
 import { ANONYMOUS_COOKIE, SESSION_COOKIE } from "./utils/intelligentSearch";
@@ -147,7 +148,7 @@ export interface VtexConfig {
 }
 
 let _config: VtexConfig | null = null;
-let _fetch: typeof fetch | InstrumentedFetch = globalThis.fetch;
+let _fetch: typeof fetch | InstrumentedFetch = withFetchTimeout();
 
 export function configureVtex(config: VtexConfig) {
 	_config = config;
