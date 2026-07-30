@@ -373,11 +373,25 @@ export function createVtexCheckoutProxy(
 		const isCheckoutUI =
 			url.pathname.startsWith("/checkout") || url.pathname.startsWith("/account");
 		const isLogout = url.pathname.startsWith("/api/vtexid/pub/logout");
+		// Endpoints that respond 302 with Set-Cookie meant for the browser
+		// (cart-share restore, post-login redirects). With redirect:"follow"
+		// the fetch consumes the 302 and the intermediate Set-Cookie never
+		// reaches the user — e.g. /api/io/_v/share/<id> would land on
+		// /checkout?step=payment with an empty orderForm. Use manual redirect
+		// so the 302 + cookies are forwarded to the browser, which then
+		// follows the Location with the cookie applied.
+		const isRedirectingEndpoint =
+			url.pathname.startsWith("/api/io/_v/share/") ||
+			url.pathname === "/api/vtexid/pub/authentication/redirect" ||
+			url.pathname === "/api/vtexid/pub/authentication/finish" ||
+			url.pathname.startsWith("/api/vtexid/oauth/redirect");
 
 		const init: RequestInit = {
 			method: request.method,
 			headers: fwd,
-			redirect: isCheckoutUI || isLogout ? "manual" : "follow",
+			redirect: isCheckoutUI || isLogout || isRedirectingEndpoint
+				? "manual"
+				: "follow",
 		};
 		if (request.method !== "GET" && request.method !== "HEAD") {
 			init.body = request.body;
