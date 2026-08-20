@@ -85,7 +85,8 @@
     "./blog": "./blog/index.ts",
     "./blog/mod": "./blog/mod.ts",
     "./blog/types": "./blog/types.ts",
-    "./blog/commerceLoaders": "./blog/commerceLoaders.ts",
+    "./blog/loaderMap": "./blog/loaderMap.ts",
+    "./blog/commerceLoaders": "./blog/loaderMap.ts",
     "./blog/loaders/*": "./blog/loaders/*.ts",
     "./blog/core/*": "./blog/core/*.ts"
   },
