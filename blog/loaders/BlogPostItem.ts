@@ -1,5 +1,5 @@
 import { getRecordsByPath } from "../core/records";
-import type { BlogPost } from "../types";
+import { type BlogPost, isPublishedStatus } from "../types";
 
 export interface Props {
 	slug: string;
@@ -15,5 +15,14 @@ export default function BlogPostItem(props: Props & { __pageUrl?: string }): Blo
 	if (!slug) return null;
 
 	const posts = getRecordsByPath<BlogPost>("collections/blog/posts", "post");
-	return posts.find((p) => p?.slug === slug) ?? null;
+	const post = posts.find((p) => p?.slug === slug);
+
+	if (!post) return null;
+
+	// An unpublished post is still served — that page *is* the CMS preview — it
+	// just must never be indexed. Everything else the post declared under `seo`
+	// is kept as-is.
+	return isPublishedStatus(post.status)
+		? post
+		: { ...post, seo: { ...post.seo, noIndexing: true } };
 }

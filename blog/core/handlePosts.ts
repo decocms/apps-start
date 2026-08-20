@@ -1,6 +1,26 @@
-import type { BlogPost, SortBy } from "../types";
+import { type BlogPost, isPublishedStatus, type SortBy } from "../types";
 
 const VALID_SORT_ORDERS = ["asc", "desc"];
+
+/** An ISO 8601 date or date-time carrying no timezone designator. */
+const ISO_WITHOUT_TIMEZONE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?)?$/;
+
+/**
+ * `BlogPost.date` may be a bare `YYYY-MM-DD` or a full ISO 8601 timestamp.
+ *
+ * Anything without a timezone designator is pinned to UTC, so ordering never
+ * depends on the machine timezone. That matters for both shapes: per spec a
+ * bare date is already UTC, but an offset-less datetime is parsed as *local*
+ * time, which would otherwise reorder posts near a day boundary from one
+ * server to the next.
+ *
+ * Unparseable values fall back to 0 instead of leaking NaN into the comparator
+ * (a NaN result is treated as 0, so the post would never move).
+ */
+const dateToTime = (date: string) =>
+	new Date(
+		ISO_WITHOUT_TIMEZONE.test(date) ? `${date.includes("T") ? date : `${date}T00:00:00`}Z` : date,
+	).getTime() || 0;
 
 /**
  * Sort posts by the given criteria.
@@ -18,7 +38,7 @@ export const sortPosts = (blogPosts: BlogPost[], sortBy: SortBy): BlogPost[] => 
 
 		const comparison =
 			sortMethod === "date"
-				? new Date(`${b.date}T00:00:00`).getTime() - new Date(`${a.date}T00:00:00`).getTime()
+				? dateToTime(b.date) - dateToTime(a.date)
 				: (a[sortMethod]?.toString().localeCompare(b[sortMethod]?.toString() ?? "") ?? 0);
 
 		return sortOrder === "desc" ? comparison : -comparison;
@@ -43,6 +63,21 @@ export const filterPostsByTerm = (posts: BlogPost[], term: string): BlogPost[] =
 export const filterRelatedPosts = (posts: BlogPost[], slugs: string[]): BlogPost[] =>
 	posts.filter(({ categories }) => categories?.find((c) => slugs.includes(c.slug)));
 
+/**
+ * A record without a slug has no route, so it can never be rendered: listing it
+ * only produces cards linking to the listing itself. Unpublished posts are
+ * unreachable for a different reason — the CMS doesn't consider them ready —
+ * but the outcome is the same, so both are dropped here, before slicePosts, so
+ * `count` still yields `count` renderable posts.
+ */
+export const filterRoutablePosts = (posts: BlogPost[]): BlogPost[] =>
+	// Records come straight from the CMS, so `slug` is only a string by
+	// convention: the typeof guard keeps a malformed one from throwing here and
+	// taking the whole listing down with it.
+	posts.filter(
+		(post) => typeof post.slug === "string" && post.slug.trim() && isPublishedStatus(post.status),
+	);
+
 /** Slice posts for pagination. */
 export const slicePosts = (
 	posts: BlogPost[],
@@ -64,18 +99,19 @@ export default function handlePosts(
 	term?: string,
 	excludePostSlug?: string,
 ): BlogPost[] | null {
+	const routable = filterRoutablePosts(posts);
 	let filtered: BlogPost[];
 
 	if (typeof slug === "string") {
 		filtered =
 			postSlugs && postSlugs.length > 0
-				? filterPostsBySlugs(posts, postSlugs)
-				: filterPostsByCategory(posts, slug);
+				? filterPostsBySlugs(routable, postSlugs)
+				: filterPostsByCategory(routable, slug);
 		if (term) filtered = filterPostsByTerm(filtered, term);
 	} else if (Array.isArray(slug)) {
-		filtered = filterRelatedPosts(posts, slug);
+		filtered = filterRelatedPosts(routable, slug);
 	} else {
-		filtered = term ? filterPostsByTerm(posts, term) : posts;
+		filtered = term ? filterPostsByTerm(routable, term) : routable;
 	}
 
 	if (excludePostSlug) {

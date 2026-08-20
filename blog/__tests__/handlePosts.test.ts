@@ -4,6 +4,7 @@ import handlePosts, {
 	filterPostsBySlugs,
 	filterPostsByTerm,
 	filterRelatedPosts,
+	filterRoutablePosts,
 	slicePosts,
 	sortPosts,
 } from "../core/handlePosts";
@@ -281,5 +282,108 @@ describe("handlePosts", () => {
 		const result = handlePosts(posts, "date_desc");
 		expect(result).toHaveLength(3);
 		expect(result![0].slug).toBe("c");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// filterRoutablePosts
+// ---------------------------------------------------------------------------
+describe("filterRoutablePosts", () => {
+	it("drops posts with no usable slug", () => {
+		const posts = [
+			makePost({ slug: "ok" }),
+			makePost({ slug: "" }),
+			makePost({ slug: "   " }),
+			makePost({ slug: undefined as unknown as string }),
+			makePost({ slug: 42 as unknown as string }),
+		];
+
+		expect(filterRoutablePosts(posts).map((p) => p.slug)).toEqual(["ok"]);
+	});
+
+	it("keeps posts with no status (legacy records) and explicitly published ones", () => {
+		const posts = [makePost({ slug: "legacy" }), makePost({ slug: "live", status: "published" })];
+
+		expect(filterRoutablePosts(posts).map((p) => p.slug)).toEqual(["legacy", "live"]);
+	});
+
+	it("drops every status other than published", () => {
+		const posts = (["draft", "archived", "generating", "awaiting_review"] as const).map((status) =>
+			makePost({ slug: status, status }),
+		);
+
+		expect(filterRoutablePosts(posts)).toEqual([]);
+	});
+
+	it("drops an unrecognized status", () => {
+		const posts = [makePost({ slug: "weird", status: "whatever" as never })];
+
+		expect(filterRoutablePosts(posts)).toEqual([]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// date sorting across ISO shapes
+// ---------------------------------------------------------------------------
+describe("sortPosts date parsing", () => {
+	it("compares full ISO timestamps, not just the day", () => {
+		const posts = [
+			makePost({ slug: "morning", date: "2024-01-01T08:00:00Z" }),
+			makePost({ slug: "evening", date: "2024-01-01T20:00:00Z" }),
+		];
+
+		expect(sortPosts(posts, "date_desc").map((p) => p.slug)).toEqual(["evening", "morning"]);
+		expect(sortPosts(posts, "date_asc").map((p) => p.slug)).toEqual(["morning", "evening"]);
+	});
+
+	it("pins offset-less datetimes to UTC so ordering is timezone independent", () => {
+		const posts = [
+			makePost({ slug: "late", date: "2024-01-01T23:30:00" }),
+			makePost({ slug: "early", date: "2024-01-02T00:30:00" }),
+		];
+
+		expect(sortPosts(posts, "date_desc").map((p) => p.slug)).toEqual(["early", "late"]);
+	});
+
+	it("mixes bare dates and timestamps on the same axis", () => {
+		const posts = [
+			makePost({ slug: "bare", date: "2024-01-02" }),
+			makePost({ slug: "stamped", date: "2024-01-02T10:00:00Z" }),
+		];
+
+		expect(sortPosts(posts, "date_desc").map((p) => p.slug)).toEqual(["stamped", "bare"]);
+	});
+
+	it("treats an unparseable date as epoch instead of leaking NaN", () => {
+		const posts = [
+			makePost({ slug: "good", date: "2024-01-01" }),
+			makePost({ slug: "garbage", date: "not-a-date" }),
+		];
+
+		expect(sortPosts(posts, "date_desc").map((p) => p.slug)).toEqual(["good", "garbage"]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// handlePosts drops unroutable posts before anything else
+// ---------------------------------------------------------------------------
+describe("handlePosts routability", () => {
+	it("excludes drafts and slugless posts from every filter path", () => {
+		const posts = [
+			makePost({ slug: "live", date: "2024-03-01" }),
+			makePost({ slug: "draft", status: "draft", date: "2024-04-01" }),
+			makePost({ slug: "", date: "2024-05-01" }),
+		];
+
+		expect(handlePosts(posts, "date_desc")?.map((p) => p.slug)).toEqual(["live"]);
+		expect(handlePosts(posts, "date_desc", "news")?.map((p) => p.slug)).toEqual(["live"]);
+		expect(handlePosts(posts, "date_desc", ["news"])?.map((p) => p.slug)).toEqual(["live"]);
+		expect(
+			handlePosts(posts, "date_desc", undefined, undefined, "content")?.map((p) => p.slug),
+		).toEqual(["live"]);
+	});
+
+	it("returns null when nothing is routable", () => {
+		expect(handlePosts([makePost({ slug: "d", status: "draft" })], "date_desc")).toBeNull();
 	});
 });
