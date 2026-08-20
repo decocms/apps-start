@@ -35,14 +35,27 @@ export default function GetCategories({
 
 	if (!categories?.length) return null;
 
+	// Records come straight from the CMS, so `name`/`slug` are only strings by
+	// convention. A category missing either cannot be linked or labelled, and a
+	// non-string `name` would throw in the localeCompare below.
+	const validCategories = categories.filter(isValidCategory);
+
 	if (slug) {
-		return categories.filter((c) => c.slug === slug);
+		return validCategories.filter((c) => c.slug === slug);
 	}
 
-	const sortedCategories = categories.sort((a, b) => {
+	if (!validCategories.length) return null;
+
+	const sortedCategories = validCategories.sort((a, b) => {
 		const comparison = a.name.localeCompare(b.name);
 		return sortBy.endsWith("_desc") ? comparison : -comparison;
 	});
 
 	return count ? sortedCategories.slice(0, count) : sortedCategories;
 }
+
+export const isValidCategory = (c?: Category): c is Category =>
+	typeof c?.name === "string" &&
+	c.name.length > 0 &&
+	typeof c?.slug === "string" &&
+	c.slug.length > 0;

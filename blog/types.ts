@@ -7,6 +7,12 @@ import type { ImageWidget } from "../website/types";
 export interface Author {
 	name: string;
 	email: string;
+	/**
+	 * @title Type
+	 * @description Whether the author is a person or an organization. Emitted as the author @type in the JSON-LD. Defaults to Person.
+	 * @default Person
+	 */
+	type?: "Person" | "Organization";
 	avatar?: ImageWidget;
 	jobTitle?: string;
 	company?: string;
@@ -15,6 +21,13 @@ export interface Author {
 export interface Category {
 	name: string;
 	slug: string;
+	description?: string;
+	/**
+	 * @title Sections
+	 * @label hidden
+	 * @changeable true
+	 */
+	sections?: unknown[];
 }
 
 export interface BlogPost {
@@ -42,7 +55,18 @@ export interface BlogPost {
 	 * @format date
 	 */
 	date: string;
+	/**
+	 * @title Modified date
+	 * @format date
+	 * @description Date of the last relevant content update. Emitted as dateModified in the JSON-LD.
+	 */
+	dateModified?: string;
 	slug: string;
+	/**
+	 * @title Status
+	 * @description Publication status. Anything other than `published` is kept out of listings and never indexed. Posts with no status are treated as published.
+	 */
+	status?: PostStatus;
 	/**
 	 * @title Post Content
 	 * @format rich-text
@@ -69,6 +93,31 @@ export interface BlogPost {
 	id?: string;
 }
 
+/**
+ * Publication status of a post. `published` (or an absent value, for legacy
+ * posts) renders on the live site; every other value keeps the post out of
+ * listings and out of the index.
+ *
+ * `generating` and `awaiting_review` are written by the autonomous-blog agent
+ * while a post is still being produced, which is why the check below is an
+ * allowlist: a status this app does not recognize is a post the CMS does not
+ * consider ready, so it must not leak into a listing.
+ */
+export type PostStatus = "draft" | "published" | "archived" | "generating" | "awaiting_review";
+
+/**
+ * A post is live when it has no status at all or is explicitly `published`.
+ *
+ * The absent case is load-bearing: `status` was added long after the first
+ * posts were written, so every existing record is missing it. Requiring an
+ * explicit `published` would empty every blog in production the moment a site
+ * bumps this app.
+ *
+ * Takes a plain `string` so it can also be applied to a raw CMS record, where
+ * the value is only a `PostStatus` by convention.
+ */
+export const isPublishedStatus = (status?: string): boolean => !status || status === "published";
+
 export interface ExtraProps {
 	key: string;
 	value: string;
@@ -80,6 +129,14 @@ export interface Seo {
 	image?: ImageWidget;
 	canonical?: string;
 	noIndexing?: boolean;
+}
+
+/** @titleBy name */
+export interface Publisher {
+	name: string;
+	/** @title Logo */
+	logo?: ImageWidget;
+	url?: string;
 }
 
 export interface BlogPostPage {
@@ -100,6 +157,10 @@ export interface PageInfo {
 
 export interface BlogPostListingPage {
 	posts: BlogPost[];
+	/** @title Active category */
+	category?: Category | null;
+	/** @title Categories */
+	categories?: Category[] | null;
 	pageInfo: PageInfo;
 	seo: Seo;
 }

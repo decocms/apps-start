@@ -1,5 +1,5 @@
 import { getRecordsByPath } from "../core/records";
-import type { BlogPost, BlogPostPage } from "../types";
+import { type BlogPost, type BlogPostPage, isPublishedStatus } from "../types";
 
 const COLLECTION_PATH = "collections/blog/posts";
 const ACCESSOR = "post";
@@ -33,7 +33,9 @@ export default function BlogPostPageLoader(
 			description: post?.seo?.description || post?.excerpt,
 			canonical: post?.seo?.canonical || url.href,
 			image: post?.seo?.image || post?.image,
-			noIndexing: post?.seo?.noIndexing || false,
+			// An unpublished post still renders — that page *is* the CMS preview —
+			// it just must never be indexed, even if the URL leaks.
+			noIndexing: post?.seo?.noIndexing || !isPublishedStatus(post.status),
 		},
 	};
 }

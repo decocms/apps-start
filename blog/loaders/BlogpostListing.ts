@@ -1,9 +1,12 @@
 import handlePosts, { slicePosts } from "../core/handlePosts";
 import { getRecordsByPath } from "../core/records";
-import type { BlogPost, BlogPostListingPage, PageInfo, SortBy } from "../types";
+import type { BlogPost, BlogPostListingPage, Category, PageInfo, SortBy } from "../types";
+import { isValidCategory } from "./GetCategories";
 
 const COLLECTION_PATH = "collections/blog/posts";
 const ACCESSOR = "post";
+const CATEGORIES_PATH = "collections/blog/categories";
+const CATEGORY_ACCESSOR = "category";
 
 export interface Props {
 	/**
@@ -59,13 +62,35 @@ export default function BlogPostList(
 		const slicedPosts = slicePosts(handledPosts, pageNumber, postsPerPage);
 		if (slicedPosts.length === 0) return null;
 
-		const category = slicedPosts[0].categories?.find((c) => c.slug === slug);
+		// Categories are useful to every listing (menus, filter chips), not only
+		// the filtered ones, so they are always returned. A failure to read them
+		// must not take the whole listing down with it.
+		let categories: Category[] | null = null;
+		try {
+			categories = loadCategories();
+		} catch (e) {
+			console.error("[BlogpostListing] categories", e);
+		}
+
+		// The active category comes from the collection, so the listing gets the
+		// full record (description, sections). The inline copy carried on a post is
+		// only a fallback for a slug with no matching collection entry.
+		let category: Category | null = null;
+		if (slug) {
+			category =
+				categories?.find((c) => c.slug === slug) ??
+				slicedPosts[0]?.categories?.find((c) => c.slug === slug) ??
+				null;
+		}
 
 		return {
 			posts: slicedPosts,
+			category,
+			categories,
 			pageInfo: toPageInfo(handledPosts, postsPerPage, pageNumber, params),
 			seo: {
 				title: category?.name ?? "",
+				description: category?.description,
 				canonical: new URL(url.pathname, url.origin).href,
 			},
 		};
@@ -98,4 +123,10 @@ function toPageInfo(
 		records: totalPosts,
 		recordPerPage: postsPerPage,
 	};
+}
+
+function loadCategories(): Category[] {
+	const categories = getRecordsByPath<Category>(CATEGORIES_PATH, CATEGORY_ACCESSOR);
+
+	return (categories ?? []).filter(isValidCategory).sort((a, b) => a.name.localeCompare(b.name));
 }

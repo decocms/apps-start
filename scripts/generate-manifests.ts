@@ -22,6 +22,7 @@ const APPS: AppConfig[] = [
 	{ name: "shopify", dir: "shopify" },
 	{ name: "resend", dir: "resend" },
 	{ name: "website", dir: "website" },
+	{ name: "blog", dir: "blog" },
 ];
 
 const CATEGORIES = ["loaders", "actions", "sections"] as const;

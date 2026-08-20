@@ -9,6 +9,7 @@ import AuthorLoader from "./loaders/Author";
 import BlogPostItemLoader from "./loaders/BlogPostItem";
 import BlogPostPageLoader from "./loaders/BlogPostPage";
 import BlogpostLoader from "./loaders/Blogpost";
+import BlogpostListLoader from "./loaders/BlogpostList";
 import BlogpostListingLoader from "./loaders/BlogpostListing";
 import BlogRelatedPostsLoader from "./loaders/BlogRelatedPosts";
 import CategoryLoader from "./loaders/Category";
@@ -51,7 +52,8 @@ export function createBlogLoaders(): Record<string, LoaderFn> {
 		// BlogPostItem: looks up a single post by slug, returns BlogPost
 		"blog/loaders/BlogPostItem.ts": BlogPostItemLoader,
 		"blog/loaders/BlogPostItem": BlogPostItemLoader,
-		"blog/loaders/BlogpostList.ts": BlogpostListingLoader,
-		"blog/loaders/BlogpostList": BlogpostListingLoader,
+		// BlogpostList: flat BlogPost[] — a different shape from BlogpostListing
+		"blog/loaders/BlogpostList.ts": BlogpostListLoader,
+		"blog/loaders/BlogpostList": BlogpostListLoader,
 	};
 }

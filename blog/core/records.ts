@@ -18,10 +18,15 @@ export function getRecordsByPath<T>(path: string, accessor: string): T[] {
 			continue;
 		}
 
+		// `name` is what the id is derived from, so a block missing it (or carrying
+		// a malformed one) is a record with no stable identity — drop it rather
+		// than emit one with `id: undefined`.
+		if (typeof value.name !== "string") continue;
+
 		const record = value[accessor] as T | undefined;
 		if (!record) continue;
 
-		const id = (value.name as string | undefined)?.split(path)[1]?.replace("/", "");
+		const id = value.name.split(path)[1]?.replace("/", "");
 
 		results.push({ ...record, id } as T);
 	}
